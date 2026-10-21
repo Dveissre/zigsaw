@@ -367,6 +367,30 @@ try {
   );
 
   await page.setViewportSize({ width: 390, height: 844 });
+  const mobileReview = await page.locator(".review-card").evaluateAll((cards) => {
+    const sample = cards.slice(0, 5).map((card) => {
+      const answer = card.querySelector(".review-answer");
+      return {
+        top: card.offsetTop,
+        width: card.offsetWidth,
+        height: card.offsetHeight,
+        answerWidth: answer?.getBoundingClientRect().width ?? 0,
+        answerAlign: answer ? getComputedStyle(answer).textAlign : "",
+      };
+    });
+    return sample;
+  });
+  assert.equal(new Set(mobileReview.slice(0, 4).map((card) => card.top)).size, 1);
+  assert.ok(mobileReview[4].top > mobileReview[0].top);
+  assert.ok(
+    mobileReview.every((card) => Math.abs(card.width - card.height) <= 1),
+  );
+  assert.ok(
+    mobileReview.every(
+      (card) =>
+        card.answerAlign === "center" && card.answerWidth >= card.width * 0.7,
+    ),
+  );
   assert.equal(
     await page.evaluate(
       () => document.documentElement.scrollWidth,

@@ -1121,6 +1121,7 @@ input:focus-visible {
   display: grid;
   grid-template-columns: repeat(5, minmax(0, 1fr));
   align-content: start;
+  align-items: start;
   gap: 10px;
   min-height: 0;
   flex: 1 1 auto;
@@ -1233,6 +1234,7 @@ input:focus-visible {
   font-weight: 700;
   line-height: 1;
   text-align: center;
+  width: 100%;
 }
 
 .review-meta {
@@ -1503,12 +1505,52 @@ input:focus-visible {
   }
 
   .review-list {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-    gap: 8px;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: 6px;
   }
 
   .review-card {
-    padding: 9px;
+    padding: 5px 4px 4px;
+    box-shadow: 2px 2px 0 var(--hard-shadow);
+  }
+
+  .review-index {
+    top: 2px;
+    left: 4px;
+    font-size: 28px;
+  }
+
+  .review-result {
+    top: 5px;
+    right: 5px;
+    width: 7px;
+    height: 7px;
+  }
+
+  .review-answer {
+    margin-top: 8px;
+    font-size: clamp(28px, 9vw, 38px);
+  }
+
+  .review-meta {
+    margin-top: 2px;
+    font-size: 8px;
+  }
+
+  .review-parts {
+    gap: 2px;
+    padding-top: 4px;
+    font-size: 9px;
+    line-height: 1.2;
+  }
+
+  .review-parts.is-many {
+    gap: 1px;
+    font-size: 8px;
+  }
+
+  .review-parts.is-many.is-wide {
+    font-size: 7px;
   }
 }
 
