@@ -34,6 +34,13 @@ try {
   const page = await browser.newPage({ viewport: { width: 900, height: 800 } });
   const errors = [];
   page.on("pageerror", (error) => errors.push(error.message));
+  const readDisplayedParts = () =>
+    page.locator(".part").evaluateAll((parts) =>
+      parts.map((part) => {
+        const text = part.textContent?.trim();
+        return text || part.querySelector("[role='img']")?.getAttribute("aria-label") || "";
+      }),
+    );
 
   await page.goto(targetUrl, { waitUntil: "networkidle" });
   await page.locator(".start-button:not([disabled])").waitFor();
@@ -84,7 +91,7 @@ try {
   const shownPartOrders = [];
 
   for (let question = 1; question <= 3; question += 1) {
-    const displayedParts = await page.locator(".part").allTextContents();
+    const displayedParts = await readDisplayedParts();
     shownPartOrders.push(displayedParts);
     const parts = [...displayedParts].sort();
     const answers = questionsByParts.get(parts.join("\u0001"));
@@ -239,7 +246,7 @@ try {
   assert.ok(firstCardBox);
   assert.ok(Math.abs(firstCardBox.width - firstCardBox.height) <= 1);
 
-  const challengeDisplayedParts = await page.locator(".part").allTextContents();
+  const challengeDisplayedParts = await readDisplayedParts();
   const challengeParts = [...challengeDisplayedParts].sort();
   const challengeAnswers = questionsByParts.get(challengeParts.join("\u0001"));
   assert.ok(challengeAnswers?.length);
@@ -299,7 +306,7 @@ try {
   await page.getByRole("button", { name: "无尽", exact: true }).click();
   await page.getByRole("button", { name: "开始", exact: true }).click();
   await page.locator(".play-screen").waitFor();
-  const endlessDisplayedParts = await page.locator(".part").allTextContents();
+  const endlessDisplayedParts = await readDisplayedParts();
   const endlessParts = [...endlessDisplayedParts].sort();
   const endlessAnswers = questionsByParts.get(endlessParts.join("\u0001"));
   assert.ok(endlessAnswers?.length);
@@ -328,7 +335,7 @@ try {
   await page.locator(".play-screen").waitFor();
 
   for (let question = 1; question <= 10; question += 1) {
-    const parts = (await page.locator(".part").allTextContents()).sort();
+    const parts = (await readDisplayedParts()).sort();
     const answers = questionsByParts.get(parts.join("\u0001"));
     assert.ok(answers?.length);
     await page.getByRole("textbox", { name: "答案" }).fill(answers[0]);
@@ -390,6 +397,31 @@ try {
       (card) =>
         card.answerAlign === "center" && card.answerWidth >= card.width * 0.7,
     ),
+  );
+  const denseMobile = await page.evaluate(() => {
+    const list = document.querySelector(".review-list");
+    const originals = [...list.children];
+    let index = originals.length;
+    while (list.children.length < 106) {
+      const card = originals[index % originals.length].cloneNode(true);
+      card.style.setProperty("--review-index", String(index));
+      list.appendChild(card);
+      index += 1;
+    }
+    return [...list.querySelectorAll(".review-card")]
+      .slice(0, 12)
+      .map((card) => {
+        return {
+          top: card.offsetTop,
+          width: card.offsetWidth,
+          height: card.offsetHeight,
+        };
+      });
+  });
+  assert.equal(new Set(denseMobile.slice(0, 4).map((card) => card.top)).size, 1);
+  assert.ok(denseMobile[4].top > denseMobile[0].top);
+  assert.ok(
+    denseMobile.every((card) => Math.abs(card.width - card.height) <= 1),
   );
   assert.equal(
     await page.evaluate(

@@ -9,14 +9,17 @@ import { recordKey, type RecordStore } from "./records";
 export interface Question {
   char: string;
   way: number[];
+  symbolIds: number[];
   parts: string[];
   displayParts: string[];
+  displaySymbolIds: number[];
   accepted: string[];
 }
 
 export interface HistoryItem {
   parts: string[];
   displayParts: string[];
+  displaySymbolIds: number[];
   answer: string;
   given: string;
   ok: boolean;
@@ -87,10 +90,10 @@ const pickWeighted = <T>(
   return items[items.length - 1];
 };
 
-export function shuffleQuestionParts(
-  parts: string[],
+export function shuffleQuestionParts<T>(
+  parts: T[],
   random: () => number,
-): string[] {
+): T[] {
   const result = shuffle(parts, random);
   if (
     result.length > 1 &&
@@ -360,11 +363,14 @@ export class GameSession {
 
   private toQuestion(char: string, way: number[]): Question {
     const parts = this.data.names(way);
+    const displaySymbolIds = shuffleQuestionParts([...way], this.random);
     return {
       char,
       way,
+      symbolIds: [...way],
       parts,
-      displayParts: shuffleQuestionParts(parts, this.random),
+      displayParts: this.data.names(displaySymbolIds),
+      displaySymbolIds,
       accepted: [...this.data.accepted(way)],
     };
   }
@@ -533,6 +539,7 @@ export class GameSession {
     this.state.history.push({
       parts: this.state.current.parts,
       displayParts: [...this.state.current.displayParts],
+      displaySymbolIds: [...this.state.current.displaySymbolIds],
       answer: this.state.current.char,
       given,
       ok,

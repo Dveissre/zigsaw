@@ -1,6 +1,7 @@
 import "./styles.css";
 import {
   loadGameData,
+  type ComponentDefinition,
   type GameData,
   type GameSettings,
   type Level,
@@ -46,6 +47,26 @@ function escapeHtml(value: string): string {
     .replaceAll(">", "&gt;")
     .replaceAll('"', "&quot;")
     .replaceAll("'", "&#039;");
+}
+
+function renderComponent(component: ComponentDefinition): {
+  html: string;
+  long: boolean;
+  hasAsset: boolean;
+} {
+  const label = escapeHtml(component.name);
+  if (component.assetUrl) {
+    return {
+      html: `<span class="component-symbol" role="img" aria-label="${label}" style="--component-mask:url(&quot;${escapeHtml(component.assetUrl)}&quot;)"></span>`,
+      long: false,
+      hasAsset: true,
+    };
+  }
+  return {
+    html: label,
+    long: [...component.name].length > 1,
+    hasAsset: false,
+  };
 }
 
 function shell(
@@ -497,10 +518,9 @@ function renderGame(game: GameSession): void {
     state.feedback === "correct" &&
     state.revealing &&
     state.index % state.settings.stageQuestions === 0;
-  const partNames = state.current.displayParts.map((name) => ({
-    text: escapeHtml(name),
-    long: [...name].length > 1,
-  }));
+  const partNames = state.current.displaySymbolIds.map((symbolId) =>
+    renderComponent(data!.component(symbolId)),
+  );
   const partCount = partNames.length;
   const densityClass =
     partCount >= 12 ? "is-dense" : partCount >= 8 ? "is-compact" : "";
@@ -511,7 +531,7 @@ function renderGame(game: GameSession): void {
         `<div class="part-row">${row
           .map(
             (part) =>
-              `<span class="part-card" style="--card-index:${cardIndex++}"><span class="part ${part.long ? "is-long" : ""}">${part.text}</span></span>`,
+              `<span class="part-card" style="--card-index:${cardIndex++}"><span class="part ${part.long ? "is-long" : ""}">${part.html}</span></span>`,
           )
           .join("")}</div>`,
     )
@@ -660,8 +680,11 @@ function renderResults(game: GameSession): void {
           <span class="review-result ${item.ok ? "is-correct" : "is-wrong"}" aria-label="${item.ok ? "正确" : "错误"}"></span>
           <div class="review-answer">${escapeHtml(item.answer)}</div>
           <div class="review-meta">${escapeHtml(item.meta.replace(/[（）]/g, ""))}</div>
-          <div class="review-parts ${item.displayParts.length >= 5 ? "is-many" : ""} ${item.displayParts.some((part) => [...part].length > 1) ? "is-wide" : ""}" aria-label="部件顺序">
-            ${item.displayParts.map((part) => `<span class="review-part">${escapeHtml(part)}</span>`).join("")}
+          <div class="review-parts ${item.displayParts.length >= 5 ? "is-many" : ""} ${item.displaySymbolIds.some((symbolId) => {
+            const component = data!.component(symbolId);
+            return !component.assetUrl && [...component.name].length > 1;
+          }) ? "is-wide" : ""}" aria-label="部件顺序">
+            ${item.displaySymbolIds.map((symbolId) => `<span class="review-part">${renderComponent(data!.component(symbolId)).html}</span>`).join("")}
           </div>
         </li>
       `,

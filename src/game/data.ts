@@ -19,9 +19,25 @@ export interface ChallengeBounds {
   end: number;
 }
 
+export interface ComponentDefinition {
+  symbolId: number;
+  name: string;
+  assetUrl?: string;
+}
+
 type SymTable = {
   symbols: Record<string, string>;
   chars: Record<string, number[][]>;
+};
+
+type ComponentAssetTable = {
+  symbols: Record<
+    string,
+    {
+      name?: string;
+      source: string;
+    }
+  >;
 };
 
 type LevelTable = {
@@ -49,15 +65,27 @@ export class GameData {
   readonly challengeOrder: string[];
   readonly challengeRank: Map<string, number>;
   private readonly symbols: Map<number, string>;
+  private readonly componentAssets: Map<number, string>;
   private readonly byBag: Map<string, Set<string>>;
   private readonly candidateCache = new Map<string, string[]>();
 
-  constructor(symData: SymTable, levelData: LevelTable) {
+  constructor(
+    symData: SymTable,
+    levelData: LevelTable,
+    assetData: ComponentAssetTable | null = null,
+    baseUrl = "",
+  ) {
     this.symbols = new Map(
       Object.entries(symData.symbols).map(([id, name]) => [Number(id), name]),
     );
     this.ways = new Map(
       Object.entries(symData.chars).map(([char, ways]) => [char, ways]),
+    );
+    this.componentAssets = new Map(
+      Object.entries(assetData?.symbols ?? {}).map(([symbolId, asset]) => [
+        Number(symbolId),
+        new URL(asset.source, baseUrl).href,
+      ]),
     );
 
     const levelOf = new Map<string, Level>();
@@ -114,6 +142,14 @@ export class GameData {
     return way.map((symbolId) => this.symbols.get(symbolId) ?? "?");
   }
 
+  component(symbolId: number): ComponentDefinition {
+    return {
+      symbolId,
+      name: this.symbols.get(symbolId) ?? "?",
+      assetUrl: this.componentAssets.get(symbolId),
+    };
+  }
+
   accepted(way: number[]): Set<string> {
     return this.byBag.get(bagKey(way)) ?? new Set();
   }
@@ -145,10 +181,14 @@ async function fetchJson<T>(relativePath: string, baseUrl: string): Promise<T> {
 }
 
 export async function loadGameData(baseUrl: string): Promise<GameData> {
-  const [symData, levelData] = await Promise.all([
+  const [symData, levelData, assetData] = await Promise.all([
     fetchJson<SymTable>("data/char_sym.json", baseUrl),
     fetchJson<LevelTable>("data/tongyong_hanzi.json", baseUrl),
+    fetchJson<ComponentAssetTable>(
+      "data/component-assets.json",
+      baseUrl,
+    ).catch(() => null),
   ]);
-  return new GameData(symData, levelData);
+  return new GameData(symData, levelData, assetData, baseUrl);
 }
 

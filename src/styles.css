@@ -842,6 +842,15 @@ input:focus-visible {
   font-weight: 700;
 }
 
+.component-symbol {
+  display: block;
+  width: 1em;
+  height: 1em;
+  background: currentColor;
+  mask: var(--component-mask) center / contain no-repeat;
+  -webkit-mask: var(--component-mask) center / contain no-repeat;
+}
+
 .part.is-long {
   font-size: clamp(22px, 2.8vw, 32px);
   letter-spacing: -0.035em;
@@ -1221,6 +1230,13 @@ input:focus-visible {
   min-width: 0;
 }
 
+.review-part .component-symbol {
+  display: inline-block;
+  width: 0.9em;
+  height: 0.9em;
+  vertical-align: -0.06em;
+}
+
 .review-card.is-error .review-parts {
   color: #f1d9d5;
 }
@@ -1505,11 +1521,23 @@ input:focus-visible {
   }
 
   .review-list {
-    grid-template-columns: repeat(4, minmax(0, 1fr));
+    --review-card-size: calc((100vw - 46px) / 4);
+    grid-template-columns: repeat(4, var(--review-card-size));
+    grid-auto-rows: var(--review-card-size);
+    justify-content: center;
     gap: 6px;
+    padding: 0 0 6px;
+    scrollbar-width: none;
+  }
+
+  .review-list::-webkit-scrollbar {
+    display: none;
   }
 
   .review-card {
+    width: var(--review-card-size);
+    height: var(--review-card-size);
+    aspect-ratio: auto;
     padding: 5px 4px 4px;
     box-shadow: 2px 2px 0 var(--hard-shadow);
   }
