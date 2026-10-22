@@ -11,12 +11,15 @@ export interface GameSettings {
   stageQuestions: number;
   stageSize: number;
   stageShift: number;
+  exEnabled: boolean;
 }
 
 export interface ChallengeBounds {
   stage: number;
   start: number;
   end: number;
+  isEx: boolean;
+  exStartStage: number;
 }
 
 export interface ComponentDefinition {
@@ -59,13 +62,22 @@ const levelValues: Level[] = [1, 2, 3];
 const bagKey = (way: number[]): string =>
   [...way].sort((a, b) => a - b).join(",");
 
+export function externalCharacterMeta(char: string): string {
+  const codePoint = char.codePointAt(0);
+  return codePoint === undefined
+    ? ""
+    : `（表外 U+${codePoint.toString(16).toUpperCase().padStart(4, "0")}）`;
+}
+
 export class GameData {
   readonly ways: Map<string, number[][]>;
   readonly levels: Map<string, Level>;
   readonly challengeOrder: string[];
   readonly challengeRank: Map<string, number>;
+  readonly exOrder: string[];
   private readonly symbols: Map<number, string>;
   private readonly componentAssets: Map<number, string>;
+  private readonly unsupportedSymbolIds: Set<number>;
   private readonly byBag: Map<string, Set<string>>;
   private readonly candidateCache = new Map<string, string[]>();
 
@@ -87,6 +99,14 @@ export class GameData {
         new URL(asset.source, baseUrl).href,
       ]),
     );
+    this.unsupportedSymbolIds = new Set(
+      [...this.symbols.entries()]
+        .filter(
+          ([symbolId, name]) =>
+            [...name].length >= 2 && !this.componentAssets.has(symbolId),
+        )
+        .map(([symbolId]) => symbolId),
+    );
 
     const levelOf = new Map<string, Level>();
     const levelOrders = levelKeys.map((key) => levelData.levels[key] ?? []);
@@ -104,6 +124,20 @@ export class GameData {
     this.challengeRank = new Map(
       this.challengeOrder.map((char, rank) => [char, rank]),
     );
+    this.exOrder = [...this.ways.keys()]
+      .filter((char) => {
+        const codePoint = char.codePointAt(0);
+        return (
+          [...char].length === 1 &&
+          codePoint !== undefined &&
+          codePoint >= 0x4e00 &&
+          codePoint <= 0x9fff &&
+          !this.levels.has(char) &&
+          this.isCharSelectable(char) &&
+          (this.ways.get(char) ?? []).some((way) => way.length >= 3)
+        );
+      })
+      .sort((left, right) => (left.codePointAt(0) ?? 0) - (right.codePointAt(0) ?? 0));
 
     const byBag = new Map<string, Set<string>>();
     for (const [char, ways] of this.ways) {
@@ -129,6 +163,9 @@ export class GameData {
         if (this.levels.get(char) !== level) {
           return false;
         }
+        if (!this.isCharSelectable(char)) {
+          return false;
+        }
         return (this.ways.get(char) ?? []).some(
           (way) => way.length >= low && way.length <= high,
         );
@@ -150,6 +187,12 @@ export class GameData {
     };
   }
 
+  isCharSelectable(char: string): boolean {
+    return !(this.ways.get(char) ?? []).some((way) =>
+      way.some((symbolId) => this.unsupportedSymbolIds.has(symbolId)),
+    );
+  }
+
   accepted(way: number[]): Set<string> {
     return this.byBag.get(bagKey(way)) ?? new Set();
   }
@@ -164,11 +207,35 @@ export class GameData {
   }
 
   challengeBounds(settings: GameSettings, index: number): ChallengeBounds {
-    const stage = Math.floor((index - 1) / settings.stageQuestions) + 1;
+    const requestedStage = Math.floor((index - 1) / settings.stageQuestions) + 1;
     const lastStart = Math.max(0, this.challengeOrder.length - settings.stageSize);
-    const start = Math.min((stage - 1) * settings.stageShift, lastStart);
+    const boundaryStage =
+      lastStart === 0
+        ? 1
+        : Math.ceil(lastStart / settings.stageShift) + 1;
+    const exStartStage = boundaryStage + 1;
+    if (settings.exEnabled && requestedStage >= exStartStage) {
+      return {
+        stage: exStartStage,
+        start: 0,
+        end: this.exOrder.length,
+        isEx: true,
+        exStartStage,
+      };
+    }
+
+    const start = Math.min(
+      (requestedStage - 1) * settings.stageShift,
+      lastStart,
+    );
     const end = Math.min(start + settings.stageSize, this.challengeOrder.length);
-    return { stage, start, end };
+    return {
+      stage: requestedStage,
+      start,
+      end,
+      isEx: false,
+      exStartStage,
+    };
   }
 }
 

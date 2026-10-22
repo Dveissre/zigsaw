@@ -1,6 +1,7 @@
 import "./styles.css";
 import {
   loadGameData,
+  type ChallengeBounds,
   type ComponentDefinition,
   type GameData,
   type GameSettings,
@@ -23,12 +24,13 @@ const DEFAULT_SETTINGS: GameSettings = {
   levels: [1],
   partsLow: 2,
   partsHigh: 4,
-  mode: "normal",
+  mode: "challenge",
   count: 10,
   seconds: 20,
   stageQuestions: 5,
   stageSize: 1500,
   stageShift: 300,
+  exEnabled: true,
 };
 
 let data: GameData | null = null;
@@ -37,6 +39,10 @@ let session: GameSession | null = null;
 let lastSettings: GameSettings = structuredClone(DEFAULT_SETTINGS);
 let composing = false;
 let lastQuestionKey = "";
+let lastRenderedPaused = false;
+let advancedSettingsOpen = false;
+
+const MODE_ORDER: Mode[] = ["challenge", "normal", "endless"];
 
 const records = new LocalRecordStore();
 
@@ -72,13 +78,16 @@ function renderComponent(component: ComponentDefinition): {
 function shell(
   content: string,
   page: "start" | "play" | "result",
-  stageClear = false,
 ): string {
   return `
     <div class="app-shell page-${page}">
-      <header class="masthead ${stageClear ? "is-stage-clear" : ""}">
+      ${
+        page === "start"
+          ? `<button class="advanced-corner" type="button" aria-label="高级设置" aria-pressed="${advancedSettingsOpen}"></button>`
+          : ""
+      }
+      <header class="masthead">
         <h1 class="wordmark">ZI<span>GSAW</span></h1>
-        <span class="stage-clear-label" aria-hidden="true">STAGE CLEAR</span>
       </header>
       ${content}
     </div>
@@ -131,8 +140,8 @@ function updatePartsSlider(): void {
   const end = ((highStop - 2) / 3) * 100;
   track.style.setProperty("--range-start", `${start}%`);
   track.style.setProperty("--range-end", `${end}%`);
-  lowMarker.style.left = `${start}%`;
-  highMarker.style.left = `${end}%`;
+  lowMarker.style.left = `calc(${start}% - ${(start / 100) * 10}px)`;
+  highMarker.style.left = `calc(${end}% - ${(end / 100) * 10}px)`;
 
   lowLabel.textContent = formatPartsStop(lowStop);
   highLabel.textContent = formatPartsStop(highStop);
@@ -142,32 +151,52 @@ function selectedMode(): Mode {
   return (
     (document.querySelector<HTMLButtonElement>(
       "[data-mode][aria-pressed='true']",
-    )?.dataset.mode as Mode | undefined) ?? "normal"
+    )?.dataset.mode as Mode | undefined) ?? "challenge"
   );
 }
 
-function updateModeFields(): void {
+function updateModeFields(direction = 0): void {
   const mode = selectedMode();
-  document.querySelectorAll<HTMLElement>("[data-mode-field='selection']").forEach((element) => {
-    element.hidden = mode === "challenge";
-  });
+  document
+    .querySelectorAll<HTMLElement>("[data-mode-field='selection']")
+    .forEach((element) => {
+      element.hidden = mode === "challenge";
+    });
 
-  const countField = document.querySelector<HTMLElement>("[data-mode-field='count']");
+  const countField = document.querySelector<HTMLElement>(
+    "[data-mode-field='count']",
+  );
   if (countField) {
     countField.hidden = mode !== "normal";
   }
 
-  const challengeFields = document.querySelector<HTMLElement>("[data-mode-field='challenge']");
-  if (challengeFields) {
-    challengeFields.hidden = mode !== "challenge";
+  document
+    .querySelectorAll<HTMLElement>("[data-mode-field='challenge']")
+    .forEach((element) => {
+      element.hidden = mode !== "challenge";
+    });
+
+  const segmented = document.querySelector<HTMLElement>(".mode-switch");
+  if (segmented) {
+    segmented.dataset.activeMode = mode;
+    segmented.style.setProperty(
+      "--mode-position",
+      String(MODE_ORDER.indexOf(mode)),
+    );
   }
-  if (mode !== "challenge") {
-    const advancedSettings = document.querySelector<HTMLElement>("#challenge-advanced");
-    const advancedToggle = document.querySelector<HTMLButtonElement>(".advanced-toggle");
-    if (advancedSettings) {
-      advancedSettings.hidden = true;
+
+  if (
+    direction !== 0 &&
+    !window.matchMedia("(prefers-reduced-motion: reduce)").matches
+  ) {
+    const fields = document.querySelector<HTMLElement>(".mode-fields");
+    if (fields) {
+      fields.classList.remove("slide-in-left", "slide-in-right");
+      void fields.offsetWidth;
+      fields.classList.add(
+        direction > 0 ? "slide-in-right" : "slide-in-left",
+      );
     }
-    advancedToggle?.setAttribute("aria-expanded", "false");
   }
 }
 
@@ -224,6 +253,10 @@ function readSettings(): GameSettings {
     stageQuestions: numberValue("#stage-questions", 5, 1, 50),
     stageSize: numberValue("#stage-size", 1500, 10, 8105),
     stageShift: numberValue("#stage-shift", 300, 1, 8105),
+    exEnabled:
+      document
+        .querySelector<HTMLButtonElement>("[data-ex-enabled][aria-pressed='true']")
+        ?.dataset.exEnabled === "true",
   };
 }
 
@@ -231,11 +264,16 @@ function renderStart(initial: GameSettings = lastSettings): void {
   session?.destroy();
   session = null;
   lastQuestionKey = "";
+  lastRenderedPaused = false;
+  advancedSettingsOpen = false;
 
   const lowStop = initial.partsLow >= 5 ? 5 : clamp(initial.partsLow, 2, 4);
   const highStop = initial.partsHigh >= 5 ? 5 : clamp(initial.partsHigh, 2, 4);
   const checked = (level: Level) => initial.levels.includes(level) ? "checked" : "";
   const pressed = (mode: Mode) => initial.mode === mode ? "true" : "false";
+  const exPressed = (enabled: boolean) =>
+    initial.exEnabled === enabled ? "true" : "false";
+  const advancedHidden = advancedSettingsOpen ? "" : "hidden";
 
   root.innerHTML = shell(`
     <main class="start-screen">
@@ -243,13 +281,15 @@ function renderStart(initial: GameSettings = lastSettings): void {
         <div class="settings-stack">
           <section class="setting-block">
             <div class="setting-label">模式</div>
-            <div class="segmented" role="group" aria-label="模式">
+            <div class="segmented mode-switch" role="group" aria-label="模式" data-active-mode="${initial.mode}" style="--mode-position:${MODE_ORDER.indexOf(initial.mode)}">
+              <span class="mode-slider" aria-hidden="true"></span>
+              <button type="button" data-mode="challenge" aria-pressed="${pressed("challenge")}">挑战</button>
               <button type="button" data-mode="normal" aria-pressed="${pressed("normal")}">普通</button>
               <button type="button" data-mode="endless" aria-pressed="${pressed("endless")}">无尽</button>
-              <button type="button" data-mode="challenge" aria-pressed="${pressed("challenge")}">挑战</button>
             </div>
           </section>
 
+          <div class="mode-fields">
           <section class="setting-block" data-mode-field="selection">
             <div class="setting-label">级别</div>
             <div class="inline-options">
@@ -279,7 +319,16 @@ function renderStart(initial: GameSettings = lastSettings): void {
             </div>
           </section>
 
-          <section class="setting-block">
+          <section class="setting-block" data-mode-field="challenge" hidden>
+            <div class="setting-label">阶段EX</div>
+            <div class="segmented ex-toggle" role="group" aria-label="阶段EX" data-active-ex="${initial.exEnabled}" style="--ex-position:${initial.exEnabled ? 0 : 1}">
+              <span class="choice-slider" aria-hidden="true"></span>
+              <button type="button" data-ex-enabled="true" aria-pressed="${exPressed(true)}">启用</button>
+              <button type="button" data-ex-enabled="false" aria-pressed="${exPressed(false)}">关闭</button>
+            </div>
+          </section>
+
+          <section class="setting-block" data-advanced-setting ${advancedHidden}>
             <div class="setting-label">每题秒数</div>
             <div class="stepper" data-stepper>
               <button type="button" data-delta="-5" aria-label="减少五秒">−</button>
@@ -298,14 +347,7 @@ function renderStart(initial: GameSettings = lastSettings): void {
           </section>
 
           <section class="challenge-settings" data-mode-field="challenge" hidden>
-            <div class="setting-block">
-              <div class="setting-label">参数</div>
-              <button class="advanced-toggle" type="button" aria-expanded="false" aria-controls="challenge-advanced">
-                <span>高级设置</span>
-                <span class="advanced-indicator" aria-hidden="true">＋</span>
-              </button>
-            </div>
-            <div id="challenge-advanced" class="advanced-settings" hidden>
+            <div class="advanced-settings" data-advanced-setting ${advancedHidden}>
               <div class="setting-block">
                 <div class="setting-label">题/阶段</div>
                 <div class="stepper" data-stepper>
@@ -332,6 +374,7 @@ function renderStart(initial: GameSettings = lastSettings): void {
               </div>
             </div>
           </section>
+          </div>
         </div>
 
         <div class="start-row">
@@ -349,23 +392,46 @@ function renderStart(initial: GameSettings = lastSettings): void {
   wireNumberSteppers();
   updateModeFields();
 
-  const advancedToggle = document.querySelector<HTMLButtonElement>(".advanced-toggle");
-  const advancedSettings = document.querySelector<HTMLElement>("#challenge-advanced");
-  advancedToggle?.addEventListener("click", () => {
-    if (!advancedSettings) {
-      return;
-    }
-    const expanded = advancedToggle.getAttribute("aria-expanded") === "true";
-    advancedToggle.setAttribute("aria-expanded", String(!expanded));
-    advancedSettings.hidden = expanded;
+  const advancedCorner = document.querySelector<HTMLButtonElement>(".advanced-corner");
+  advancedCorner?.addEventListener("click", () => {
+    advancedSettingsOpen = !advancedSettingsOpen;
+    advancedCorner.setAttribute("aria-pressed", String(advancedSettingsOpen));
+    document
+      .querySelectorAll<HTMLElement>("[data-advanced-setting]")
+      .forEach((element) => {
+        element.hidden = !advancedSettingsOpen;
+      });
   });
+
+  document
+    .querySelectorAll<HTMLButtonElement>("[data-ex-enabled]")
+    .forEach((button) => {
+      button.addEventListener("click", () => {
+        document
+          .querySelectorAll<HTMLButtonElement>("[data-ex-enabled]")
+          .forEach((peer) => {
+            peer.setAttribute("aria-pressed", String(peer === button));
+          });
+        const toggle = document.querySelector<HTMLElement>(".ex-toggle");
+        const enabled = button.dataset.exEnabled === "true";
+        if (toggle) {
+          toggle.dataset.activeEx = String(enabled);
+          toggle.style.setProperty("--ex-position", enabled ? "0" : "1");
+        }
+      });
+    });
 
   document.querySelectorAll<HTMLButtonElement>("[data-mode]").forEach((button) => {
     button.addEventListener("click", () => {
+      const previousMode = selectedMode();
       document.querySelectorAll<HTMLButtonElement>("[data-mode]").forEach((peer) => {
         peer.setAttribute("aria-pressed", String(peer === button));
       });
-      updateModeFields();
+      const nextMode =
+        (button.dataset.mode as Mode | undefined) ?? "challenge";
+      const direction =
+        MODE_ORDER.indexOf(nextMode) - MODE_ORDER.indexOf(previousMode);
+      updateModeFields(direction);
     });
   });
 
@@ -453,12 +519,17 @@ function updateTimer(state: GameState): void {
 function gameProgress(
   state: GameState,
   source: GameData,
+  bounds?: ChallengeBounds,
 ): { main: string; sub: string } {
   if (state.settings.mode === "challenge") {
-    const { stage, start, end } = source.challengeBounds(state.settings, state.index);
+    const current = bounds ?? source.challengeBounds(state.settings, state.index);
+    if (current.isEx) {
+      return { main: `阶段EX · 第${state.index}题`, sub: "????" };
+    }
+    const { stage, start, end } = current;
     return {
       main: `阶段${stage} · 第${state.index}题`,
-      sub: `Rank ${start + 1}-${end}`,
+      sub: `#${start + 1}-${end}`,
     };
   }
   if (state.settings.mode === "endless") {
@@ -512,18 +583,43 @@ function renderGame(game: GameSession): void {
   const questionKey = `${state.settings.mode}|${state.index}`;
   const questionEnter = questionKey !== lastQuestionKey;
   lastQuestionKey = questionKey;
-  const progress = gameProgress(state, data!);
-  const stageClear =
-    state.settings.mode === "challenge" &&
-    state.feedback === "correct" &&
-    state.revealing &&
-    state.index % state.settings.stageQuestions === 0;
+  const challengeBounds =
+    state.settings.mode === "challenge"
+      ? data!.challengeBounds(state.settings, state.index)
+      : null;
+  const progress = gameProgress(state, data!, challengeBounds ?? undefined);
+  let stageProgressEffect = "";
+  if (challengeBounds) {
+    const position =
+      ((state.index - 1) % state.settings.stageQuestions) + 1;
+    const completedStage =
+      !challengeBounds.isEx &&
+      state.revealing &&
+      state.feedback === "correct" &&
+      state.index % state.settings.stageQuestions === 0;
+    const stageFirstIndex =
+      (challengeBounds.stage - 1) * state.settings.stageQuestions + 1;
+    const enteringFirstStageQuestion =
+      questionEnter && position === 1 && state.index === stageFirstIndex;
+    if (completedStage) {
+      stageProgressEffect = "is-stage-enter";
+    } else if (
+      enteringFirstStageQuestion &&
+      (challengeBounds.isEx || challengeBounds.stage > 1)
+    ) {
+      stageProgressEffect = "is-stage-clear";
+    }
+  }
+  const resuming = !state.paused && lastRenderedPaused;
+  lastRenderedPaused = state.paused;
   const partNames = state.current.displaySymbolIds.map((symbolId) =>
     renderComponent(data!.component(symbolId)),
   );
   const partCount = partNames.length;
   const densityClass =
     partCount >= 12 ? "is-dense" : partCount >= 8 ? "is-compact" : "";
+  const cardAngles = [-0.8, 0.9, -0.35, 1.15, -1.05, 0.45];
+  const cardOffsets = [1, 4, 0, 5, 2, 3];
   let cardIndex = 0;
   const partsMarkup = splitPartsIntoRows(partNames)
     .map(
@@ -531,7 +627,7 @@ function renderGame(game: GameSession): void {
         `<div class="part-row">${row
           .map(
             (part) =>
-              `<span class="part-card" style="--card-index:${cardIndex++}"><span class="part ${part.long ? "is-long" : ""}">${part.html}</span></span>`,
+              `<span class="part-card" style="--card-index:${cardIndex};--card-angle:${cardAngles[cardIndex % cardAngles.length]}deg;--card-offset:${cardOffsets[cardIndex++ % cardOffsets.length]}px"><span class="part ${part.long ? "is-long" : ""}">${part.html}</span></span>`,
           )
           .join("")}</div>`,
     )
@@ -540,6 +636,25 @@ function renderGame(game: GameSession): void {
   const correct = state.feedback === "correct";
   const wrong = state.feedback === "wrong";
   const partsFeedback = correct ? "has-correct" : wrong ? "has-wrong" : "";
+  const pausedClass = state.paused
+    ? "is-paused"
+    : resuming
+      ? "is-resuming"
+      : "";
+  const exClass = challengeBounds?.isEx ? "is-ex" : "";
+  const nextStageIsEx =
+    challengeBounds !== null &&
+    !challengeBounds.isEx &&
+    state.settings.exEnabled &&
+    challengeBounds.stage + 1 === challengeBounds.exStartStage;
+  const stagePrompt =
+    challengeBounds?.isEx || nextStageIsEx ? "STAGE EX!" : "STAGE UP!";
+  const progressExClass =
+    challengeBounds?.isEx
+      ? "is-ex-progress"
+      : nextStageIsEx && stageProgressEffect === "is-stage-enter"
+        ? "is-ex-announcement"
+        : "";
   const answerFeedback = correct
     ? "is-correct"
     : wrong && revealed
@@ -562,9 +677,10 @@ function renderGame(game: GameSession): void {
     <main class="play-screen">
       <section class="play-surface ${questionEnter ? "question-enter" : ""}">
         <header class="play-hud">
-          <div class="progress-stack">
+          <div class="progress-stack ${stageProgressEffect} ${progressExClass}">
             <span class="question-progress">${escapeHtml(progress.main)}</span>
             ${progress.sub ? `<span class="stage-rank">${escapeHtml(progress.sub)}</span>` : ""}
+            <span class="stage-up"><span>${stagePrompt}</span></span>
           </div>
           <div class="timer-ring" data-timer-ring role="timer">
             <svg viewBox="0 0 80 80" aria-hidden="true">
@@ -575,11 +691,11 @@ function renderGame(game: GameSession): void {
           </div>
         </header>
 
-        <div class="parts ${densityClass} ${partsFeedback}" aria-label="部件">
+        <div class="parts ${densityClass} ${partsFeedback} ${pausedClass} ${exClass}" aria-label="部件">
           ${partsMarkup}
         </div>
 
-        <div class="answer-stage ${answerFeedback}">
+        <div class="answer-stage ${answerFeedback} ${exClass}">
           ${
             revealed
               ? `
@@ -626,7 +742,7 @@ function renderGame(game: GameSession): void {
         </div>
       </section>
     </main>
-  `, "play", stageClear);
+  `, "play");
 
   updateTimer(state);
   wireAnswerInput(game);
@@ -663,10 +779,15 @@ function renderResults(game: GameSession): void {
     endless: "无尽模式",
     challenge: "挑战模式",
   }[state.settings.mode];
-  const stageSuffix =
+  const finalBounds =
     state.settings.mode === "challenge"
-      ? ` · 阶段${data!.challengeBounds(state.settings, state.index).stage}`
-      : "";
+      ? data!.challengeBounds(state.settings, state.index)
+      : null;
+  const stageSuffix = finalBounds
+    ? finalBounds.isEx
+      ? " · 阶段EX"
+      : ` · 阶段${finalBounds.stage}`
+    : "";
   const score = `${modeLabel} · ${state.correctCount}题${stageSuffix}`;
   const victory =
     state.settings.mode === "normal" && result.title === "胜利";
@@ -675,7 +796,7 @@ function renderResults(game: GameSession): void {
   const review = state.history
     .map(
       (item, index) => `
-        <li class="review-card ${item.ok ? "" : "is-error"}" style="--review-index:${index}">
+        <li class="review-card ${item.ok ? (item.isEx ? "is-ex-correct" : "") : "is-error"}" style="--review-index:${index}">
           <span class="review-index" aria-hidden="true">${String(index + 1).padStart(2, "0")}</span>
           <span class="review-result ${item.ok ? "is-correct" : "is-wrong"}" aria-label="${item.ok ? "正确" : "错误"}"></span>
           <div class="review-answer">${escapeHtml(item.answer)}</div>
@@ -714,6 +835,37 @@ function renderResults(game: GameSession): void {
     </main>
   `, "result");
 
+  const reviewList = document.querySelector<HTMLElement>(".review-list");
+  if (reviewList) {
+    const reducedMotion = window.matchMedia(
+      "(prefers-reduced-motion: reduce)",
+    ).matches;
+    for (const card of reviewList.querySelectorAll<HTMLElement>(".review-card")) {
+      card.addEventListener(
+        "animationstart",
+        (event) => {
+          if (event.animationName !== "review-card-in") {
+            return;
+          }
+          requestAnimationFrame(() => {
+            const cardBottom = card.offsetTop + card.offsetHeight;
+            const visibleBottom = reviewList.scrollTop + reviewList.clientHeight;
+            if (cardBottom > visibleBottom) {
+              reviewList.scrollTo({
+                top: Math.min(
+                  reviewList.scrollHeight - reviewList.clientHeight,
+                  cardBottom - reviewList.clientHeight + 1,
+                ),
+                behavior: reducedMotion ? "auto" : "smooth",
+              });
+            }
+          });
+        },
+        { once: true },
+      );
+    }
+  }
+
   document.querySelector<HTMLButtonElement>("[data-again]")?.addEventListener("click", () => {
     startGame(state.settings);
   });
@@ -729,6 +881,7 @@ function startGame(settings: GameSettings): void {
 
   session?.destroy();
   lastQuestionKey = "";
+  lastRenderedPaused = false;
   lastSettings = structuredClone(settings);
   session = new GameSession(data, settings, records, (state, event) => {
     if (!session) {
@@ -764,5 +917,19 @@ void loadGameData(document.baseURI)
 
 window.addEventListener("beforeunload", () => {
   session?.destroy();
+});
+
+window.addEventListener("keydown", (event) => {
+  if (
+    event.key !== "Escape" ||
+    event.isComposing ||
+    !session ||
+    session.state.phase !== "playing" ||
+    session.state.revealing
+  ) {
+    return;
+  }
+  event.preventDefault();
+  session.togglePause();
 });
 

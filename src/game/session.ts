@@ -4,6 +4,7 @@ import type {
   GameSettings,
   Mode,
 } from "./data";
+import { externalCharacterMeta } from "./data";
 import { recordKey, type RecordStore } from "./records";
 
 export interface Question {
@@ -24,6 +25,7 @@ export interface HistoryItem {
   given: string;
   ok: boolean;
   meta: string;
+  isEx: boolean;
 }
 
 export interface ResultState {
@@ -265,15 +267,28 @@ export class GameSession {
 
   private pickChallengeQuestion(): Question {
     const bounds = this.challengeBounds();
-    let window = this.data.challengeOrder
-      .slice(bounds.start, bounds.end)
-      .filter((char) =>
-        (this.data.ways.get(char) ?? []).some((way) => way.length >= 2),
-      );
+    const minParts = bounds.isEx ? 3 : 2;
+    const source = bounds.isEx
+      ? this.data.exOrder
+      : this.data.challengeOrder.slice(bounds.start, bounds.end);
+    let window = source.filter(
+      (char) =>
+        this.data.isCharSelectable(char) &&
+        (this.data.ways.get(char) ?? []).some(
+          (way) => way.length >= minParts,
+        ),
+    );
 
     if (window.length === 0) {
-      window = this.data.challengeOrder.filter((char) =>
-        (this.data.ways.get(char) ?? []).some((way) => way.length >= 2),
+      const fallback = bounds.isEx
+        ? this.data.exOrder
+        : this.data.challengeOrder;
+      window = fallback.filter(
+        (char) =>
+          this.data.isCharSelectable(char) &&
+          (this.data.ways.get(char) ?? []).some(
+            (way) => way.length >= minParts,
+          ),
       );
     }
 
@@ -289,7 +304,7 @@ export class GameSession {
     for (const char of window) {
       const ways = this.data.ways.get(char) ?? [];
       for (const way of ways) {
-        if (way.length < 2) {
+        if (way.length < minParts) {
           continue;
         }
         const choice = { char, way, length: way.length };
@@ -310,8 +325,9 @@ export class GameSession {
       groups.set(choice.length, group);
     }
 
-    const position =
-      ((this.state.index - 1) % this.state.settings.stageQuestions) + 1;
+    const position = bounds.isEx
+      ? this.state.settings.stageQuestions
+      : ((this.state.index - 1) % this.state.settings.stageQuestions) + 1;
     const probabilities = challengeClassProbabilities(
       this.state.settings,
       bounds.stage,
@@ -405,11 +421,11 @@ export class GameSession {
 
     this.clearTimers();
     this.state.correctCount += 1;
-    this.recordCurrent(true, answer);
+    this.recordCurrent(true, answer, answer);
     this.state.revealing = true;
     this.state.feedback = "correct";
-    this.state.revealAnswer = this.state.current.char;
-    this.state.revealMeta = this.metaFor(this.state.current.char);
+    this.state.revealAnswer = answer;
+    this.state.revealMeta = this.metaFor(answer);
 
     if (
       this.state.settings.mode === "normal" &&
@@ -417,10 +433,13 @@ export class GameSession {
     ) {
       this.state.pendingSettlement = true;
     }
+    const isEx =
+      this.state.settings.mode === "challenge" &&
+      this.challengeBounds().isEx;
     this.advanceId = setTimeout(() => {
       this.advanceId = null;
       this.advance();
-    }, 900);
+    }, isEx ? 1600 : 900);
     this.emit();
   }
 
@@ -451,6 +470,7 @@ export class GameSession {
       return;
     }
     this.clearTimers();
+    this.state.paused = false;
     this.recordCurrent(false, this.state.draft);
     this.revealCurrent("结算", true);
   }
@@ -531,7 +551,11 @@ export class GameSession {
     this.emit();
   }
 
-  private recordCurrent(ok: boolean, given: string): void {
+  private recordCurrent(
+    ok: boolean,
+    given: string,
+    displayedAnswer = this.state.current?.char ?? "",
+  ): void {
     if (this.currentRecorded || !this.state.current) {
       return;
     }
@@ -540,14 +564,24 @@ export class GameSession {
       parts: this.state.current.parts,
       displayParts: [...this.state.current.displayParts],
       displaySymbolIds: [...this.state.current.displaySymbolIds],
-      answer: this.state.current.char,
+      answer: displayedAnswer,
       given,
       ok,
-      meta: this.metaFor(this.state.current.char),
+      meta: this.metaFor(displayedAnswer),
+      isEx:
+        this.state.settings.mode === "challenge" &&
+        this.challengeBounds().isEx,
     });
   }
 
   private metaFor(char: string): string {
+    if (
+      this.state.settings.mode === "challenge" &&
+      this.challengeBounds().isEx &&
+      !this.data.levels.has(char)
+    ) {
+      return externalCharacterMeta(char);
+    }
     const meta = this.data.answerMeta(char);
     return meta ? `（${meta}）` : "";
   }

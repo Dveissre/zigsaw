@@ -13,7 +13,7 @@ export function recordKey(settings: GameSettings): string {
     return `endless|levels=${settings.levels.join(",")}|parts=${settings.partsLow}-${settings.partsHigh}|seconds=${settings.seconds}`;
   }
   if (settings.mode === "challenge") {
-    return `challenge|questions=${settings.stageQuestions}|size=${settings.stageSize}|shift=${settings.stageShift}|seconds=${settings.seconds}`;
+    return `challenge|questions=${settings.stageQuestions}|size=${settings.stageSize}|shift=${settings.stageShift}|seconds=${settings.seconds}|ex=${settings.exEnabled ? 1 : 0}`;
   }
   return "";
 }

@@ -17,6 +17,7 @@ const challenge: GameSettings = {
   stageQuestions: 3,
   stageSize: 500,
   stageShift: 250,
+  exEnabled: true,
 };
 
 describe("record keys", () => {
@@ -34,7 +35,7 @@ describe("record keys", () => {
 
   it("keeps challenge parameter groups separate", () => {
     expect(recordKey(challenge)).toBe(
-      "challenge|questions=3|size=500|shift=250|seconds=20",
+      "challenge|questions=3|size=500|shift=250|seconds=20|ex=1",
     );
   });
 });

@@ -47,6 +47,60 @@ try {
   assert.equal(await page.title(), "ZIGSAW");
   assert.equal(await page.getByText("把部件拼回一个字").count(), 0);
   assert.equal(await page.getByText("打乱顺序后，在倒计时内输入对应的汉字。").count(), 0);
+  assert.equal(
+    await page.getByRole("button", { name: "挑战", exact: true }).getAttribute(
+      "aria-pressed",
+    ),
+    "true",
+  );
+  assert.equal(
+    await page.getByText("每题秒数", { exact: true }).isVisible(),
+    false,
+  );
+  assert.equal(
+    await page.getByText("题/阶段", { exact: true }).isVisible(),
+    false,
+  );
+  const advancedCorner = page.getByRole("button", { name: "高级设置" });
+  const cornerPosition = await advancedCorner.evaluate((button) => {
+    const style = getComputedStyle(button);
+    const box = button.getBoundingClientRect();
+    return { position: style.position, left: box.left, top: box.top };
+  });
+  assert.equal(cornerPosition.position, "fixed");
+  assert.equal(cornerPosition.left, 0);
+  assert.equal(cornerPosition.top, 0);
+  assert.equal((await advancedCorner.textContent())?.trim(), "");
+  assert.equal(
+    await page.getByRole("button", { name: "启用", exact: true }).getAttribute(
+      "aria-pressed",
+    ),
+    "true",
+  );
+  await page.getByRole("button", { name: "关闭", exact: true }).click();
+  assert.equal(
+    await page.getByRole("button", { name: "关闭", exact: true }).getAttribute(
+      "aria-pressed",
+    ),
+    "true",
+  );
+  await page.getByRole("button", { name: "启用", exact: true }).click();
+  await advancedCorner.click();
+  await page.getByText("每题秒数", { exact: true }).waitFor();
+  await page.getByRole("button", { name: "普通", exact: true }).click();
+  await page.waitForTimeout(220);
+  assert.equal(
+    await page.locator(".mode-switch").evaluate(
+      (element) => getComputedStyle(element).getPropertyValue("--mode-position").trim(),
+    ),
+    "1",
+  );
+  assert.equal(
+    await page.locator(".mode-fields").evaluate(
+      (element) => getComputedStyle(element).animationName,
+    ),
+    "mode-fields-right",
+  );
 
   await page.locator("#parts-high").fill("5");
   assert.equal(await page.locator("#parts-high").inputValue(), "5");
@@ -54,22 +108,41 @@ try {
   assert.equal(await page.locator("#parts-low").inputValue(), "5");
   await page.locator("#parts-low").fill("2");
   await page.locator("#parts-high").fill("4");
+  const sliderLeft = await page.locator(".dual-range").evaluate(
+    (element) => element.getBoundingClientRect().x,
+  );
+  const markerLeft = await page.locator("[data-range-marker-low]").evaluate(
+    (element) => element.getBoundingClientRect().x,
+  );
+  const stepperLeft = await page.locator("#game-seconds").evaluate(
+    (element) => element.closest(".stepper")?.getBoundingClientRect().x ?? -1,
+  );
+  assert.ok(Math.abs(sliderLeft - stepperLeft) <= 1);
+  assert.ok(Math.abs(markerLeft - sliderLeft) <= 1);
+  assert.equal(
+    await page.locator(".range-ticks").evaluate(
+      (element) => getComputedStyle(element).fontSize,
+    ),
+    "13px",
+  );
 
   await page.getByRole("button", { name: "增加五秒" }).click();
   assert.equal(await page.locator("#game-seconds").inputValue(), "25");
   await page.getByRole("button", { name: "减少五秒" }).click();
   assert.equal(await page.locator("#game-seconds").inputValue(), "20");
 
+  await page.getByRole("button", { name: "高级设置" }).click();
   await page.getByRole("button", { name: "挑战", exact: true }).click();
   assert.equal(
     await page.getByText("题/阶段", { exact: true }).isVisible(),
     false,
   );
+  await page.getByRole("button", { name: /高级设置/ }).waitFor();
+  assert.equal(await page.getByText("级别", { exact: true }).isVisible(), false);
   assert.equal(
-    await page.getByRole("button", { name: /高级设置/ }).isVisible(),
+    await page.getByRole("button", { name: "启用", exact: true }).isVisible(),
     true,
   );
-  assert.equal(await page.getByText("级别", { exact: true }).isVisible(), false);
   await page.getByRole("button", { name: "普通", exact: true }).click();
 
   await page.locator("#game-count").fill("3");
@@ -89,6 +162,7 @@ try {
     ),
   );
   const shownPartOrders = [];
+  const givenAnswers = [];
 
   for (let question = 1; question <= 3; question += 1) {
     const displayedParts = await readDisplayedParts();
@@ -97,6 +171,7 @@ try {
     const answers = questionsByParts.get(parts.join("\u0001"));
     assert.ok(answers?.length, `No answer for ${parts.join(" ")}`);
     const answer = answers[0];
+    givenAnswers.push(answer);
 
     if (question === 1) {
       await page.getByRole("textbox", { name: "答案" }).fill("x");
@@ -105,8 +180,30 @@ try {
       assert.equal(await page.locator(".play-screen").count(), 1);
       assert.equal(await page.locator(".play-surface.question-enter").count(), 0);
 
-      await page.getByRole("button", { name: "暂停" }).click();
-      await page.getByRole("button", { name: "继续" }).click();
+      await page.keyboard.press("Escape");
+      await page.locator(".parts.is-paused").waitFor();
+      await page.waitForFunction(
+        () =>
+          getComputedStyle(document.querySelector(".part")).opacity === "0",
+      );
+      const pausedDot = await page.locator(".part-card").first().evaluate(
+        (card) => {
+          const style = getComputedStyle(card, "::after");
+          return { opacity: style.opacity, color: style.backgroundColor };
+        },
+      );
+      assert.equal(pausedDot.opacity, "1");
+      assert.equal(pausedDot.color, "rgb(255, 250, 245)");
+      await page.keyboard.press("Escape");
+      await page.locator(".parts.is-resuming").waitFor();
+      await page.waitForFunction(
+        () =>
+          getComputedStyle(document.querySelector(".part")).opacity === "1" &&
+          getComputedStyle(
+            document.querySelector(".part-card"),
+            "::after",
+          ).backgroundColor === "rgb(161, 55, 48)",
+      );
     }
 
     await page.getByRole("textbox", { name: "答案" }).fill(answer);
@@ -120,7 +217,7 @@ try {
     });
     await page.getByRole("button", { name: "提交" }).click();
     await page.locator(".reveal strong").waitFor();
-    assert.ok(answers.includes(await page.locator(".reveal strong").innerText()));
+    assert.equal(await page.locator(".reveal strong").innerText(), answer);
     assert.equal(await page.locator(".parts.has-correct").count(), 1);
     assert.equal(await page.locator(".play-surface.question-enter").count(), 0);
     assert.deepEqual(
@@ -216,15 +313,50 @@ try {
     ),
     "none",
   );
+  const matrixStyle = await page.locator(".review-list").evaluate((list) => {
+    const style = getComputedStyle(list);
+    return {
+      background: style.backgroundColor,
+      borderWidth: style.borderTopWidth,
+      gap: style.columnGap,
+    };
+  });
+  assert.equal(matrixStyle.background, "rgba(0, 0, 0, 0)");
+  assert.equal(matrixStyle.borderWidth, "0px");
+  assert.equal(matrixStyle.gap, "0px");
+  const cardBorders = await page.locator(".review-card").first().evaluate(
+    (card) => {
+      const style = getComputedStyle(card);
+      return {
+        top: style.borderTopWidth,
+        rightColor: style.borderRightColor,
+        bottomWidth: style.borderBottomWidth,
+      };
+    },
+  );
+  assert.equal(cardBorders.top, "1px");
+  assert.equal(cardBorders.rightColor, "rgb(41, 76, 50)");
+  assert.equal(cardBorders.bottomWidth, "1px");
+  const adjacentBorder = await page.locator(".review-card").nth(1).evaluate(
+    (card) => getComputedStyle(card).borderLeftWidth,
+  );
+  assert.equal(adjacentBorder, "0px");
   assert.deepEqual(
     await page.locator(".review-card").evaluateAll((cards) =>
       cards.map((card) =>
         [...card.querySelectorAll(".review-part")].map(
-          (part) => part.textContent ?? "",
+          (part) =>
+            part.textContent?.trim() ||
+            part.querySelector("[role='img']")?.getAttribute("aria-label") ||
+            "",
         ),
       ),
     ),
     shownPartOrders,
+  );
+  assert.deepEqual(
+    await page.locator(".review-answer").allTextContents(),
+    givenAnswers,
   );
 
   await page.getByRole("button", { name: "返回", exact: true }).click();
@@ -235,30 +367,85 @@ try {
   );
   await page.getByRole("button", { name: /高级设置/ }).click();
   await page.getByText("题/阶段", { exact: true }).waitFor();
-  await page.locator("#stage-questions").fill("1");
+  await page.locator("#stage-questions").fill("2");
   await page.locator("#game-seconds").fill("5");
   await page.getByRole("button", { name: "开始", exact: true }).click();
   await page.locator(".play-screen").waitFor();
   assert.match(await page.locator(".question-progress").innerText(), /阶段1 · 第1题/);
-  assert.match(await page.locator(".stage-rank").innerText(), /Rank 1-1500/);
+  assert.match(await page.locator(".stage-rank").innerText(), /#1-1500/);
   assert.ok((await page.locator(".part").count()) >= 2);
   const firstCardBox = await page.locator(".part-card").first().boundingBox();
   assert.ok(firstCardBox);
   assert.ok(Math.abs(firstCardBox.width - firstCardBox.height) <= 1);
 
-  const challengeDisplayedParts = await readDisplayedParts();
-  const challengeParts = [...challengeDisplayedParts].sort();
-  const challengeAnswers = questionsByParts.get(challengeParts.join("\u0001"));
-  assert.ok(challengeAnswers?.length);
-  await page.getByRole("textbox", { name: "答案" }).fill(challengeAnswers[0]);
-  await page.getByRole("button", { name: "提交" }).click();
-  await page.locator(".reveal strong").waitFor();
-  assert.equal(await page.locator(".masthead.is-stage-clear").count(), 1);
+  const answerChallengeQuestion = async () => {
+    const displayed = await readDisplayedParts();
+    const answers = questionsByParts.get([...displayed].sort().join("\u0001"));
+    assert.ok(answers?.length);
+    await page.getByRole("textbox", { name: "答案" }).fill(answers[0]);
+    await page.getByRole("button", { name: "提交" }).click();
+  };
+
+  await answerChallengeQuestion();
   await page.waitForFunction(() =>
-    document.querySelector(".play-hud")?.textContent?.includes("阶段2 · 第2题"),
+    document.querySelector(".play-hud")?.textContent?.includes("阶段1 · 第2题"),
   );
-  assert.match(await page.locator(".stage-rank").innerText(), /Rank 301-1800/);
-  assert.equal(await page.locator(".masthead.is-stage-clear").count(), 0);
+  await answerChallengeQuestion();
+  await page.locator(".reveal strong").waitFor();
+  assert.equal(
+    await page.locator(".progress-stack.is-stage-enter").count(),
+    1,
+  );
+  await page.locator(".stage-up").waitFor();
+  await page.waitForFunction(
+    () => getComputedStyle(document.querySelector(".stage-up")).opacity === "1",
+  );
+  const stageUpSize = await page.locator(".stage-up").evaluate((element) => {
+    const stack = element.parentElement;
+    return {
+      font: Number.parseFloat(getComputedStyle(element).fontSize),
+      height: stack?.getBoundingClientRect().height ?? 0,
+    };
+  });
+  assert.ok(
+    stageUpSize.font / stageUpSize.height >= 0.4,
+    JSON.stringify(stageUpSize),
+  );
+  assert.equal(
+    await page.locator(".question-progress").evaluate(
+      (element) => getComputedStyle(element).opacity,
+    ),
+    "0",
+  );
+  await page.waitForTimeout(250);
+  assert.equal(
+    await page.locator(".progress-stack.is-stage-enter").count(),
+    1,
+  );
+  await page.waitForFunction(() =>
+    document.querySelector(".play-hud")?.textContent?.includes("阶段2 · 第3题"),
+  );
+  assert.equal(
+    await page.locator(".progress-stack.is-stage-clear").count(),
+    1,
+  );
+  assert.equal(
+    await page.locator(".stage-up").evaluate(
+      (element) => getComputedStyle(element).opacity,
+    ),
+    "0",
+  );
+  assert.match(await page.locator(".stage-rank").innerText(), /#301-1800/);
+  await answerChallengeQuestion();
+  await page.waitForFunction(() =>
+    document.querySelector(".play-hud")?.textContent?.includes("阶段2 · 第4题"),
+  );
+  assert.equal(
+    await page
+      .locator(".progress-stack.is-stage-enter, .progress-stack.is-stage-clear")
+      .count(),
+    0,
+  );
   const stableActionsBefore = await page.evaluate(() =>
     [...document.querySelectorAll(".play-actions button")]
       .filter((button) => ["重开", "返回"].includes(button.textContent?.trim() ?? ""))
@@ -267,7 +454,16 @@ try {
         left: button.getBoundingClientRect().left,
       })),
   );
+  await page.getByRole("button", { name: "暂停" }).click();
+  await page.locator(".parts.is-paused").waitFor();
+  await page.waitForFunction(
+    () => getComputedStyle(document.querySelector(".part")).opacity === "0",
+  );
   await page.getByRole("button", { name: "弃权" }).click();
+  await page.locator(".parts.is-resuming").waitFor();
+  await page.waitForFunction(
+    () => getComputedStyle(document.querySelector(".part")).opacity === "1",
+  );
   assert.equal(await page.getByRole("button", { name: "暂停" }).count(), 0);
   assert.equal(await page.getByRole("button", { name: "弃权" }).count(), 0);
   const stableActionsAfter = await page.evaluate(() =>
@@ -285,20 +481,26 @@ try {
     await page.locator(".result-header h1").innerText(),
     "挑战结束",
   );
-  assert.match(await page.locator(".record-row").innerText(), /记录：1/);
+  assert.match(await page.locator(".record-row").innerText(), /记录：3/);
   assert.match(
     await page.locator(".result-score").innerText(),
-    /挑战模式 · 1题 · 阶段2/,
+    /挑战模式 · 3题 · 阶段2/,
   );
-  assert.equal(await page.locator(".review-result.is-correct").count(), 1);
+  assert.equal(await page.locator(".review-result.is-correct").count(), 3);
   assert.equal(await page.locator(".review-result.is-wrong").count(), 1);
   assert.equal(await page.locator(".review-list li.is-error").count(), 1);
+  assert.equal(
+    await page.locator(".review-list li.is-error").evaluate(
+      (card) => getComputedStyle(card).borderTopWidth,
+    ),
+    "1px",
+  );
   assert.equal(
     await page.evaluate(() =>
       localStorage.getItem("zigsaw.records.v1"),
     ),
     JSON.stringify({
-      "challenge|questions=1|size=1500|shift=300|seconds=5": 1,
+      "challenge|questions=2|size=1500|shift=300|seconds=5|ex=1": 3,
     }),
   );
 

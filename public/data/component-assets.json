@@ -5,6 +5,7 @@
     "45": { "name": "卬偏", "source": "component_svg/45.svg" },
     "71": { "name": "𰀁", "source": "component_svg/71.svg" },
     "88": { "name": "北偏", "source": "component_svg/88.svg" },
+    "121": { "name": "𰀠", "source": "component_svg/121.svg" },
     "159": { "name": "衰心", "source": "component_svg/159.svg" },
     "180": { "name": "赤脚", "source": "component_svg/180.svg" },
     "182": { "name": "𠂢心", "source": "component_svg/182.svg" },
@@ -18,6 +19,8 @@
     "287": { "name": "直脚", "source": "component_svg/287.svg" },
     "338": { "name": "鼠脚", "source": "component_svg/338.svg" },
     "416": { "name": "鸟冠", "source": "component_svg/416.svg" },
+    "420": { "name": "亽", "source": "component_svg/420.svg" },
+    "425": { "name": "彐", "source": "component_svg/425.svg" },
     "431": { "name": "象脚", "source": "component_svg/431.svg" }
   }
 }

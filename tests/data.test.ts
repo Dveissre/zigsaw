@@ -1,6 +1,7 @@
 import { existsSync, readFileSync, readdirSync } from "node:fs";
 import { resolve } from "node:path";
 import { describe, expect, it } from "vitest";
+import { externalCharacterMeta, GameData } from "../src/game/data";
 
 type SymTable = {
   counts: {
@@ -87,6 +88,91 @@ describe("static game data", () => {
       expect(svg).toContain('viewBox="0 0 1024 1024"');
       expect(svg).toContain("<path");
     }
+  });
+
+  it("builds the EX pool and excludes unadapted component names", () => {
+    const symTable = readJson<SymTable>("public/data/char_sym.json");
+    const levelTable = readJson<LevelTable>("public/data/tongyong_hanzi.json");
+    const assets = readJson<ComponentAssetTable>(
+      "public/data/component-assets.json",
+    );
+    const game = new GameData(
+      symTable,
+      levelTable,
+      assets,
+      "https://example.com/zigsaw/",
+    );
+    const unsupportedIds = new Set(
+      Object.entries(symTable.symbols)
+        .filter(
+          ([symbolId, name]) =>
+            [...name].length >= 2 && !(symbolId in assets.symbols),
+        )
+        .map(([symbolId]) => Number(symbolId)),
+    );
+    const unadaptedChar = Object.keys(symTable.chars).find((char) =>
+      symTable.chars[char].some((way) =>
+        way.some((symbolId) => unsupportedIds.has(symbolId)),
+      ),
+    );
+
+    expect(unadaptedChar).toBeDefined();
+    expect(game.isCharSelectable(unadaptedChar!)).toBe(false);
+    expect(game.exOrder.length).toBeGreaterThan(0);
+    expect(
+      game.exOrder.every((char) => {
+        const codePoint = char.codePointAt(0) ?? 0;
+        return (
+          codePoint >= 0x4e00 &&
+          codePoint <= 0x9fff &&
+          !levelTable.levels.一级.includes(char) &&
+          !levelTable.levels.二级.includes(char) &&
+          !levelTable.levels.三级.includes(char) &&
+          game.isCharSelectable(char) &&
+          symTable.chars[char].some((way) => way.length >= 3)
+        );
+      }),
+    ).toBe(true);
+
+    const settings = {
+      levels: [],
+      partsLow: 2,
+      partsHigh: 4,
+      mode: "challenge" as const,
+      count: 10,
+      seconds: 20,
+      stageQuestions: 5,
+      stageSize: 1500,
+      stageShift: 300,
+      exEnabled: true,
+    };
+    const boundary = game.challengeBounds(settings, (24 - 1) * 5 + 1);
+    const ex = game.challengeBounds(settings, (25 - 1) * 5 + 1);
+    expect(boundary).toMatchObject({
+      stage: 24,
+      start: game.challengeOrder.length - 1500,
+      end: game.challengeOrder.length,
+      isEx: false,
+      exStartStage: 25,
+    });
+    expect(ex).toMatchObject({
+      stage: 25,
+      start: 0,
+      end: game.exOrder.length,
+      isEx: true,
+      exStartStage: 25,
+    });
+    const withoutEx = game.challengeBounds(
+      { ...settings, exEnabled: false },
+      (25 - 1) * 5 + 1,
+    );
+    expect(withoutEx).toMatchObject({
+      stage: 25,
+      start: game.challengeOrder.length - 1500,
+      end: game.challengeOrder.length,
+      isEx: false,
+    });
+    expect(externalCharacterMeta("丒")).toBe("（表外 U+4E12）");
   });
 });
 
