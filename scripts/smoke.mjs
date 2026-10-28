@@ -47,7 +47,36 @@ try {
 
   await page.goto(targetUrl, { waitUntil: "networkidle" });
   await page.locator(".start-button:not([disabled])").waitFor();
+  await page.waitForFunction(
+    () =>
+      Boolean(
+        document
+          .querySelector(".page-start")
+          ?.style.getPropertyValue("--start-drop"),
+      ),
+  );
   assert.equal(await page.title(), "ZIGSAW");
+  const startPosition = await page.evaluate(() => {
+    const masthead = document
+      .querySelector(".masthead")
+      ?.getBoundingClientRect();
+    const form = document
+      .querySelector(".settings-form")
+      ?.getBoundingClientRect();
+    return {
+      drop: Number.parseFloat(
+        getComputedStyle(document.querySelector(".page-start"))
+          .getPropertyValue("--start-drop"),
+      ),
+      centerRatio:
+        masthead && form
+          ? (masthead.top + form.bottom) / 2 / innerHeight
+          : -1,
+    };
+  });
+  assert.ok(startPosition.drop > 40);
+  assert.ok(startPosition.centerRatio >= 0.39);
+  assert.ok(startPosition.centerRatio <= 0.5);
   const tutorialTrigger = page.getByRole("button", { name: "游玩方法" });
   const tutorialPosition = await tutorialTrigger.evaluate((button) => {
     const box = button.getBoundingClientRect();
@@ -88,6 +117,107 @@ try {
     await page.getByRole("heading", { name: "游玩方法", exact: true }).count(),
     1,
   );
+  const tutorialTitle = page.locator(".tutorial-title-button");
+  await tutorialTitle.click();
+  await page.waitForTimeout(700);
+  assert.equal(
+    await tutorialTitle.getAttribute("class"),
+    "tutorial-title-button is-easter-egg-active",
+  );
+  assert.match(
+    await page.locator(".tutorial-title-dye").evaluate(
+      (dye) => getComputedStyle(dye).backgroundImage,
+    ),
+    /linear-gradient.*rgb\(128, 0, 128\).*rgb\(244, 142, 0\)/,
+  );
+  assert.equal(
+    await page.locator(".tutorial-title-label").evaluate(
+      (label) => getComputedStyle(label).clipPath,
+    ),
+    "inset(0px 0px 0px 100%)",
+  );
+  const titleGlyphAlignment = await page.evaluate(() => {
+    const label = document
+      .querySelector(".tutorial-title-label")
+      ?.getBoundingClientRect();
+    const dye = document
+      .querySelector(".tutorial-title-dye")
+      ?.getBoundingClientRect();
+    return label && dye
+      ? {
+          left: Math.abs(label.left - dye.left),
+          top: Math.abs(label.top - dye.top),
+        }
+      : { left: Infinity, top: Infinity };
+  });
+  assert.ok(titleGlyphAlignment.left <= 0.5);
+  assert.ok(titleGlyphAlignment.top <= 0.5);
+  await page.waitForTimeout(180);
+  assert.equal(
+    await tutorialTitle.getAttribute("class"),
+    "tutorial-title-button is-easter-egg-active",
+  );
+  assert.equal(
+    await page.locator(".tutorial-title-dye").evaluate(
+      (element) => getComputedStyle(element).opacity,
+    ),
+    "1",
+  );
+  await page.evaluate(() => {
+    window.__openedTutorialUrl = "";
+    window.open = (url) => {
+      window.__openedTutorialUrl = String(url);
+      return null;
+    };
+  });
+  await tutorialTitle.click();
+  await page.waitForTimeout(600);
+  assert.equal(
+    await tutorialTitle.getAttribute("class"),
+    "tutorial-title-button is-easter-egg-active is-sweep-active",
+  );
+  assert.match(
+    await page.locator(".tutorial-title-reveal").innerText(),
+    /BY\s+背面８回宙返り/,
+  );
+  await page.mouse.move(8, 8);
+  await page.waitForTimeout(50);
+  assert.equal(
+    await tutorialTitle.getAttribute("class"),
+    "tutorial-title-button is-easter-egg-active",
+  );
+  assert.equal(
+    await page.locator(".tutorial-title-label").evaluate(
+      (element) => getComputedStyle(element).clipPath,
+    ),
+    "inset(0px 0px 0px 100%)",
+  );
+  await page.waitForTimeout(550);
+  assert.equal(
+    await page.locator(".tutorial-title-reveal").evaluate(
+      (element) => getComputedStyle(element).opacity,
+    ),
+    "0",
+  );
+  await tutorialTitle.hover();
+  await page.waitForTimeout(600);
+  assert.equal(
+    await tutorialTitle.getAttribute("class"),
+    "tutorial-title-button is-easter-egg-active is-sweep-active",
+  );
+  await tutorialTitle.dispatchEvent("pointerleave", {
+    pointerType: "touch",
+  });
+  await page.waitForTimeout(100);
+  assert.match(
+    await tutorialTitle.getAttribute("class"),
+    /is-sweep-active/,
+  );
+  await tutorialTitle.click();
+  assert.equal(
+    await page.evaluate(() => window.__openedTutorialUrl),
+    "https://www.bilibili.com/video/BV1WqQVY2Euv/",
+  );
   assert.deepEqual(
     await page.locator(".tutorial-part").allTextContents(),
     ["寸", "木", "又"],
@@ -110,7 +240,7 @@ try {
   for (const text of [
     "在倒计时耗尽前，将部件重组成正确的汉字！",
     "有些部件的不同形态会归于一类",
-    "部件的归类与拆分方式包含大量作者主观意见，如有错讹请联系作者",
+    "部件的归类与拆分方式包含大量主观意见，如有错讹请联系作者",
     "在渐进的难度曲线下一路向前突进！",
     "每个阶段共5题，各阶段所取的通规字表区间会逐步后移。",
     "到达字表末端后，将进入阶段EX……会有什么呢？",
@@ -124,7 +254,7 @@ try {
   }
   assert.equal(
     await page.locator(".tutorial-disclaimer").first().innerText(),
-    "部件的归类与拆分方式包含大量作者主观意见，如有错讹请联系作者",
+    "部件的归类与拆分方式包含大量主观意见，如有错讹请联系作者",
   );
   assert.equal(
     await page.locator(".tutorial-ex-name").evaluate(
@@ -135,12 +265,21 @@ try {
     ),
     "700|rgb(112, 74, 134)",
   );
+  const tutorialReturn = page
+    .locator("#tutorial-dialog")
+    .getByRole("button", { name: "返回", exact: true });
+  await tutorialReturn.waitFor();
+  await tutorialReturn.click();
+  assert.equal(
+    await page.locator("#tutorial-dialog").evaluate(
+      (dialog) => dialog.classList.contains("is-closing"),
+    ),
+    true,
+  );
   await page
     .locator("#tutorial-dialog")
-    .getByRole("button", { name: "关闭", exact: true })
-    .click();
-  assert.equal(await page.locator("#tutorial-dialog[open]").count(), 0);
-  const atlasTrigger = page.getByRole("button", { name: "图鉴" });
+    .waitFor({ state: "hidden" });
+  const atlasTrigger = page.getByRole("link", { name: "图鉴" });
   assert.equal(
     await atlasTrigger.locator("svg circle").count(),
     0,
@@ -151,20 +290,17 @@ try {
       (await tutorialTrigger.boundingBox()).x,
   );
   await atlasTrigger.click();
-  await page.locator("#atlas-dialog[open]").waitFor();
+  await page.waitForURL(/\/atlas\/$/);
+  await page.waitForLoadState("networkidle");
+  assert.equal(await page.title(), "ZIGSAW · 图鉴");
+  assert.equal(await page.locator(".atlas-page-heading h1").innerText(), "图鉴");
   assert.equal(
-    await page.getByRole("heading", { name: "图鉴", exact: true }).count(),
-    1,
-  );
-  assert.equal(
-    await page.locator(".atlas-placeholder").innerText(),
+    await page.locator(".atlas-page-placeholder").innerText(),
     "施工中",
   );
-  await page
-    .locator("#atlas-dialog")
-    .getByRole("button", { name: "关闭", exact: true })
-    .click();
-  assert.equal(await page.locator("#atlas-dialog[open]").count(), 0);
+  await page.getByRole("link", { name: "返回", exact: true }).click();
+  await page.waitForURL((url) => !url.pathname.endsWith("/atlas/"));
+  await page.locator(".start-button:not([disabled])").waitFor();
   assert.equal(await page.getByText("把部件拼回一个字").count(), 0);
   assert.equal(await page.getByText("打乱顺序后，在倒计时内输入对应的汉字。").count(), 0);
   assert.equal(
@@ -270,6 +406,7 @@ try {
   assert.equal(await page.locator("#parts-low").inputValue(), "5");
   await page.locator("#parts-low").fill("2");
   await page.locator("#parts-high").fill("4");
+  await page.waitForTimeout(180);
   const sliderLeft = await page.locator(".dual-range").evaluate(
     (element) => element.getBoundingClientRect().x,
   );
@@ -1033,6 +1170,9 @@ try {
     .locator("#tutorial-dialog")
     .getByRole("button", { name: "关闭", exact: true })
     .click();
+  await page
+    .locator("#tutorial-dialog")
+    .waitFor({ state: "hidden" });
   await page.locator(".review-card").first().click();
   await page.locator(".char-detail-dialog[open]").waitFor();
   const mobileDetailLayout = await page.evaluate(() => {

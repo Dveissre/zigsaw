@@ -184,6 +184,7 @@ input:focus-visible {
 
 .wordmark {
   font-family: "Times New Roman", Georgia, serif;
+  view-transition-name: zigsaw-title;
   margin: 0;
   font-size: clamp(40px, 6.5vw, 64px);
   font-weight: 700;
@@ -215,6 +216,64 @@ input:focus-visible {
   height: 3px;
   margin: 14px auto 0;
   background: var(--accent);
+}
+
+.page-start .masthead,
+.page-start .settings-form {
+  transform: translateY(var(--start-drop, 0px));
+  will-change: transform;
+}
+
+.page-start.is-starting .masthead {
+  transform: translateY(0);
+  transition: transform 320ms cubic-bezier(0.2, 0.75, 0.25, 1);
+}
+
+.page-start.is-starting .settings-form {
+  opacity: 0;
+  transition: opacity 180ms ease-out;
+}
+
+::view-transition-group(zigsaw-title) {
+  animation-duration: 380ms;
+  animation-timing-function: cubic-bezier(0.2, 0.75, 0.25, 1);
+}
+
+::view-transition-old(root) {
+  animation: page-fade-out 180ms ease-out both;
+}
+
+::view-transition-new(root) {
+  animation: page-fade-in 240ms ease-out both;
+}
+
+@keyframes page-fade-out {
+  to {
+    opacity: 0.45;
+  }
+}
+
+@keyframes page-fade-in {
+  from {
+    opacity: 0.45;
+  }
+
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes tutorial-dialog-out {
+  to {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+}
+
+@keyframes tutorial-backdrop-out {
+  to {
+    opacity: 0;
+  }
 }
 
 .start-screen {
@@ -1716,38 +1775,55 @@ input:focus-visible {
   padding-top: 10px;
 }
 
-.atlas-dialog {
-  width: min(680px, calc(100vw - 32px));
-  max-width: none;
-  height: min(480px, calc(100dvh - 28px));
-  max-height: none;
-  margin: auto;
-  padding: 0;
-  overflow: hidden;
-  border: 1px solid var(--ink);
-  border-radius: 0;
-  color: var(--ink);
-  background: var(--surface);
-}
-
-.atlas-dialog[open] {
-  display: block;
-  animation: char-detail-in 150ms ease-out both;
-}
-
-.atlas-dialog::backdrop {
-  background: rgba(32, 35, 31, 0.46);
-  animation: char-detail-backdrop-in 150ms ease-out both;
-}
-
-.atlas-panel {
+.atlas-page-screen {
   display: flex;
-  height: 100%;
   min-height: 0;
+  flex: 1;
+  justify-content: center;
+  overflow: hidden;
+  padding: clamp(10px, 2vh, 20px) 0 max(12px, env(safe-area-inset-bottom));
+}
+
+.atlas-page-surface {
+  display: flex;
+  width: min(100%, 760px);
+  min-height: 0;
+  height: 100%;
   flex-direction: column;
 }
 
-.atlas-placeholder {
+.atlas-page-heading {
+  flex: 0 0 auto;
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 20px;
+  padding: 8px 0 16px;
+  border-bottom: 1px solid var(--line-strong);
+}
+
+.atlas-page-heading h1 {
+  margin: 4px 0 0;
+  font-size: clamp(38px, 5vw, 52px);
+  line-height: 1;
+}
+
+.atlas-back {
+  flex: 0 0 auto;
+  padding: 6px 10px;
+  border: 1px solid var(--line-strong);
+  color: var(--muted);
+  text-decoration: none;
+  font-size: 12px;
+}
+
+.atlas-back:hover {
+  border-color: var(--ink);
+  color: var(--ink);
+  background: var(--paper-deep);
+}
+
+.atlas-page-placeholder {
   display: grid;
   min-height: 0;
   flex: 1;
@@ -1776,9 +1852,18 @@ input:focus-visible {
   animation: char-detail-in 150ms ease-out both;
 }
 
+.tutorial-dialog.is-closing {
+  pointer-events: none;
+  animation: tutorial-dialog-out 180ms ease-in both;
+}
+
 .tutorial-dialog::backdrop {
   background: rgba(32, 35, 31, 0.46);
   animation: char-detail-backdrop-in 150ms ease-out both;
+}
+
+.tutorial-dialog.is-closing::backdrop {
+  animation: tutorial-backdrop-out 180ms ease-in both;
 }
 
 .tutorial-panel {
@@ -1788,8 +1873,7 @@ input:focus-visible {
   flex-direction: column;
 }
 
-.tutorial-header,
-.atlas-header {
+.tutorial-header {
   position: relative;
   flex: 0 0 auto;
   padding: 22px 64px 18px 26px;
@@ -1804,11 +1888,128 @@ input:focus-visible {
   letter-spacing: 0.16em;
 }
 
-.tutorial-header h2,
-.atlas-header h2 {
+.tutorial-header h2 {
   margin: 3px 0 0;
   font-size: 36px;
   line-height: 1;
+}
+
+.tutorial-title-button {
+  position: relative;
+  display: inline-flex;
+  align-items: baseline;
+  isolation: isolate;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  color: inherit;
+  background: transparent;
+  font: inherit;
+  line-height: inherit;
+  text-align: left;
+  white-space: nowrap;
+}
+
+.tutorial-title-base {
+  position: relative;
+  display: inline-grid;
+  align-items: baseline;
+}
+
+.tutorial-title-base > span {
+  grid-area: 1 / 1;
+}
+
+.tutorial-title-label {
+  z-index: 1;
+  color: inherit;
+  clip-path: inset(0 0 0 0);
+}
+
+.tutorial-title-button.is-easter-egg-active .tutorial-title-label {
+  clip-path: inset(0 0 0 100%);
+}
+
+.tutorial-title-dye {
+  z-index: 2;
+  color: transparent;
+  background-image: linear-gradient(125deg, #800080, #f48e00);
+  background-clip: text;
+  -webkit-background-clip: text;
+  clip-path: inset(0 100% 0 0);
+  pointer-events: none;
+  transition:
+    clip-path 680ms cubic-bezier(0.2, 0.7, 0.25, 1),
+    opacity 120ms ease-out;
+  -webkit-text-fill-color: transparent;
+}
+
+.tutorial-title-button.is-easter-egg-active .tutorial-title-dye {
+  clip-path: inset(0 0 0 0);
+}
+
+.tutorial-title-sweep {
+  position: absolute;
+  inset: -0.06em -0.18em;
+  z-index: 0;
+  opacity: 0;
+  background-image: linear-gradient(125deg, #800080, #f48e00);
+  transform: scaleX(0);
+  transform-origin: left center;
+  pointer-events: none;
+  transition:
+    transform 520ms cubic-bezier(0.2, 0.75, 0.25, 1),
+    opacity 80ms linear;
+}
+
+.tutorial-title-button.is-sweep-active .tutorial-title-sweep {
+  opacity: 1;
+  transform: scaleX(1);
+}
+
+.tutorial-title-button.is-sweep-active .tutorial-title-dye {
+  opacity: 0;
+}
+
+.tutorial-title-button.is-sweep-active .tutorial-title-label {
+  clip-path: inset(0 0 0 0);
+  color: #fff;
+  transition: color 90ms ease 140ms;
+  -webkit-text-fill-color: #fff;
+}
+
+.tutorial-title-reveal {
+  position: relative;
+  z-index: 1;
+  display: inline-flex;
+  max-width: 0;
+  flex: 0 0 auto;
+  align-items: baseline;
+  gap: 0.6em;
+  margin-left: 0;
+  overflow: hidden;
+  color: #fff;
+  font-size: clamp(15px, 1.8vw, 19px);
+  line-height: 1;
+  opacity: 0;
+  transition:
+    max-width 500ms cubic-bezier(0.2, 0.75, 0.25, 1),
+    margin-left 500ms cubic-bezier(0.2, 0.75, 0.25, 1),
+    opacity 140ms ease;
+}
+
+.tutorial-title-reveal small {
+  font-family: "Times New Roman", Georgia, serif;
+  font-size: 0.58em;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+}
+
+.tutorial-title-button.is-sweep-active .tutorial-title-reveal {
+  max-width: 280px;
+  margin-left: 12px;
+  opacity: 1;
+  transition-delay: 120ms, 120ms, 260ms;
 }
 
 .tutorial-content {
@@ -1967,12 +2168,35 @@ input:focus-visible {
   margin: 9px auto 0;
   color: var(--muted);
   font-size: 12px;
+  letter-spacing: 0.005em;
   line-height: 1.55;
   text-align: center;
+  text-wrap: balance;
+}
+
+.tutorial-return-row {
+  display: flex;
+  justify-content: center;
+  padding: 10px 0 22px;
+}
+
+.tutorial-return-row button {
+  min-width: 86px;
+  min-height: 38px;
+  padding: 8px 17px;
+  border: 1px solid var(--ink);
+  color: var(--surface);
+  background: var(--ink);
+}
+
+.tutorial-return-row button:hover {
+  border-color: var(--accent);
+  color: var(--surface);
+  background: var(--accent);
 }
 
 .tutorial-credits {
-  margin: 2px auto 18px;
+  margin: 0 auto 18px;
   color: var(--muted);
   font-size: 11px;
   text-align: center;
@@ -2552,7 +2776,7 @@ input:focus-visible {
   }
 
   .parts-slider {
-    padding-inline: 10px;
+    padding-inline: 0;
   }
 
   .segmented {
@@ -2726,13 +2950,13 @@ input:focus-visible {
   }
 
   .corner-icon-button {
-    width: 44px;
-    height: 44px;
+    width: 40px;
+    height: 40px;
   }
 
   .corner-icon-button svg {
-    width: 30px;
-    height: 30px;
+    width: 27px;
+    height: 27px;
   }
 
   .tutorial-dialog {
@@ -2740,9 +2964,16 @@ input:focus-visible {
     height: min(730px, calc(100dvh - 20px));
   }
 
-  .atlas-dialog {
-    width: calc(100vw - 20px);
-    height: min(460px, calc(100dvh - 20px));
+  .atlas-page-screen {
+    padding-top: 5px;
+  }
+
+  .atlas-page-heading {
+    padding-bottom: 13px;
+  }
+
+  .atlas-page-heading h1 {
+    font-size: 34px;
   }
 
   .tutorial-header {
@@ -2959,9 +3190,7 @@ input:focus-visible {
   .char-detail-dialog[open],
   .char-detail-dialog::backdrop,
   .tutorial-dialog[open],
-  .tutorial-dialog::backdrop,
-  .atlas-dialog[open],
-  .atlas-dialog::backdrop {
+  .tutorial-dialog::backdrop {
     animation: none !important;
   }
 

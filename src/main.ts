@@ -11,7 +11,7 @@ import {
 import { CharDetailStore } from "./game/details";
 import { LocalRecordStore, recordKey } from "./game/records";
 import { GameSession, type GameState } from "./game/session";
-import { createAtlasDialog, ATLAS_TRIGGER_MARKUP } from "./ui/atlas";
+import { ATLAS_TRIGGER_MARKUP } from "./ui/atlas";
 import { CharDetailView } from "./ui/char-detail";
 import { splitPartsIntoRows } from "./ui/parts";
 import {
@@ -48,14 +48,16 @@ let composing = false;
 let lastQuestionKey = "";
 let lastRenderedPaused = false;
 let advancedSettingsOpen = false;
+let startingGame = false;
+let startLayoutObserver: ResizeObserver | null = null;
+let pageTransitionActive = false;
 
 const MODE_ORDER: Mode[] = ["challenge", "normal", "endless"];
 
 const records = new LocalRecordStore();
 const charDetails = new CharDetailStore(document.baseURI);
 const tutorialDialog = createTutorialDialog();
-const atlasDialog = createAtlasDialog();
-let resumeAfterInfoDialog = false;
+let resumeAfterTutorial = false;
 
 function escapeHtml(value: string): string {
   return value
@@ -109,18 +111,93 @@ function shell(
   `;
 }
 
+function withPageTransition(update: () => void): void {
+  const transitionDocument = document as Document & {
+    startViewTransition?: (
+      callback: () => void,
+    ) => { finished: Promise<void> };
+  };
+  if (
+    pageTransitionActive ||
+    !transitionDocument.startViewTransition ||
+    window.matchMedia("(prefers-reduced-motion: reduce)").matches
+  ) {
+    update();
+    return;
+  }
+
+  pageTransitionActive = true;
+  try {
+    const transition = transitionDocument.startViewTransition(update);
+    void transition.finished.then(
+      () => {
+        pageTransitionActive = false;
+      },
+      () => {
+        pageTransitionActive = false;
+      },
+    );
+  } catch {
+    pageTransitionActive = false;
+    update();
+  }
+}
+
+function positionStartPage(): void {
+  const shellElement = document.querySelector<HTMLElement>(".page-start");
+  const masthead =
+    shellElement?.querySelector<HTMLElement>(".masthead");
+  const form =
+    shellElement?.querySelector<HTMLElement>(".settings-form");
+  if (!shellElement || !masthead || !form) {
+    return;
+  }
+
+  shellElement.style.setProperty("--start-drop", "0px");
+  const shellBox = shellElement.getBoundingClientRect();
+  const mastheadBox = masthead.getBoundingClientRect();
+  const formBox = form.getBoundingClientRect();
+  const groupCenter =
+    (mastheadBox.top + formBox.bottom) / 2;
+  const targetCenter = shellBox.top + shellBox.height * 0.44;
+  const availableDrop =
+    shellBox.bottom - formBox.bottom - 16;
+  const drop = Math.max(
+    0,
+    Math.min(
+      targetCenter - groupCenter,
+      Math.max(0, availableDrop),
+    ),
+  );
+  shellElement.style.setProperty("--start-drop", `${drop}px`);
+}
+
+function setupStartLayout(): void {
+  startLayoutObserver?.disconnect();
+  startLayoutObserver = null;
+  const form = document.querySelector<HTMLElement>(".settings-form");
+  if (!form) {
+    return;
+  }
+
+  positionStartPage();
+  requestAnimationFrame(positionStartPage);
+  startLayoutObserver = new ResizeObserver(positionStartPage);
+  startLayoutObserver.observe(form);
+}
+
 function openInfoDialog(dialog: HTMLDialogElement): void {
   if (dialog.open || document.querySelector("dialog[open]")) {
     return;
   }
 
-  resumeAfterInfoDialog = Boolean(
+  resumeAfterTutorial = Boolean(
     session &&
       session.state.phase === "playing" &&
       !session.state.paused &&
       !session.state.revealing,
   );
-  if (resumeAfterInfoDialog) {
+  if (resumeAfterTutorial) {
     session?.togglePause();
   }
   dialog.showModal();
@@ -135,14 +212,11 @@ document.addEventListener("click", (event) => {
     openInfoDialog(tutorialDialog);
     return;
   }
-  if (target.closest("[data-atlas-trigger]")) {
-    openInfoDialog(atlasDialog);
-  }
 });
 
 function finishInfoDialog(): void {
-  const shouldResume = resumeAfterInfoDialog;
-  resumeAfterInfoDialog = false;
+  const shouldResume = resumeAfterTutorial;
+  resumeAfterTutorial = false;
   if (
     shouldResume &&
     session?.state.phase === "playing" &&
@@ -154,7 +228,6 @@ function finishInfoDialog(): void {
 }
 
 tutorialDialog.addEventListener("close", finishInfoDialog);
-atlasDialog.addEventListener("close", finishInfoDialog);
 
 function clamp(value: number, minimum: number, maximum: number): number {
   return Math.min(maximum, Math.max(minimum, value));
@@ -337,6 +410,9 @@ function readSettings(): GameSettings {
 }
 
 function renderStart(initial: GameSettings = lastSettings): void {
+  startLayoutObserver?.disconnect();
+  startLayoutObserver = null;
+  startingGame = false;
   session?.destroy();
   session = null;
   lastQuestionKey = "";
@@ -480,6 +556,7 @@ function renderStart(initial: GameSettings = lastSettings): void {
   wireNumberSteppers();
   updateModeFields();
   updateStartRecord();
+  setupStartLayout();
 
   const advancedCorner = document.querySelector<HTMLButtonElement>(".advanced-corner");
   advancedCorner?.addEventListener("click", () => {
@@ -554,7 +631,29 @@ function renderStart(initial: GameSettings = lastSettings): void {
       }
       return;
     }
-    startGame(settings);
+    if (startingGame) {
+      return;
+    }
+    if (
+      window.matchMedia("(prefers-reduced-motion: reduce)").matches
+    ) {
+      startGame(settings);
+      return;
+    }
+
+    startingGame = true;
+    document
+      .querySelector<HTMLElement>(".page-start")
+      ?.classList.add("is-starting");
+    const startButton =
+      document.querySelector<HTMLButtonElement>(".start-button");
+    if (startButton) {
+      startButton.disabled = true;
+    }
+    setTimeout(() => {
+      startingGame = false;
+      startGame(settings);
+    }, 320);
   });
 }
 
@@ -852,7 +951,7 @@ function renderGame(game: GameSession): void {
     startGame(state.settings);
   });
   document.querySelector<HTMLButtonElement>("[data-settings]")?.addEventListener("click", () => {
-    renderStart(state.settings);
+    withPageTransition(() => renderStart(state.settings));
   });
 }
 
@@ -1046,10 +1145,10 @@ function renderResults(game: GameSession): void {
   }
 
   document.querySelector<HTMLButtonElement>("[data-again]")?.addEventListener("click", () => {
-    startGame(state.settings);
+    withPageTransition(() => startGame(state.settings));
   });
   document.querySelector<HTMLButtonElement>("[data-settings]")?.addEventListener("click", () => {
-    renderStart(state.settings);
+    withPageTransition(() => renderStart(state.settings));
   });
 }
 
@@ -1059,6 +1158,8 @@ function startGame(settings: GameSettings): void {
   }
 
   session?.destroy();
+  startLayoutObserver?.disconnect();
+  startLayoutObserver = null;
   lastQuestionKey = "";
   lastRenderedPaused = false;
   lastSettings = structuredClone(settings);
@@ -1066,15 +1167,16 @@ function startGame(settings: GameSettings): void {
     if (!session) {
       return;
     }
+    const activeSession = session;
     if (event === "tick") {
       updateTimer(state);
       return;
     }
     if (state.phase === "results") {
-      renderResults(session);
+      withPageTransition(() => renderResults(activeSession));
       return;
     }
-    renderGame(session);
+    renderGame(activeSession);
   });
   renderGame(session);
 }
@@ -1112,4 +1214,6 @@ window.addEventListener("keydown", (event) => {
   event.preventDefault();
   session.togglePause();
 });
+
+window.addEventListener("resize", positionStartPage);
 

@@ -34,7 +34,24 @@ export function createTutorialDialog(): HTMLDialogElement {
           <header class="tutorial-header">
             <div>
               <div class="tutorial-kicker">HOW TO PLAY</div>
-              <h2 id="tutorial-title">游玩方法</h2>
+              <h2 id="tutorial-title">
+                <button
+                  class="tutorial-title-button"
+                  type="button"
+                  data-tutorial-title
+                  aria-label="游玩方法"
+                >
+                  <span class="tutorial-title-sweep" aria-hidden="true"></span>
+                  <span class="tutorial-title-base">
+                    <span class="tutorial-title-label">游玩方法</span>
+                    <span class="tutorial-title-dye" aria-hidden="true">游玩方法</span>
+                  </span>
+                  <span class="tutorial-title-reveal" aria-hidden="true">
+                    <small>BY</small>
+                    <span>背面８回宙返り</span>
+                  </span>
+                </button>
+              </h2>
             </div>
             <button
               class="char-detail-close tutorial-close"
@@ -84,7 +101,7 @@ export function createTutorialDialog(): HTMLDialogElement {
                 <span class="tutorial-inline-token">西</span>。
               </p>
               <p class="tutorial-disclaimer">
-                部件的归类与拆分方式包含大量作者主观意见，如有错讹请联系作者
+                部件的归类与拆分方式包含大量主观意见，如有错讹请联系作者
               </p>
             </section>
 
@@ -152,6 +169,9 @@ export function createTutorialDialog(): HTMLDialogElement {
                 但是超时仍然会结束游戏，尽可能多地答对吧！
               </p>
             </section>
+            <div class="tutorial-return-row">
+              <button type="button" data-tutorial-return>返回</button>
+            </div>
             <p class="tutorial-credits">Created by <em>fukurei</em></p>
           </div>
         </article>
@@ -161,9 +181,122 @@ export function createTutorialDialog(): HTMLDialogElement {
 
   const dialog =
     document.querySelector<HTMLDialogElement>("#tutorial-dialog")!;
+  const titleButton =
+    dialog.querySelector<HTMLButtonElement>("[data-tutorial-title]");
+  const titleLabel =
+    dialog.querySelector<HTMLElement>(".tutorial-title-label");
+  let titleStage = 0;
+  let reenterShouldSweep = false;
+  let closing = false;
+  let closeTimer: number | null = null;
+
+  const resetTitle = () => {
+    titleStage = 0;
+    reenterShouldSweep = false;
+    titleButton?.classList.remove(
+      "is-easter-egg-active",
+      "is-sweep-active",
+    );
+  };
+
+  const requestClose = () => {
+    if (!dialog.open || closing) {
+      return;
+    }
+    if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) {
+      dialog.close();
+      return;
+    }
+
+    closing = true;
+    dialog.classList.add("is-closing");
+    closeTimer = window.setTimeout(() => {
+      closeTimer = null;
+      dialog.close();
+    }, 180);
+  };
+
+  titleButton?.addEventListener("click", () => {
+    if (titleStage === 0) {
+      titleStage = 1;
+      reenterShouldSweep = false;
+      titleButton.classList.add("is-easter-egg-active");
+      if (
+        titleLabel &&
+        !window.matchMedia("(prefers-reduced-motion: reduce)").matches
+      ) {
+        const animation = titleLabel.animate(
+          [
+            { clipPath: "inset(0 0 0 0)" },
+            { clipPath: "inset(0 0 0 100%)" },
+          ],
+          {
+            duration: 680,
+            easing: "cubic-bezier(0.2, 0.7, 0.25, 1)",
+            fill: "both",
+          },
+        );
+        void animation.finished.then(
+          () => animation.cancel(),
+          () => undefined,
+        );
+      }
+      return;
+    }
+    if (titleStage === 1) {
+      titleStage = 2;
+      reenterShouldSweep = false;
+      titleButton.classList.add("is-sweep-active");
+      return;
+    }
+    resetTitle();
+    window.open(
+      "https://www.bilibili.com/video/BV1WqQVY2Euv/",
+      "_blank",
+      "noopener,noreferrer",
+    );
+  });
+  titleButton?.addEventListener("pointerleave", (event) => {
+    if (titleStage === 0 || event.pointerType !== "mouse") {
+      return;
+    }
+    reenterShouldSweep = true;
+    if (titleStage === 2) {
+      titleStage = 1;
+      titleButton.classList.remove("is-sweep-active");
+    }
+  });
+  titleButton?.addEventListener("pointerenter", (event) => {
+    if (
+      event.pointerType !== "mouse" ||
+      titleStage !== 1 ||
+      !reenterShouldSweep
+    ) {
+      return;
+    }
+    titleStage = 2;
+    reenterShouldSweep = false;
+    titleButton.classList.add("is-sweep-active");
+  });
   dialog
     .querySelector<HTMLButtonElement>("[data-tutorial-close]")
-    ?.addEventListener("click", () => dialog.close());
+    ?.addEventListener("click", requestClose);
+  dialog
+    .querySelector<HTMLButtonElement>("[data-tutorial-return]")
+    ?.addEventListener("click", requestClose);
+  dialog.addEventListener("cancel", (event) => {
+    event.preventDefault();
+    requestClose();
+  });
+  dialog.addEventListener("close", () => {
+    if (closeTimer !== null) {
+      window.clearTimeout(closeTimer);
+      closeTimer = null;
+    }
+    closing = false;
+    dialog.classList.remove("is-closing");
+    resetTitle();
+  });
   dialog.addEventListener("click", (event) => {
     if (event.target !== dialog) {
       return;
@@ -175,7 +308,7 @@ export function createTutorialDialog(): HTMLDialogElement {
       event.clientY < box.top ||
       event.clientY > box.bottom;
     if (outsideOfPanel) {
-      dialog.close();
+      requestClose();
     }
   });
 

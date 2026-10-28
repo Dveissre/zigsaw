@@ -67,13 +67,36 @@ try {
       .locator("#tutorial-dialog")
       .getByRole("button", { name: "关闭", exact: true })
       .click();
-    await page.getByRole("button", { name: "图鉴" }).click();
-    await page.locator("#atlas-dialog[open]").waitFor();
-    const atlasLayout = await measureLayout(page);
     await page
-      .locator("#atlas-dialog")
-      .getByRole("button", { name: "关闭", exact: true })
-      .click();
+      .locator("#tutorial-dialog")
+      .waitFor({ state: "hidden" });
+    await page.getByRole("link", { name: "图鉴" }).click();
+    await page.waitForURL(/\/atlas\/$/);
+    await page.waitForLoadState("networkidle");
+    const atlasLayout = await measureLayout(page);
+    await page.getByRole("link", { name: "返回", exact: true }).click();
+    await page.waitForURL((url) => !url.pathname.endsWith("/atlas/"));
+    await page.locator(".start-button:not([disabled])").waitFor();
+    await page.getByRole("button", { name: "自由", exact: true }).click();
+    await page.waitForTimeout(220);
+    await page.locator(".parts-slider").waitFor();
+    const controlAlignment = await page.evaluate(() => {
+      const read = (selector) =>
+        document.querySelector(selector)?.getBoundingClientRect().left ?? -1;
+      return {
+        mode: read(".mode-switch"),
+        parts: read(".parts-slider"),
+      };
+    });
+    if (
+      Math.abs(controlAlignment.mode - controlAlignment.parts) >
+      1
+    ) {
+      throw new Error(
+        `Settings controls are misaligned: ${JSON.stringify(controlAlignment)}`,
+      );
+    }
+    await page.getByRole("button", { name: "挑战", exact: true }).click();
     await page.getByRole("button", { name: "开始", exact: true }).click();
     await page.locator(".play-screen").waitFor();
     const gameLayout = await measureLayout(page);
