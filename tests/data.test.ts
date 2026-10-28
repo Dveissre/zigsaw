@@ -24,6 +24,34 @@ type ComponentAssetTable = {
   symbols: Record<string, { name: string; source: string }>;
 };
 
+type CharDetailTable = Array<{
+  char: string;
+  pronunciations: Array<{
+    pinyin: string;
+    explanations: Array<{ content?: string }>;
+  }>;
+}>;
+
+type SchoolIndex = Record<
+  string,
+  { read?: string[]; write?: string[] }
+>;
+
+type ComponentUsageTable = {
+  format: string;
+  characterCount: number;
+  decompositionCount: number;
+  totalUsageCount: number;
+  componentCount: number;
+  symbols: Array<{
+    symbolId: number;
+    name: string;
+    count: number;
+    charCount: number;
+    asset?: string;
+  }>;
+};
+
 const readJson = <T>(path: string): T =>
   JSON.parse(readFileSync(resolve(process.cwd(), path), "utf8")) as T;
 
@@ -67,6 +95,57 @@ describe("static game data", () => {
     expect(data.levels.三级).toHaveLength(1605);
   });
 
+  it("keeps the lazily loaded character detail library", () => {
+    const directory = resolve(
+      process.cwd(),
+      "public/data/char-detail",
+    );
+    const shardFiles = readdirSync(directory)
+      .filter((name) => name.endsWith(".json"))
+      .sort();
+    const data = shardFiles.flatMap((filename) =>
+      readJson<CharDetailTable>(`public/data/char-detail/${filename}`),
+    );
+    const find = (char: string) =>
+      data.find((entry) => entry.char === char);
+
+    expect(shardFiles).toHaveLength(256);
+    expect(data).toHaveLength(21041);
+    expect(find("厂")?.pronunciations.map((item) => item.pinyin)).toEqual([
+      "chǎng",
+      "ān",
+      "hàn",
+    ]);
+    expect(
+      find("厂")?.pronunciations[0].explanations.map(
+        (item) => item.content,
+      ),
+    ).toContain("工厂。");
+    expect(find("丒")?.pronunciations[0].pinyin).toBe("chǒu");
+    expect(
+      readJson<CharDetailTable>("public/data/char-detail/82.json").some(
+        (entry) => entry.char === "厂",
+      ),
+    ).toBe(true);
+  });
+
+  it("keeps the primary-school reading and writing index", () => {
+    const school = readJson<SchoolIndex>(
+      "public/data/char-school.json",
+    );
+
+    expect(Object.keys(school)).toHaveLength(2997);
+    expect(school["庞"]).toEqual({
+      read: ["四上"],
+      write: ["四上"],
+    });
+    expect(school["览"]).toEqual({
+      read: ["二下"],
+      write: ["五上"],
+    });
+    expect(school["丒"]).toBeUndefined();
+  });
+
   it("maps every component SVG to an existing sym", () => {
     const symTable = readJson<SymTable>("public/data/char_sym.json");
     const assets = readJson<ComponentAssetTable>(
@@ -78,8 +157,23 @@ describe("static game data", () => {
     const mappedFiles = Object.values(assets.symbols)
       .map((asset) => asset.source.replace(/^component_svg\//, ""))
       .sort();
+    const supersededFiles = svgFiles.filter((filename) => {
+      const base = filename.replace(/\.svg$/, "");
+      return (
+        /[0-9]$/.test(base) &&
+        mappedFiles.includes(`${base}N.svg`)
+      );
+    });
 
-    expect(mappedFiles).toEqual(svgFiles);
+    expect(mappedFiles).toEqual(
+      svgFiles.filter((filename) => !supersededFiles.includes(filename)),
+    );
+    expect(supersededFiles).toEqual([
+      "159.svg",
+      "198.svg",
+      "338.svg",
+      "425.svg",
+    ]);
     for (const [symbolId, asset] of Object.entries(assets.symbols)) {
       expect(symTable.symbols[symbolId]).toBe(asset.name);
       const path = resolve(process.cwd(), "public", asset.source);
@@ -88,6 +182,77 @@ describe("static game data", () => {
       expect(svg).toContain('viewBox="0 0 1024 1024"');
       expect(svg).toContain("<path");
     }
+  });
+
+  it("covers every multi-character component used by tongyong characters", () => {
+    const symTable = readJson<SymTable>("public/data/char_sym.json");
+    const levels = readJson<LevelTable>(
+      "public/data/tongyong_hanzi.json",
+    );
+    const assets = readJson<ComponentAssetTable>(
+      "public/data/component-assets.json",
+    );
+    const usedMultiCharacterSymbols = new Set<string>();
+    const characters = new Set([
+      ...levels.levels.一级,
+      ...levels.levels.二级,
+      ...levels.levels.三级,
+    ]);
+
+    for (const char of characters) {
+      for (const way of symTable.chars[char] ?? []) {
+        for (const symbolId of way) {
+          const name = symTable.symbols[String(symbolId)] ?? "";
+          if ([...name].length >= 2) {
+            usedMultiCharacterSymbols.add(String(symbolId));
+          }
+        }
+      }
+    }
+
+    expect(
+      [...usedMultiCharacterSymbols].filter(
+        (symbolId) => !(symbolId in assets.symbols),
+      ),
+    ).toEqual([]);
+    for (const symbolId of ["159", "198", "338", "425"]) {
+      expect(assets.symbols[symbolId]?.source).toMatch(/N\.svg$/);
+    }
+  });
+
+  it("keeps the generated component usage index internally consistent", () => {
+    const usage = readJson<ComponentUsageTable>(
+      "public/data/component-usage.json",
+    );
+    const ids = usage.symbols.map((symbol) => symbol.symbolId);
+
+    expect(usage.format).toBe("zigsaw-component-usage/1");
+    expect(usage.characterCount).toBe(8105);
+    expect(usage.decompositionCount).toBe(8791);
+    expect(usage.componentCount).toBe(usage.symbols.length);
+    expect(new Set(ids).size).toBe(ids.length);
+    expect(usage.totalUsageCount).toBe(
+      usage.symbols.reduce(
+        (total, symbol) => total + symbol.count,
+        0,
+      ),
+    );
+    expect(
+      usage.symbols.every(
+        (symbol, index) =>
+          index === 0 ||
+          usage.symbols[index - 1].count >= symbol.count,
+      ),
+    ).toBe(true);
+    expect(usage.symbols[0]).toMatchObject({
+      symbolId: 90,
+      name: "口",
+      count: 1735,
+    });
+    expect(
+      usage.symbols.find((symbol) => symbol.symbolId === 425)
+        ?.asset,
+    ).toBe("component_svg/425N.svg");
   });
 
   it("builds the EX pool and excludes unadapted component names", () => {
@@ -102,6 +267,11 @@ describe("static game data", () => {
       assets,
       "https://example.com/zigsaw/",
     );
+    for (const symbolId of [159, 198, 338, 425]) {
+      expect(game.component(symbolId).assetUrl).toMatch(
+        new RegExp(`${symbolId}N\\.svg$`),
+      );
+    }
     const unsupportedIds = new Set(
       Object.entries(symTable.symbols)
         .filter(
@@ -118,6 +288,12 @@ describe("static game data", () => {
 
     expect(unadaptedChar).toBeDefined();
     expect(game.isCharSelectable(unadaptedChar!)).toBe(false);
+    expect(
+      game.names(game.shortestDecomposition("庞") ?? []),
+    ).toEqual(["广", "尢", "丿", "丶"]);
+    expect(
+      game.names(game.shortestDecomposition("氢") ?? []),
+    ).toEqual(["气", "ス", "工"]);
     expect(game.exOrder.length).toBeGreaterThan(0);
     expect(
       game.exOrder.every((char) => {

@@ -138,6 +138,44 @@ export function challengeClassProbabilities(
   };
 }
 
+export function balanceChallengeClassProbabilities(
+  probabilities: ChallengeClassProbabilities,
+  fourPartCharacters: number,
+  longerPartCharacters: number,
+  // A 5+ part character may be at most twice as likely as the average
+  // 4-part character when the long-group inventory is sparse.
+  fairnessFactor = 2,
+): ChallengeClassProbabilities {
+  if (fourPartCharacters <= 0 || longerPartCharacters <= 0) {
+    return { ...probabilities };
+  }
+
+  const longCap =
+    (fairnessFactor * probabilities.four * longerPartCharacters) /
+    fourPartCharacters;
+  const longer = Math.min(probabilities.longer, longCap);
+  const excess = probabilities.longer - longer;
+  const threeFourTotal = probabilities.three + probabilities.four;
+
+  if (threeFourTotal <= 0) {
+    return {
+      two: probabilities.two,
+      three: probabilities.three,
+      four: probabilities.four + excess,
+      longer,
+    };
+  }
+
+  return {
+    two: probabilities.two,
+    three:
+      probabilities.three + excess * (probabilities.three / threeFourTotal),
+    four:
+      probabilities.four + excess * (probabilities.four / threeFourTotal),
+    longer,
+  };
+}
+
 export class GameSession {
   readonly state: GameState;
   private readonly data: GameData;
@@ -146,6 +184,7 @@ export class GameSession {
   private readonly random: () => number;
   private pool: string[] = [];
   private usedBags = new Set<string>();
+  private usedChars = new Set<string>();
   private deadline = 0;
   private timerId: ReturnType<typeof setInterval> | null = null;
   private advanceId: ReturnType<typeof setTimeout> | null = null;
@@ -294,12 +333,11 @@ export class GameSession {
 
     type Choice = {
       char: string;
-      way: number[];
+      ways: number[][];
       length: number;
     };
 
-    const allChoices: Choice[] = [];
-    const unusedChoices: Choice[] = [];
+    const choicesByLength = new Map<number, Map<string, Choice>>();
 
     for (const char of window) {
       const ways = this.data.ways.get(char) ?? [];
@@ -307,19 +345,35 @@ export class GameSession {
         if (way.length < minParts) {
           continue;
         }
-        const choice = { char, way, length: way.length };
-        allChoices.push(choice);
-        if (
-          !this.usedBags.has([...way].sort((a, b) => a - b).join(","))
-        ) {
-          unusedChoices.push(choice);
+        let group = choicesByLength.get(way.length);
+        if (!group) {
+          group = new Map();
+          choicesByLength.set(way.length, group);
         }
+        const choice = group.get(char) ?? {
+          char,
+          ways: [],
+          length: way.length,
+        };
+        choice.ways.push(way);
+        group.set(char, choice);
       }
     }
 
-    const choices = unusedChoices.length > 0 ? unusedChoices : allChoices;
+    const allChoices = [...choicesByLength.values()].flatMap((group) =>
+      [...group.values()],
+    );
+    const unusedChoices = allChoices.filter(
+      (choice) => !this.usedChars.has(choice.char),
+    );
+    const availableChoices =
+      unusedChoices.length > 0 ? unusedChoices : allChoices;
+    if (availableChoices.length === 0) {
+      throw new Error("没有符合当前阶段的字");
+    }
+
     const groups = new Map<number, Choice[]>();
-    for (const choice of choices) {
+    for (const choice of availableChoices) {
       const group = groups.get(choice.length) ?? [];
       group.push(choice);
       groups.set(choice.length, group);
@@ -333,11 +387,27 @@ export class GameSession {
       bounds.stage,
       position,
     );
+    const longChoices = [...groups.entries()]
+      .filter(([componentCount]) => componentCount >= 5)
+      .flatMap(([, choices]) => choices);
+    const balancedProbabilities = balanceChallengeClassProbabilities(
+      probabilities,
+      groups.get(4)?.length ?? 0,
+      new Set(longChoices.map((choice) => choice.char)).size,
+    );
 
     const categories = [
-      { key: "two", weight: probabilities.two, componentCount: 2 },
-      { key: "three", weight: probabilities.three, componentCount: 3 },
-      { key: "four", weight: probabilities.four, componentCount: 4 },
+      { key: "two", weight: balancedProbabilities.two, componentCount: 2 },
+      {
+        key: "three",
+        weight: balancedProbabilities.three,
+        componentCount: 3,
+      },
+      {
+        key: "four",
+        weight: balancedProbabilities.four,
+        componentCount: 4,
+      },
     ].filter(({ componentCount }) => groups.has(componentCount));
 
     const longGroups = [...groups.entries()]
@@ -346,7 +416,7 @@ export class GameSession {
     if (longGroups.length > 0) {
       categories.push({
         key: "longer",
-        weight: probabilities.longer,
+        weight: balancedProbabilities.longer,
         componentCount: 5,
       });
     }
@@ -363,7 +433,8 @@ export class GameSession {
       const decay = 0.52 - 0.18 * stageProgress;
       const [componentCount] = pickWeighted(
         longGroups,
-        ([count]) => Math.exp(-decay * (count - 5)),
+        ([count, choices]) =>
+          choices.length * Math.exp(-decay * (count - 5)),
         this.random,
       );
       selectedGroup = groups.get(componentCount) ?? [];
@@ -372,7 +443,15 @@ export class GameSession {
     }
 
     const selected = pickRandom(selectedGroup, this.random);
-    const way = selected.way;
+    const unusedWays = selected.ways.filter(
+      (way) =>
+        !this.usedBags.has([...way].sort((a, b) => a - b).join(",")),
+    );
+    const way = pickRandom(
+      unusedWays.length > 0 ? unusedWays : selected.ways,
+      this.random,
+    );
+    this.usedChars.add(selected.char);
     this.usedBags.add([...way].sort((a, b) => a - b).join(","));
     return this.toQuestion(selected.char, way);
   }

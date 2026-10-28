@@ -179,6 +179,19 @@ export class GameData {
     return way.map((symbolId) => this.symbols.get(symbolId) ?? "?");
   }
 
+  shortestDecomposition(char: string): number[] | null {
+    let shortest: number[] | null = null;
+    for (const way of this.ways.get(char) ?? []) {
+      if (way.length < 2) {
+        continue;
+      }
+      if (!shortest || way.length < shortest.length) {
+        shortest = way;
+      }
+    }
+    return shortest ? [...shortest] : null;
+  }
+
   component(symbolId: number): ComponentDefinition {
     return {
       symbolId,

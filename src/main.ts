@@ -8,9 +8,16 @@ import {
   type Level,
   type Mode,
 } from "./game/data";
-import { LocalRecordStore } from "./game/records";
+import { CharDetailStore } from "./game/details";
+import { LocalRecordStore, recordKey } from "./game/records";
 import { GameSession, type GameState } from "./game/session";
+import { createAtlasDialog, ATLAS_TRIGGER_MARKUP } from "./ui/atlas";
+import { CharDetailView } from "./ui/char-detail";
 import { splitPartsIntoRows } from "./ui/parts";
+import {
+  createTutorialDialog,
+  TUTORIAL_TRIGGER_MARKUP,
+} from "./ui/tutorial";
 
 const rootElement = document.querySelector<HTMLDivElement>("#app");
 
@@ -45,6 +52,10 @@ let advancedSettingsOpen = false;
 const MODE_ORDER: Mode[] = ["challenge", "normal", "endless"];
 
 const records = new LocalRecordStore();
+const charDetails = new CharDetailStore(document.baseURI);
+const tutorialDialog = createTutorialDialog();
+const atlasDialog = createAtlasDialog();
+let resumeAfterInfoDialog = false;
 
 function escapeHtml(value: string): string {
   return value
@@ -86,6 +97,10 @@ function shell(
           ? `<button class="advanced-corner" type="button" aria-label="高级设置" aria-pressed="${advancedSettingsOpen}"></button>`
           : ""
       }
+      <div class="corner-actions">
+        ${TUTORIAL_TRIGGER_MARKUP}
+        ${ATLAS_TRIGGER_MARKUP}
+      </div>
       <header class="masthead">
         <h1 class="wordmark">ZI<span>GSAW</span></h1>
       </header>
@@ -93,6 +108,53 @@ function shell(
     </div>
   `;
 }
+
+function openInfoDialog(dialog: HTMLDialogElement): void {
+  if (dialog.open || document.querySelector("dialog[open]")) {
+    return;
+  }
+
+  resumeAfterInfoDialog = Boolean(
+    session &&
+      session.state.phase === "playing" &&
+      !session.state.paused &&
+      !session.state.revealing,
+  );
+  if (resumeAfterInfoDialog) {
+    session?.togglePause();
+  }
+  dialog.showModal();
+}
+
+document.addEventListener("click", (event) => {
+  const target = event.target;
+  if (!(target instanceof Element)) {
+    return;
+  }
+  if (target.closest("[data-tutorial-trigger]")) {
+    openInfoDialog(tutorialDialog);
+    return;
+  }
+  if (target.closest("[data-atlas-trigger]")) {
+    openInfoDialog(atlasDialog);
+  }
+});
+
+function finishInfoDialog(): void {
+  const shouldResume = resumeAfterInfoDialog;
+  resumeAfterInfoDialog = false;
+  if (
+    shouldResume &&
+    session?.state.phase === "playing" &&
+    session.state.paused &&
+    !session.state.revealing
+  ) {
+    session.togglePause();
+  }
+}
+
+tutorialDialog.addEventListener("close", finishInfoDialog);
+atlasDialog.addEventListener("close", finishInfoDialog);
 
 function clamp(value: number, minimum: number, maximum: number): number {
   return Math.min(maximum, Math.max(minimum, value));
@@ -153,6 +215,20 @@ function selectedMode(): Mode {
       "[data-mode][aria-pressed='true']",
     )?.dataset.mode as Mode | undefined) ?? "challenge"
   );
+}
+
+function updateStartRecord(): void {
+  const record = document.querySelector<HTMLElement>("[data-start-record]");
+  if (!record) {
+    return;
+  }
+  if (selectedMode() !== "challenge") {
+    record.hidden = true;
+    return;
+  }
+  record.hidden = false;
+  const settings = readSettings();
+  record.textContent = `纪录：${records.load(recordKey(settings))}`;
 }
 
 function updateModeFields(direction = 0): void {
@@ -274,6 +350,10 @@ function renderStart(initial: GameSettings = lastSettings): void {
   const exPressed = (enabled: boolean) =>
     initial.exEnabled === enabled ? "true" : "false";
   const advancedHidden = advancedSettingsOpen ? "" : "hidden";
+  const challengeRecord =
+    initial.mode === "challenge"
+      ? records.load(recordKey(initial))
+      : 0;
 
   root.innerHTML = shell(`
     <main class="start-screen">
@@ -284,7 +364,7 @@ function renderStart(initial: GameSettings = lastSettings): void {
             <div class="segmented mode-switch" role="group" aria-label="模式" data-active-mode="${initial.mode}" style="--mode-position:${MODE_ORDER.indexOf(initial.mode)}">
               <span class="mode-slider" aria-hidden="true"></span>
               <button type="button" data-mode="challenge" aria-pressed="${pressed("challenge")}">挑战</button>
-              <button type="button" data-mode="normal" aria-pressed="${pressed("normal")}">普通</button>
+              <button type="button" data-mode="normal" aria-pressed="${pressed("normal")}">自由</button>
               <button type="button" data-mode="endless" aria-pressed="${pressed("endless")}">无尽</button>
             </div>
           </section>
@@ -379,6 +459,7 @@ function renderStart(initial: GameSettings = lastSettings): void {
 
         <div class="start-row">
           <button class="start-button" type="submit" ${data ? "" : "disabled"}>开始</button>
+          <span class="start-record" data-start-record ${initial.mode === "challenge" ? "" : "hidden"}>纪录：${challengeRecord}</span>
           <span class="form-error" data-form-error role="alert">${escapeHtml(startupError)}</span>
         </div>
       </form>
@@ -386,11 +467,19 @@ function renderStart(initial: GameSettings = lastSettings): void {
   `, "start");
 
   const form = document.querySelector<HTMLFormElement>("[data-settings-form]");
+  form?.addEventListener("input", updateStartRecord);
+  form?.addEventListener("change", updateStartRecord);
+  form?.addEventListener("click", (event) => {
+    if (event.target instanceof HTMLButtonElement) {
+      updateStartRecord();
+    }
+  });
   document.querySelector<HTMLInputElement>("#parts-low")?.addEventListener("input", updatePartsSlider);
   document.querySelector<HTMLInputElement>("#parts-high")?.addEventListener("input", updatePartsSlider);
   updatePartsSlider();
   wireNumberSteppers();
   updateModeFields();
+  updateStartRecord();
 
   const advancedCorner = document.querySelector<HTMLButtonElement>(".advanced-corner");
   advancedCorner?.addEventListener("click", () => {
@@ -775,7 +864,7 @@ function renderResults(game: GameSession): void {
   }
 
   const modeLabel = {
-    normal: "普通模式",
+    normal: "自由模式",
     endless: "无尽模式",
     challenge: "挑战模式",
   }[state.settings.mode];
@@ -794,12 +883,22 @@ function renderResults(game: GameSession): void {
   const victoryStart = (state.history.length - 1) * 65 + 440;
 
   const review = state.history
-    .map(
-      (item, index) => `
-        <li class="review-card ${item.ok ? (item.isEx ? "is-ex-correct" : "") : "is-error"}" style="--review-index:${index}">
+    .map((item, index) => {
+      const level = data!.levels.get(item.answer);
+      const themeClass = !item.ok
+        ? "is-error"
+        : item.isEx
+          ? "is-ex-correct"
+          : level === 2
+            ? "is-level-2"
+            : level === 3
+              ? "is-level-3"
+              : "";
+      return `
+        <li class="review-card ${themeClass}" style="--review-index:${index}" role="button" tabindex="0" data-review-char="${escapeHtml(item.answer)}" aria-label="查看「${escapeHtml(item.answer)}」的释义">
           <span class="review-index" aria-hidden="true">${String(index + 1).padStart(2, "0")}</span>
           <span class="review-result ${item.ok ? "is-correct" : "is-wrong"}" aria-label="${item.ok ? "正确" : "错误"}"></span>
-          <div class="review-answer">${escapeHtml(item.answer)}</div>
+          <div class="review-answer"><span>${escapeHtml(item.answer)}</span></div>
           <div class="review-meta">${escapeHtml(item.meta.replace(/[（）]/g, ""))}</div>
           <div class="review-parts ${item.displayParts.length >= 5 ? "is-many" : ""} ${item.displaySymbolIds.some((symbolId) => {
             const component = data!.component(symbolId);
@@ -808,8 +907,8 @@ function renderResults(game: GameSession): void {
             ${item.displaySymbolIds.map((symbolId) => `<span class="review-part">${renderComponent(data!.component(symbolId)).html}</span>`).join("")}
           </div>
         </li>
-      `,
-    )
+      `;
+    })
     .join("");
 
   root.innerHTML = shell(`
@@ -821,7 +920,7 @@ function renderResults(game: GameSession): void {
           ${
             state.settings.mode === "normal"
               ? ""
-              : `<div class="record-row">记录：${result.record}${result.newRecord ? '<span class="new-record">新纪录</span>' : ""}</div>`
+              : `<div class="record-row">纪录：${result.record}${result.newRecord ? '<span class="new-record">新纪录</span>' : ""}</div>`
           }
         </header>
 
@@ -833,9 +932,52 @@ function renderResults(game: GameSession): void {
         </div>
       </section>
     </main>
+    <dialog class="char-detail-dialog" aria-labelledby="char-detail-title">
+      <article class="char-detail-panel">
+        <header class="char-detail-header">
+          <button class="char-detail-close" type="button" data-detail-close aria-label="关闭">
+            <svg viewBox="0 0 24 24" aria-hidden="true">
+              <path d="M4 4 20 20M20 4 4 20"></path>
+            </svg>
+          </button>
+          <div class="char-detail-identity">
+            <h2 id="char-detail-title" data-detail-char></h2>
+            <div class="char-detail-meta" data-detail-meta></div>
+          </div>
+          <dl class="char-detail-facts">
+            <div>
+              <dt>读音</dt>
+              <dd data-detail-readings>载入中</dd>
+            </div>
+            <div>
+              <dt>Unicode</dt>
+              <dd data-detail-unicode></dd>
+            </div>
+            <div data-detail-school-row hidden>
+              <dt>教材</dt>
+              <dd data-detail-school></dd>
+            </div>
+            <div>
+              <dt>拆分</dt>
+              <dd data-detail-split></dd>
+            </div>
+          </dl>
+        </header>
+        <div class="char-detail-content" data-detail-content></div>
+        <footer class="char-detail-footer">内容来自网络，仅供参考</footer>
+      </article>
+    </dialog>
   `, "result");
 
   const reviewList = document.querySelector<HTMLElement>(".review-list");
+  const detailDialog =
+    document.querySelector<HTMLDialogElement>(".char-detail-dialog");
+  const detailView =
+    detailDialog &&
+    new CharDetailView(detailDialog, charDetails, (char) => {
+      const way = data?.shortestDecomposition(char);
+      return way && data ? data.names(way).join(" ") : "";
+    });
   if (reviewList) {
     const reducedMotion = window.matchMedia(
       "(prefers-reduced-motion: reduce)",
@@ -864,6 +1006,43 @@ function renderResults(game: GameSession): void {
         { once: true },
       );
     }
+
+    const openCardDetail = (card: HTMLElement): void => {
+      const char = card.dataset.reviewChar;
+      if (!char || !detailView) {
+        return;
+      }
+      const meta =
+        card.querySelector<HTMLElement>(".review-meta")?.textContent?.trim() ??
+        "";
+      detailView.open(char, meta);
+    };
+
+    reviewList.addEventListener("click", (event) => {
+      const target = event.target;
+      const card =
+        target instanceof Element
+          ? target.closest<HTMLElement>(".review-card")
+          : null;
+      if (card) {
+        openCardDetail(card);
+      }
+    });
+    reviewList.addEventListener("keydown", (event) => {
+      if (event.key !== "Enter" && event.key !== " ") {
+        return;
+      }
+      const target = event.target;
+      const card =
+        target instanceof Element
+          ? target.closest<HTMLElement>(".review-card")
+          : null;
+      if (!card) {
+        return;
+      }
+      event.preventDefault();
+      openCardDetail(card);
+    });
   }
 
   document.querySelector<HTMLButtonElement>("[data-again]")?.addEventListener("click", () => {
@@ -923,6 +1102,7 @@ window.addEventListener("keydown", (event) => {
   if (
     event.key !== "Escape" ||
     event.isComposing ||
+    document.querySelector("dialog[open]") ||
     !session ||
     session.state.phase !== "playing" ||
     session.state.revealing

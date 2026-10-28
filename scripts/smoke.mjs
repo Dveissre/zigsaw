@@ -9,6 +9,9 @@ const targetUrl = process.env.APP_URL ?? "http://127.0.0.1:5173/";
 const symData = JSON.parse(
   readFileSync("public/data/char_sym.json", "utf8"),
 );
+const schoolData = JSON.parse(
+  readFileSync("public/data/char-school.json", "utf8"),
+);
 
 const questionsByParts = new Map();
 for (const [char, ways] of Object.entries(symData.chars)) {
@@ -45,6 +48,123 @@ try {
   await page.goto(targetUrl, { waitUntil: "networkidle" });
   await page.locator(".start-button:not([disabled])").waitFor();
   assert.equal(await page.title(), "ZIGSAW");
+  const tutorialTrigger = page.getByRole("button", { name: "游玩方法" });
+  const tutorialPosition = await tutorialTrigger.evaluate((button) => {
+    const box = button.getBoundingClientRect();
+    const shell = button.closest(".app-shell")?.getBoundingClientRect();
+    const actions = button
+      .closest(".corner-actions")
+      ?.getBoundingClientRect();
+    return {
+      topInset: shell ? box.top - shell.top : -1,
+      rightInset: shell ? shell.right - box.right : -1,
+      actionsRightInset:
+        shell && actions ? shell.right - actions.right : -1,
+    };
+  });
+  assert.ok(tutorialPosition.topInset >= 10);
+  const expectedTutorialRightInset = await tutorialTrigger.evaluate(
+    (button) => {
+      const shell = button.closest(".app-shell");
+      return shell
+        ? Math.max(18, (shell.getBoundingClientRect().width - 620) / 2)
+        : 18;
+    },
+  );
+  assert.ok(
+    Math.abs(
+      tutorialPosition.actionsRightInset - expectedTutorialRightInset,
+    ) <= 1,
+  );
+  assert.ok(tutorialPosition.rightInset > expectedTutorialRightInset);
+  assert.equal((await tutorialTrigger.textContent())?.trim(), "");
+  assert.equal(
+    await tutorialTrigger.locator("svg circle").count(),
+    1,
+  );
+  await tutorialTrigger.click();
+  await page.locator("#tutorial-dialog[open]").waitFor();
+  assert.equal(
+    await page.getByRole("heading", { name: "游玩方法", exact: true }).count(),
+    1,
+  );
+  assert.deepEqual(
+    await page.locator(".tutorial-part").allTextContents(),
+    ["寸", "木", "又"],
+  );
+  const tutorialPartDot = await page
+    .locator(".tutorial-part")
+    .first()
+    .evaluate((part) => {
+      const dot = getComputedStyle(part, "::after");
+      return {
+        content: dot.content,
+        color: dot.backgroundColor,
+      };
+    });
+  assert.notEqual(tutorialPartDot.content, "none");
+  assert.equal(tutorialPartDot.color, "rgb(161, 55, 48)");
+  assert.equal(await page.locator(".tutorial-stage-card").count(), 3);
+  assert.equal(await page.locator(".tutorial-mode-card").count(), 2);
+  const tutorialText = await page.locator("#tutorial-dialog").innerText();
+  for (const text of [
+    "在倒计时耗尽前，将部件重组成正确的汉字！",
+    "有些部件的不同形态会归于一类",
+    "部件的归类与拆分方式包含大量作者主观意见，如有错讹请联系作者",
+    "在渐进的难度曲线下一路向前突进！",
+    "每个阶段共5题，各阶段所取的通规字表区间会逐步后移。",
+    "到达字表末端后，将进入阶段EX……会有什么呢？",
+    "阶段EX可在设置页关闭",
+    "自由 / 无尽模式",
+    "有更多可调整设置，适合对全字表进行练习。",
+    "但是超时仍然会结束游戏，尽可能多地答对吧！",
+    "Created by fukurei",
+  ]) {
+    assert.ok(tutorialText.includes(text), text);
+  }
+  assert.equal(
+    await page.locator(".tutorial-disclaimer").first().innerText(),
+    "部件的归类与拆分方式包含大量作者主观意见，如有错讹请联系作者",
+  );
+  assert.equal(
+    await page.locator(".tutorial-ex-name").evaluate(
+      (element) => {
+        const style = getComputedStyle(element);
+        return `${style.fontWeight}|${style.color}`;
+      },
+    ),
+    "700|rgb(112, 74, 134)",
+  );
+  await page
+    .locator("#tutorial-dialog")
+    .getByRole("button", { name: "关闭", exact: true })
+    .click();
+  assert.equal(await page.locator("#tutorial-dialog[open]").count(), 0);
+  const atlasTrigger = page.getByRole("button", { name: "图鉴" });
+  assert.equal(
+    await atlasTrigger.locator("svg circle").count(),
+    0,
+  );
+  assert.equal(await atlasTrigger.locator("svg path").count(), 3);
+  assert.ok(
+    (await atlasTrigger.boundingBox()).x >
+      (await tutorialTrigger.boundingBox()).x,
+  );
+  await atlasTrigger.click();
+  await page.locator("#atlas-dialog[open]").waitFor();
+  assert.equal(
+    await page.getByRole("heading", { name: "图鉴", exact: true }).count(),
+    1,
+  );
+  assert.equal(
+    await page.locator(".atlas-placeholder").innerText(),
+    "施工中",
+  );
+  await page
+    .locator("#atlas-dialog")
+    .getByRole("button", { name: "关闭", exact: true })
+    .click();
+  assert.equal(await page.locator("#atlas-dialog[open]").count(), 0);
   assert.equal(await page.getByText("把部件拼回一个字").count(), 0);
   assert.equal(await page.getByText("打乱顺序后，在倒计时内输入对应的汉字。").count(), 0);
   assert.equal(
@@ -53,6 +173,44 @@ try {
     ),
     "true",
   );
+  assert.equal(
+    await page.locator("[data-start-record]").innerText(),
+    "纪录：0",
+  );
+  assert.ok(
+    Number.parseFloat(
+      await page.locator("[data-start-record]").evaluate(
+        (element) => getComputedStyle(element).fontSize,
+      ),
+    ) >= 15,
+  );
+  assert.ok(
+    Number.parseFloat(
+      await page.locator(".setting-label").first().evaluate(
+        (element) => getComputedStyle(element).fontSize,
+      ),
+    ) >= 18,
+  );
+  const modeAlignment = await page.locator(".mode-switch").evaluate((control) => {
+      const controlBox = control.getBoundingClientRect();
+      const row = control.closest(".setting-block");
+      const rowBox = row?.getBoundingClientRect();
+      return {
+        control: controlBox.left + controlBox.width / 2,
+        row: rowBox ? rowBox.left + rowBox.width / 2 : -1,
+        left: controlBox.left,
+      };
+  });
+  const exAlignment = await page.locator(".ex-toggle").evaluate((control) => {
+    const box = control.getBoundingClientRect();
+    return {
+      center: box.left + box.width / 2,
+      left: box.left,
+    };
+  });
+  assert.ok(Math.abs(modeAlignment.control - modeAlignment.row) <= 1);
+  assert.ok(exAlignment.center < modeAlignment.row);
+  assert.ok(Math.abs(exAlignment.left - modeAlignment.left) <= 1);
   assert.equal(
     await page.getByText("每题秒数", { exact: true }).isVisible(),
     false,
@@ -87,8 +245,12 @@ try {
   await page.getByRole("button", { name: "启用", exact: true }).click();
   await advancedCorner.click();
   await page.getByText("每题秒数", { exact: true }).waitFor();
-  await page.getByRole("button", { name: "普通", exact: true }).click();
+  await page.getByRole("button", { name: "自由", exact: true }).click();
   await page.waitForTimeout(220);
+  assert.equal(
+    await page.locator("[data-start-record]").isHidden(),
+    true,
+  );
   assert.equal(
     await page.locator(".mode-switch").evaluate(
       (element) => getComputedStyle(element).getPropertyValue("--mode-position").trim(),
@@ -143,11 +305,25 @@ try {
     await page.getByRole("button", { name: "启用", exact: true }).isVisible(),
     true,
   );
-  await page.getByRole("button", { name: "普通", exact: true }).click();
+  await page.getByRole("button", { name: "自由", exact: true }).click();
 
   await page.locator("#game-count").fill("3");
   await page.getByRole("button", { name: "开始", exact: true }).click();
   await page.locator(".play-screen").waitFor();
+  await tutorialTrigger.click();
+  await page.locator("#tutorial-dialog[open]").waitFor();
+  await page.locator(".parts.is-paused").waitFor();
+  const pausedTutorialTimer = await page.locator("[data-timer]").innerText();
+  await page.waitForTimeout(1100);
+  assert.equal(
+    await page.locator("[data-timer]").innerText(),
+    pausedTutorialTimer,
+  );
+  await page.keyboard.press("Escape");
+  await page
+    .locator("#tutorial-dialog")
+    .waitFor({ state: "hidden" });
+  await page.locator(".parts.is-resuming").waitFor();
   assert.equal(await page.getByText("级别", { exact: true }).count(), 0);
   assert.equal(
     await page.getByRole("textbox", { name: "答案" }).evaluate(
@@ -254,7 +430,7 @@ try {
   assert.equal(await page.locator("[data-advance]").count(), 0);
   await page.locator(".result-screen").waitFor();
   assert.match(await page.locator(".result-header").innerText(), /胜利/);
-  assert.match(await page.locator(".result-score").innerText(), /普通模式 · 3题/);
+  assert.match(await page.locator(".result-score").innerText(), /自由模式 · 3题/);
   const scoreFont = await page.locator(".result-score").evaluate(
     (element) => getComputedStyle(element).fontFamily,
   );
@@ -358,6 +534,187 @@ try {
     await page.locator(".review-answer").allTextContents(),
     givenAnswers,
   );
+  const detailChar = await page.locator(".review-card").first().getAttribute(
+    "data-review-char",
+  );
+  assert.ok(detailChar);
+  const detailRequests = [];
+  page.on("request", (request) => {
+    if (request.url().includes("/data/char-detail/")) {
+      detailRequests.push(request.url());
+    }
+  });
+  const hoverCard = page.locator(".review-card").first();
+  const answerBefore = await hoverCard.evaluate((card) => {
+    const answer = card.querySelector(".review-answer > span");
+    const answerBox = answer?.getBoundingClientRect();
+    const meta = card.querySelector(".review-meta");
+    return {
+      center: answerBox
+        ? answerBox.top + answerBox.height / 2
+        : 0,
+      metaTop: meta?.getBoundingClientRect().top ?? 0,
+    };
+  });
+  await hoverCard.hover();
+  await page.waitForTimeout(220);
+  const hoverReview = await hoverCard.evaluate((card) => {
+    const answer = card.querySelector(".review-answer > span");
+    const answerBox = answer?.getBoundingClientRect();
+    const meta = card.querySelector(".review-meta");
+    const transform = answer
+      ? getComputedStyle(answer).transform
+      : "none";
+    return {
+      center: answerBox ? answerBox.top + answerBox.height / 2 : 0,
+      answerBottom: answerBox?.bottom ?? 0,
+      metaTop: meta?.getBoundingClientRect().top ?? 0,
+      scale:
+        transform === "none"
+          ? 1
+          : new DOMMatrixReadOnly(transform).a,
+      pseudoBorder: getComputedStyle(card, "::after").content,
+      shadow: getComputedStyle(card).boxShadow,
+    };
+  });
+  assert.ok(hoverReview.scale > 1.17);
+  assert.ok(Math.abs(hoverReview.center - answerBefore.center) <= 1);
+  assert.ok(hoverReview.metaTop > answerBefore.metaTop);
+  assert.ok(hoverReview.metaTop >= hoverReview.answerBottom - 1);
+  assert.equal(hoverReview.pseudoBorder, "none");
+  assert.match(hoverReview.shadow, /rgba\(255, 250, 245/);
+
+  await hoverCard.click();
+  await page.locator(".char-detail-dialog[open]").waitFor();
+  assert.equal(await page.locator("[data-detail-char]").innerText(), detailChar);
+  await page.waitForFunction(
+    () =>
+      !document
+        .querySelector("[data-detail-content]")
+        ?.textContent?.includes("正在载入释义"),
+    { timeout: 30_000 },
+  );
+  assert.doesNotMatch(
+    await page.locator("[data-detail-content]").innerText(),
+    /暂未收录|读取失败/,
+  );
+  assert.match(
+    await page.locator("[data-detail-content]").innerText(),
+    /\S/,
+  );
+  assert.equal(await page.locator(".char-detail-content details").count(), 0);
+  assert.equal(
+    await page.locator(".char-detail-footer").innerText(),
+    "内容来自网络，仅供参考",
+  );
+  assert.equal(detailRequests.length, 1);
+  assert.match(detailRequests[0], /\/data\/char-detail\/[0-9a-f]{2}\.json$/);
+  assert.equal(
+    await page.locator("[data-detail-unicode]").innerText(),
+    `U+${detailChar.codePointAt(0).toString(16).toUpperCase().padStart(4, "0")}`,
+  );
+  assert.doesNotMatch(
+    await page.locator("[data-detail-readings]").innerText(),
+    /载入中|^—$/,
+  );
+  const splitText = await page.locator("[data-detail-split]").innerText();
+  assert.notEqual(splitText, "—");
+  assert.doesNotMatch(splitText, /\+/);
+  const expectedSchool = schoolData[detailChar];
+  if (expectedSchool) {
+    const schoolText = await page.locator("[data-detail-school]").innerText();
+    if (expectedSchool.read?.length) {
+      assert.match(
+        schoolText,
+        new RegExp(`识字表 ${expectedSchool.read.join("、")}`),
+      );
+    }
+    if (expectedSchool.write?.length) {
+      assert.match(
+        schoolText,
+        new RegExp(`写字表 ${expectedSchool.write.join("、")}`),
+      );
+    }
+    if (expectedSchool.read?.length && expectedSchool.write?.length) {
+      assert.match(schoolText, /\s\/\s/);
+    }
+  } else {
+    assert.equal(
+      await page.locator("[data-detail-school-row]").isHidden(),
+      true,
+    );
+  }
+  assert.equal(await page.locator(".detail-sources h4").count(), 0);
+  if (await page.locator(".detail-sources").count()) {
+    assert.equal(
+      await page.locator(".detail-sources").first().evaluate(
+        (element) => getComputedStyle(element).borderTopWidth,
+      ),
+      "0px",
+    );
+  }
+  const detailHeaderLayout = await page.locator(".char-detail-header").evaluate(
+    (header) => {
+      const identity = header.querySelector(".char-detail-identity");
+      const facts = header.querySelector(".char-detail-facts");
+      const char = header.querySelector("[data-detail-char]");
+      const identityBox = identity?.getBoundingClientRect();
+      const charBox = char?.getBoundingClientRect();
+      return {
+        identityRight: identityBox?.right ?? -1,
+        factsLeft: facts?.getBoundingClientRect().left ?? -1,
+        identityCenter: identityBox
+          ? identityBox.left + identityBox.width / 2
+          : 0,
+        charCenter: charBox ? charBox.left + charBox.width / 2 : 0,
+      };
+    },
+  );
+  assert.ok(
+    detailHeaderLayout.identityRight <= detailHeaderLayout.factsLeft + 1,
+  );
+  assert.ok(
+    Math.abs(
+      detailHeaderLayout.identityCenter -
+        detailHeaderLayout.charCenter,
+    ) <= 1,
+  );
+  if (await page.locator(".detail-char-mark").count()) {
+    assert.equal(
+      await page.locator(".detail-char-mark").first().evaluate(
+        (element) => {
+          const style = getComputedStyle(element);
+          return `${style.textDecorationLine}|${style.borderBottomWidth}`;
+        },
+      ),
+      "none|0px",
+    );
+  }
+  assert.equal(
+    await page
+      .locator(".char-detail-dialog")
+      .getByRole("button", { name: "关闭", exact: true })
+      .evaluate(
+        (button) => ({
+          svg: Boolean(button.querySelector("svg")),
+          text: button.textContent?.trim(),
+          border: getComputedStyle(button).borderTopWidth,
+          outline: getComputedStyle(button).outlineStyle,
+        }),
+      )
+      .then(({ svg, text, border, outline }) => `${svg}|${text}|${border}|${outline}`),
+    "true||0px|none",
+  );
+  await page
+    .locator(".char-detail-dialog")
+    .getByRole("button", { name: "关闭", exact: true })
+    .click();
+  assert.equal(await page.locator(".char-detail-dialog[open]").count(), 0);
+  await page.locator(".review-card").first().focus();
+  await page.keyboard.press("Enter");
+  await page.locator(".char-detail-dialog[open]").waitFor();
+  await page.keyboard.press("Escape");
+  assert.equal(await page.locator(".char-detail-dialog[open]").count(), 0);
 
   await page.getByRole("button", { name: "返回", exact: true }).click();
   await page.getByRole("button", { name: "挑战", exact: true }).click();
@@ -481,7 +838,7 @@ try {
     await page.locator(".result-header h1").innerText(),
     "挑战结束",
   );
-  assert.match(await page.locator(".record-row").innerText(), /记录：3/);
+  assert.match(await page.locator(".record-row").innerText(), /纪录：3/);
   assert.match(
     await page.locator(".result-score").innerText(),
     /挑战模式 · 3题 · 阶段2/,
@@ -505,7 +862,15 @@ try {
   );
 
   await page.getByRole("button", { name: "返回", exact: true }).click();
+  assert.equal(
+    await page.locator("[data-start-record]").innerText(),
+    "纪录：3",
+  );
   await page.getByRole("button", { name: "无尽", exact: true }).click();
+  assert.equal(
+    await page.locator("[data-start-record]").isHidden(),
+    true,
+  );
   await page.getByRole("button", { name: "开始", exact: true }).click();
   await page.locator(".play-screen").waitFor();
   const endlessDisplayedParts = await readDisplayedParts();
@@ -526,11 +891,11 @@ try {
   await page.getByRole("button", { name: "结算" }).click();
   await page.locator(".result-screen").waitFor();
   assert.match(await page.locator(".result-header").innerText(), /无尽结束/);
-  assert.match(await page.locator(".record-row").innerText(), /记录：1/);
+  assert.match(await page.locator(".record-row").innerText(), /纪录：1/);
   assert.match(await page.locator(".result-score").innerText(), /无尽模式 · 1题/);
 
   await page.getByRole("button", { name: "返回", exact: true }).click();
-  await page.getByRole("button", { name: "普通", exact: true }).click();
+  await page.getByRole("button", { name: "自由", exact: true }).click();
   await page.locator("#game-count").fill("10");
   await page.setViewportSize({ width: 1280, height: 898 });
   await page.getByRole("button", { name: "开始", exact: true }).click();
@@ -631,8 +996,73 @@ try {
     ),
     await page.evaluate(() => document.documentElement.clientWidth),
   );
+  await tutorialTrigger.click();
+  await page.locator("#tutorial-dialog[open]").waitFor();
+  const mobileTutorialLayout = await page.locator("#tutorial-dialog").evaluate(
+    (dialog) => {
+      const box = dialog.getBoundingClientRect();
+      return {
+        left: box.left,
+        right: box.right,
+        top: box.top,
+        bottom: box.bottom,
+        viewportWidth: document.documentElement.clientWidth,
+        viewportHeight: document.documentElement.clientHeight,
+        scrollWidth: document.documentElement.scrollWidth,
+        pageHeight: document.documentElement.scrollHeight,
+      };
+    },
+  );
+  assert.ok(mobileTutorialLayout.left >= 0);
+  assert.ok(
+    mobileTutorialLayout.right <= mobileTutorialLayout.viewportWidth,
+  );
+  assert.ok(mobileTutorialLayout.top >= 0);
+  assert.ok(
+    mobileTutorialLayout.bottom <= mobileTutorialLayout.viewportHeight,
+  );
+  assert.equal(
+    mobileTutorialLayout.scrollWidth,
+    mobileTutorialLayout.viewportWidth,
+  );
+  assert.equal(
+    mobileTutorialLayout.pageHeight,
+    mobileTutorialLayout.viewportHeight,
+  );
+  await page
+    .locator("#tutorial-dialog")
+    .getByRole("button", { name: "关闭", exact: true })
+    .click();
+  await page.locator(".review-card").first().click();
+  await page.locator(".char-detail-dialog[open]").waitFor();
+  const mobileDetailLayout = await page.evaluate(() => {
+    const dialog = document.querySelector(".char-detail-dialog");
+    const box = dialog?.getBoundingClientRect();
+    return {
+      left: box?.left ?? -1,
+      right: box?.right ?? -1,
+      top: box?.top ?? -1,
+      bottom: box?.bottom ?? -1,
+      viewportWidth: document.documentElement.clientWidth,
+      viewportHeight: document.documentElement.clientHeight,
+      pageHeight: document.documentElement.scrollHeight,
+      scrollWidth: document.documentElement.scrollWidth,
+    };
+  });
+  assert.ok(mobileDetailLayout.left >= 0);
+  assert.ok(mobileDetailLayout.right <= mobileDetailLayout.viewportWidth);
+  assert.ok(mobileDetailLayout.top >= 0);
+  assert.ok(mobileDetailLayout.bottom <= mobileDetailLayout.viewportHeight);
+  assert.equal(
+    mobileDetailLayout.scrollWidth,
+    mobileDetailLayout.viewportWidth,
+  );
+  assert.equal(mobileDetailLayout.pageHeight, mobileDetailLayout.viewportHeight);
+  await page.keyboard.press("Escape");
   assert.deepEqual(errors, []);
-  console.log("smoke: settings, three modes, reveal, records and responsive layout OK");
+  console.log(
+    "smoke: settings, tutorial, three modes, reveal, details, records and responsive layout OK",
+  );
 } finally {
   await browser.close();
 }

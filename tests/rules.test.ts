@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import type { GameSettings } from "../src/game/data";
 import { recordKey } from "../src/game/records";
 import {
+  balanceChallengeClassProbabilities,
   challengeClassProbabilities,
   shuffleQuestionParts,
 } from "../src/game/session";
@@ -75,6 +76,42 @@ describe("challenge component count probabilities", () => {
     expect(stage11.three).toBeGreaterThan(stage11.four);
     expect(stage12.four).toBeGreaterThan(stage12.three);
     expect(stage12.longer).toBeLessThanOrEqual(0.25);
+  });
+
+  it("caps sparse long-character groups without changing the 3:4 ratio", () => {
+    const base = challengeClassProbabilities(challenge, 1, 1);
+    const balanced = balanceChallengeClassProbabilities(
+      base,
+      100,
+      8,
+    );
+
+    expect(balanced.longer).toBeCloseTo(0.0369032, 5);
+    expect(balanced.two).toBeCloseTo(base.two, 10);
+    expect(balanced.three / balanced.four).toBeCloseTo(
+      base.three / base.four,
+      10,
+    );
+    expect(balanced.three + balanced.four).toBeGreaterThan(
+      base.three + base.four,
+    );
+    expect(
+      balanced.two +
+        balanced.three +
+        balanced.four +
+        balanced.longer,
+    ).toBeCloseTo(1, 10);
+  });
+
+  it("leaves long-character probability unchanged when inventory is ample", () => {
+    const base = challengeClassProbabilities(challenge, 8, 1);
+    const balanced = balanceChallengeClassProbabilities(
+      base,
+      518,
+      401,
+    );
+
+    expect(balanced).toEqual(base);
   });
 });
 

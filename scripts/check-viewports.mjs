@@ -60,6 +60,20 @@ try {
     await page.goto(targetUrl, { waitUntil: "networkidle" });
     await page.locator(".start-button:not([disabled])").waitFor();
     const startLayout = await measureLayout(page);
+    await page.getByRole("button", { name: "游玩方法" }).click();
+    await page.locator("#tutorial-dialog[open]").waitFor();
+    const tutorialLayout = await measureLayout(page);
+    await page
+      .locator("#tutorial-dialog")
+      .getByRole("button", { name: "关闭", exact: true })
+      .click();
+    await page.getByRole("button", { name: "图鉴" }).click();
+    await page.locator("#atlas-dialog[open]").waitFor();
+    const atlasLayout = await measureLayout(page);
+    await page
+      .locator("#atlas-dialog")
+      .getByRole("button", { name: "关闭", exact: true })
+      .click();
     await page.getByRole("button", { name: "开始", exact: true }).click();
     await page.locator(".play-screen").waitFor();
     const gameLayout = await measureLayout(page);
@@ -79,6 +93,8 @@ try {
 
     const hasOverflow = [
       startLayout,
+      tutorialLayout,
+      atlasLayout,
       gameLayout,
       resultLayout,
       challengeLayout,
@@ -95,6 +111,8 @@ try {
       [
         `${name} ${width}x${height}`,
         `start=${startLayout.scrollWidth}/${startLayout.viewportWidth}`,
+        `tutorial=${tutorialLayout.scrollWidth}/${tutorialLayout.viewportWidth}`,
+        `atlas=${atlasLayout.scrollWidth}/${atlasLayout.viewportWidth}`,
         `game=${gameLayout.scrollWidth}/${gameLayout.viewportWidth}`,
         `result=${resultLayout.scrollWidth}/${resultLayout.viewportWidth}`,
         `challenge=${challengeLayout.scrollWidth}/${challengeLayout.viewportWidth}`,
@@ -105,6 +123,8 @@ try {
 
     for (const layout of [
       startLayout,
+      tutorialLayout,
+      atlasLayout,
       gameLayout,
       resultLayout,
       challengeLayout,
