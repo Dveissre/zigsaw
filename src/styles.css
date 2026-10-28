@@ -298,8 +298,65 @@ input:focus-visible {
 }
 
 .settings-stack {
+  position: relative;
   display: grid;
+  align-content: start;
   gap: 0;
+}
+
+.challenge-card-decor {
+  position: absolute;
+  right: 50%;
+  bottom: 16px;
+  width: 154px;
+  height: 68px;
+  opacity: 0;
+  pointer-events: none;
+  transform: translateX(50%);
+  visibility: hidden;
+  transition: opacity 150ms ease-out;
+}
+
+.settings-form[data-active-mode="challenge"][data-advanced-open="false"]
+  .challenge-card-decor {
+  opacity: 1;
+  visibility: visible;
+}
+
+.challenge-decor-card {
+  position: absolute;
+  width: 52px;
+  height: 52px;
+  border: 1px solid var(--line-strong);
+  background: transparent;
+}
+
+.challenge-decor-card::after {
+  content: "";
+  position: absolute;
+  top: 6px;
+  right: 6px;
+  width: 5px;
+  height: 5px;
+  background: var(--accent);
+}
+
+.challenge-decor-card:nth-child(1) {
+  top: 9px;
+  left: 2px;
+  transform: rotate(-6deg);
+}
+
+.challenge-decor-card:nth-child(2) {
+  top: 0;
+  left: 50px;
+  transform: rotate(5deg);
+}
+
+.challenge-decor-card:nth-child(3) {
+  top: 14px;
+  left: 98px;
+  transform: rotate(-3deg);
 }
 
 .setting-block {

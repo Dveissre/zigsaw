@@ -176,10 +176,66 @@ function setupStartLayout(): void {
   startLayoutObserver?.disconnect();
   startLayoutObserver = null;
   const form = document.querySelector<HTMLElement>(".settings-form");
-  if (!form) {
+  const stack = form?.querySelector<HTMLElement>(".settings-stack");
+  if (!form || !stack) {
     return;
   }
 
+  const modeButtons = [
+    ...document.querySelectorAll<HTMLButtonElement>("[data-mode]"),
+  ];
+  const currentMode = selectedMode();
+  const pressedStates = modeButtons.map((button) => [
+    button,
+    button.getAttribute("aria-pressed"),
+  ] as const);
+
+  form.style.minHeight = "0px";
+  stack.style.minHeight = "0px";
+  let maximumStackHeight = 0;
+  let maximumStartRowHeight = 0;
+  const startRow = form.querySelector<HTMLElement>(".start-row");
+  if (!startRow) {
+    return;
+  }
+  for (const mode of MODE_ORDER) {
+    modeButtons.forEach((button) => {
+      button.setAttribute(
+        "aria-pressed",
+        String(button.dataset.mode === mode),
+      );
+    });
+    updateModeFields();
+    updateStartRecord();
+    maximumStackHeight = Math.max(
+      maximumStackHeight,
+      stack.getBoundingClientRect().height,
+    );
+    maximumStartRowHeight = Math.max(
+      maximumStartRowHeight,
+      startRow.getBoundingClientRect().height,
+    );
+  }
+  for (const [button, pressed] of pressedStates) {
+    if (pressed === null) {
+      button.removeAttribute("aria-pressed");
+    } else {
+      button.setAttribute("aria-pressed", pressed);
+    }
+  }
+  stack.style.minHeight = `${Math.ceil(maximumStackHeight)}px`;
+  form.style.minHeight = `${Math.ceil(
+    maximumStackHeight + maximumStartRowHeight,
+  )}px`;
+
+  modeButtons.forEach((button) => {
+    button.setAttribute(
+      "aria-pressed",
+      String(button.dataset.mode === currentMode),
+    );
+  });
+  updateModeFields();
+  updateStartRecord();
   positionStartPage();
   requestAnimationFrame(positionStartPage);
   startLayoutObserver = new ResizeObserver(positionStartPage);
@@ -306,6 +362,12 @@ function updateStartRecord(): void {
 
 function updateModeFields(direction = 0): void {
   const mode = selectedMode();
+  const form = document.querySelector<HTMLFormElement>(
+    "[data-settings-form]",
+  );
+  if (form) {
+    form.dataset.activeMode = mode;
+  }
   document
     .querySelectorAll<HTMLElement>("[data-mode-field='selection']")
     .forEach((element) => {
@@ -433,7 +495,7 @@ function renderStart(initial: GameSettings = lastSettings): void {
 
   root.innerHTML = shell(`
     <main class="start-screen">
-      <form class="settings-form" data-settings-form novalidate>
+      <form class="settings-form" data-settings-form data-active-mode="${initial.mode}" data-advanced-open="${advancedSettingsOpen}" novalidate>
         <div class="settings-stack">
           <section class="setting-block">
             <div class="setting-label">模式</div>
@@ -531,6 +593,11 @@ function renderStart(initial: GameSettings = lastSettings): void {
             </div>
           </section>
           </div>
+          <div class="challenge-card-decor" aria-hidden="true">
+            <span class="challenge-decor-card"></span>
+            <span class="challenge-decor-card"></span>
+            <span class="challenge-decor-card"></span>
+          </div>
         </div>
 
         <div class="start-row">
@@ -567,6 +634,10 @@ function renderStart(initial: GameSettings = lastSettings): void {
       .forEach((element) => {
         element.hidden = !advancedSettingsOpen;
       });
+    if (form) {
+      form.dataset.advancedOpen = String(advancedSettingsOpen);
+    }
+    setupStartLayout();
   });
 
   document
@@ -1215,5 +1286,5 @@ window.addEventListener("keydown", (event) => {
   session.togglePause();
 });
 
-window.addEventListener("resize", positionStartPage);
+window.addEventListener("resize", setupStartLayout);
 

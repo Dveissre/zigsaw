@@ -347,6 +347,44 @@ try {
   assert.ok(Math.abs(modeAlignment.control - modeAlignment.row) <= 1);
   assert.ok(exAlignment.center < modeAlignment.row);
   assert.ok(Math.abs(exAlignment.left - modeAlignment.left) <= 1);
+  const challengeDecor = page.locator(".challenge-card-decor");
+  assert.equal(await challengeDecor.isVisible(), true);
+  assert.equal(
+    await challengeDecor.locator(".challenge-decor-card").count(),
+    3,
+  );
+  const challengeDecorLayout = await challengeDecor.evaluate((decor) => {
+    const decorBox = decor.getBoundingClientRect();
+    const rows = [
+      ...document.querySelectorAll(".setting-block"),
+    ].filter(
+      (element) =>
+        !element.hidden &&
+        element.getBoundingClientRect().height > 0,
+    );
+    const lastSetting = rows.at(-1)?.getBoundingClientRect();
+    const startRow = document
+      .querySelector(".start-row")
+      ?.getBoundingClientRect();
+    return {
+      decorTop: decorBox.top,
+      decorBottom: decorBox.bottom,
+      lastSettingBottom: lastSetting?.bottom ?? -1,
+      startRowTop: startRow?.top ?? -1,
+      shadow: getComputedStyle(
+        decor.querySelector(".challenge-decor-card"),
+      ).boxShadow,
+    };
+  });
+  assert.ok(
+    challengeDecorLayout.decorTop >=
+      challengeDecorLayout.lastSettingBottom,
+  );
+  assert.ok(
+    challengeDecorLayout.decorBottom <=
+      challengeDecorLayout.startRowTop,
+  );
+  assert.equal(challengeDecorLayout.shadow, "none");
   assert.equal(
     await page.getByText("每题秒数", { exact: true }).isVisible(),
     false,
@@ -381,8 +419,53 @@ try {
   await page.getByRole("button", { name: "启用", exact: true }).click();
   await advancedCorner.click();
   await page.getByText("每题秒数", { exact: true }).waitFor();
+  assert.equal(await challengeDecor.isVisible(), false);
+  const stableStartLayout = await page.evaluate(() => {
+    const top = (selector) =>
+      document.querySelector(selector)?.getBoundingClientRect().top ?? -1;
+    const firstSetting = [
+      ...document.querySelectorAll(".setting-block"),
+    ].find(
+      (element) =>
+        !element.hidden &&
+        !element.querySelector("[data-mode]") &&
+        element.getBoundingClientRect().height > 0,
+    );
+    return {
+      title: top(".masthead"),
+      settings: top(".settings-stack"),
+      firstSetting:
+        firstSetting?.getBoundingClientRect().top ?? -1,
+      start: top(".start-button"),
+    };
+  });
   await page.getByRole("button", { name: "自由", exact: true }).click();
   await page.waitForTimeout(220);
+  const stableStartLayoutAfter = await page.evaluate(() => {
+    const top = (selector) =>
+      document.querySelector(selector)?.getBoundingClientRect().top ?? -1;
+    const firstSetting = [
+      ...document.querySelectorAll(".setting-block"),
+    ].find(
+      (element) =>
+        !element.hidden &&
+        !element.querySelector("[data-mode]") &&
+        element.getBoundingClientRect().height > 0,
+    );
+    return {
+      title: top(".masthead"),
+      settings: top(".settings-stack"),
+      firstSetting:
+        firstSetting?.getBoundingClientRect().top ?? -1,
+      start: top(".start-button"),
+    };
+  });
+  for (const key of ["title", "settings", "firstSetting", "start"]) {
+    assert.ok(
+      Math.abs(stableStartLayout[key] - stableStartLayoutAfter[key]) <= 1,
+      key,
+    );
+  }
   assert.equal(
     await page.locator("[data-start-record]").isHidden(),
     true,
@@ -671,10 +754,18 @@ try {
     await page.locator(".review-answer").allTextContents(),
     givenAnswers,
   );
-  const detailChar = await page.locator(".review-card").first().getAttribute(
-    "data-review-char",
-  );
-  assert.ok(detailChar);
+  const detailChar = "庞";
+  await page.locator(".review-card").first().evaluate((card) => {
+    card.dataset.reviewChar = "庞";
+    const answer = card.querySelector(".review-answer");
+    const meta = card.querySelector(".review-meta");
+    if (answer) {
+      answer.innerHTML = "<span>庞</span>";
+    }
+    if (meta) {
+      meta.textContent = "一级 3117";
+    }
+  });
   const detailRequests = [];
   page.on("request", (request) => {
     if (request.url().includes("/data/char-detail/")) {
