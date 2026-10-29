@@ -26,7 +26,10 @@ def main() -> None:
 
     symbol_data = json.loads(SYMBOLS_PATH.read_text(encoding="utf-8"))
     names = {str(name) for name in symbol_data["symbols"].values()}
-    requested = sorted(set("".join(names)))
+    display_glyphs = set(
+        "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789-!"
+    )
+    requested = sorted(set("".join(names)) | display_glyphs)
 
     source_font = TTFont(FONT_SOURCE)
     source_cmap = source_font.getBestCmap()

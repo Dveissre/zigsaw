@@ -30,6 +30,11 @@
   --level3-pale: #dde9ee;
   --level3-ink: #263940;
   --hard-shadow: #d6d1c5;
+  --display-font-family:
+    "Zigsaw Component Serif",
+    "Times New Roman",
+    Georgia,
+    serif;
   --component-font-family:
     "Zigsaw Component Serif",
     "Noto Serif SC",
@@ -211,7 +216,7 @@ input:focus-visible {
 }
 
 .wordmark {
-  font-family: "Times New Roman", Georgia, serif;
+  font-family: var(--display-font-family);
   view-transition-name: zigsaw-title;
   margin: 0;
   font-size: clamp(40px, 6.5vw, 64px);
@@ -2165,10 +2170,11 @@ input:focus-visible {
   left: 8px;
   z-index: 0;
   color: currentColor;
-  font-family: "Times New Roman", Georgia, serif;
+  font-family: var(--display-font-family);
   font-size: clamp(40px, 38cqw, 76px);
   font-weight: 700;
   font-style: italic;
+  font-synthesis: style;
   letter-spacing: -0.04em;
   line-height: 0.9;
   opacity: 0.16;
@@ -2635,10 +2641,11 @@ input:focus-visible {
   right: 5px;
   bottom: 4px;
   color: var(--ink);
-  font-family: "Times New Roman", Georgia, serif;
+  font-family: var(--display-font-family);
   font-size: 38px;
   font-weight: 700;
   font-style: italic;
+  font-synthesis: style;
   line-height: 1;
   opacity: 0.18;
 }
@@ -2733,6 +2740,8 @@ input:focus-visible {
 }
 
 .atlas-char-card {
+  --char-locked-bg: #dcdad3;
+  --char-locked-stripe: rgba(73, 76, 71, 0.16);
   position: relative;
   display: grid;
   aspect-ratio: 1;
@@ -2763,22 +2772,30 @@ input:focus-visible {
 }
 
 .atlas-char-card.is-level-2 {
+  --char-locked-bg: var(--level2-pale);
+  --char-locked-stripe: rgba(85, 116, 90, 0.24);
   color: var(--level2-ink);
   background: var(--level2-pale);
 }
 
 .atlas-char-card.is-level-3 {
+  --char-locked-bg: var(--level3-pale);
+  --char-locked-stripe: rgba(82, 119, 135, 0.24);
   color: var(--level3-ink);
   background: var(--level3-pale);
 }
 
 .atlas-char-card.is-ex {
+  --char-locked-bg: var(--ex-pale);
+  --char-locked-stripe: rgba(112, 74, 134, 0.24);
   color: var(--ex-ink);
   background: var(--ex-pale);
 }
 
 .atlas-char-card.is-external,
 .atlas-char-card.is-unreachable {
+  --char-locked-bg: #dcdad3;
+  --char-locked-stripe: rgba(73, 76, 71, 0.16);
   color: #4b4842;
   background: #e2dfd6;
 }
@@ -2795,13 +2812,27 @@ input:focus-visible {
 }
 
 .atlas-char-card.is-locked {
-  background: #dcdad3;
+  background: var(--char-locked-bg);
+}
+
+.atlas-char-card.is-locked::before {
+  opacity: 1;
+  background: repeating-linear-gradient(
+    135deg,
+    transparent 0 7px,
+    var(--char-locked-stripe) 7px 8px
+  );
 }
 
 .atlas-char-card.is-self {
   color: var(--surface);
   background: var(--ink);
   box-shadow: 0 0 0 1px #050605;
+}
+
+.atlas-char-card.is-self.is-locked {
+  background: var(--char-locked-bg);
+  box-shadow: 0 0 0 1px var(--line);
 }
 
 .atlas-char-card.is-self.is-unlocked:hover,
@@ -2914,7 +2945,7 @@ input:focus-visible {
 
 .tutorial-kicker {
   color: var(--muted);
-  font-family: "Times New Roman", Georgia, serif;
+  font-family: var(--display-font-family);
   font-size: 11px;
   font-weight: 700;
   letter-spacing: 0.16em;
@@ -3031,7 +3062,7 @@ input:focus-visible {
 }
 
 .tutorial-title-reveal small {
-  font-family: "Times New Roman", Georgia, serif;
+  font-family: var(--display-font-family);
   font-size: 0.58em;
   font-weight: 700;
   letter-spacing: 0.1em;
@@ -3072,7 +3103,7 @@ input:focus-visible {
 
 .tutorial-section-heading > span {
   color: var(--accent);
-  font-family: "Times New Roman", Georgia, serif;
+  font-family: var(--display-font-family);
   font-size: 16px;
   font-weight: 700;
   line-height: 1;
@@ -3235,7 +3266,7 @@ input:focus-visible {
 }
 
 .tutorial-credits em {
-  font-family: "Times New Roman", Georgia, serif;
+  font-family: var(--display-font-family);
 }
 
 .tutorial-stage-track {
@@ -3537,7 +3568,7 @@ input:focus-visible {
 .detail-pronunciation h3 {
   margin: 0 0 20px;
   color: var(--accent);
-  font-family: "Times New Roman", Georgia, serif;
+  font-family: var(--display-font-family);
   font-size: 23px;
   font-weight: 700;
   letter-spacing: 0.035em;
@@ -4108,6 +4139,14 @@ input:focus-visible {
       135deg,
       transparent 0 5px,
       rgba(73, 76, 71, 0.17) 5px 6px
+    );
+  }
+
+  .atlas-char-card.is-locked::before {
+    background: repeating-linear-gradient(
+      135deg,
+      transparent 0 5px,
+      var(--char-locked-stripe) 5px 6px
     );
   }
 
