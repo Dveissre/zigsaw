@@ -4,6 +4,7 @@
     "32": { "name": "介脚", "source": "component_svg/32.svg" },
     "45": { "name": "卬偏", "source": "component_svg/45.svg" },
     "71": { "name": "𰀁", "source": "component_svg/71.svg" },
+    "83": { "name": "𰀂", "source": "component_svg/83.svg" },
     "88": { "name": "北偏", "source": "component_svg/88.svg" },
     "121": { "name": "𰀠", "source": "component_svg/121.svg" },
     "159": { "name": "衰心", "source": "component_svg/159N.svg" },
@@ -13,6 +14,7 @@
     "188": { "name": "軣脚", "source": "component_svg/188.svg" },
     "198": { "name": "爭脚", "source": "component_svg/198N.svg" },
     "205": { "name": "鹿心", "source": "component_svg/205.svg" },
+    "221": { "name": "𰀉", "source": "component_svg/221.svg" },
     "240": { "name": "免脚", "source": "component_svg/240.svg" },
     "253": { "name": "段偏", "source": "component_svg/253.svg" },
     "266": { "name": "庚脚", "source": "component_svg/266.svg" },
@@ -23,9 +25,11 @@
     "338": { "name": "鼠脚", "source": "component_svg/338N.svg" },
     "347": { "name": "憂冠", "source": "component_svg/347.svg" },
     "355": { "name": "無冠", "source": "component_svg/355.svg" },
+    "405": { "name": "𱼀", "source": "component_svg/405.svg" },
     "416": { "name": "鸟冠", "source": "component_svg/416.svg" },
     "420": { "name": "亽", "source": "component_svg/420.svg" },
     "425": { "name": "彐", "source": "component_svg/425N.svg" },
+    "433": { "name": "⺕", "source": "component_svg/433.svg" },
     "431": { "name": "象脚", "source": "component_svg/431.svg" }
   }
 }

@@ -910,6 +910,7 @@ function renderGame(game: GameSession): void {
     collection.recordEncounter(
       state.current.char,
       state.current.symbolIds,
+      !data!.levels.has(state.current.char),
     );
   }
   const challengeBounds =
@@ -1367,6 +1368,12 @@ renderStart(DEFAULT_SETTINGS);
 void loadGameData(document.baseURI)
   .then((loadedData) => {
     data = loadedData;
+    collection.reconcile(
+      loadedData.ways,
+      (symbolId) => loadedData.component(symbolId).name,
+      undefined,
+      (char) => !loadedData.levels.has(char),
+    );
     startupError = "";
     if (!session) {
       renderStart(lastSettings);

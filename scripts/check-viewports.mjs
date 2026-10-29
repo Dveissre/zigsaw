@@ -74,6 +74,7 @@ try {
     await page.waitForURL(/\/atlas\/$/);
     await page.waitForLoadState("networkidle");
     const atlasLayout = await measureLayout(page);
+    await page.locator("[data-component-access='all']").click();
     await page.locator(".atlas-component-card").first().click();
     await page.waitForTimeout(240);
     const atlasDetailLayout = await measureLayout(page);

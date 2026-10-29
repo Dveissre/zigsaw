@@ -54,7 +54,10 @@ type ComponentUsageTable = {
 
 type ComponentAtlasTable = {
   format: string;
+  sourceHash: string;
   componentCount: number;
+  exclusiveCount: number;
+  xrCount: number;
   characterCount: number;
   byRarity: Record<string, number>;
   components: Array<{
@@ -63,12 +66,25 @@ type ComponentAtlasTable = {
     rarity: string;
     count: number;
     charCount: number;
+    progressCharCount: number;
+    isExclusive: boolean;
     milestones: number[];
+  }>;
+};
+
+type ComponentCharacterShard = {
+  format: string;
+  shard: number;
+  components: Array<{
+    symbolId: number;
     chars: Array<{
       char: string;
       level: number;
       rank: number;
       isSelf?: boolean;
+      isExternal?: boolean;
+      isEx?: boolean;
+      isUnreachable?: boolean;
     }>;
   }>;
 };
@@ -203,6 +219,9 @@ describe("static game data", () => {
       expect(svg).toContain('viewBox="0 0 1024 1024"');
       expect(svg).toContain("<path");
     }
+    expect(assets.symbols["433"]?.source).toBe(
+      "component_svg/433.svg",
+    );
   });
 
   it("covers every multi-character component used by tongyong characters", () => {
@@ -249,7 +268,7 @@ describe("static game data", () => {
 
     expect(usage.format).toBe("zigsaw-component-usage/1");
     expect(usage.characterCount).toBe(8105);
-    expect(usage.decompositionCount).toBe(8863);
+    expect(usage.decompositionCount).toBe(8859);
     expect(usage.componentCount).toBe(usage.symbols.length);
     expect(new Set(ids).size).toBe(ids.length);
     expect(usage.totalUsageCount).toBe(
@@ -268,7 +287,7 @@ describe("static game data", () => {
     expect(usage.symbols[0]).toMatchObject({
       symbolId: 90,
       name: "口",
-      count: 1756,
+      count: 1757,
     });
     expect(
       usage.symbols.find((symbol) => symbol.symbolId === 425)
@@ -281,60 +300,234 @@ describe("static game data", () => {
       "public/data/component-atlas.json",
     );
 
-    expect(atlas.format).toBe("zigsaw-component-atlas/1");
+    expect(atlas.format).toBe("zigsaw-component-atlas/3");
+    expect(atlas.sourceHash).toHaveLength(16);
     expect(atlas.componentCount).toBe(363);
+    expect(atlas.exclusiveCount).toBe(31);
+    expect(atlas.xrCount).toBe(16);
     expect(atlas.characterCount).toBe(8105);
     expect(atlas.byRarity).toEqual({
-      N: 77,
-      R: 136,
-      SR: 105,
-      SSR: 30,
-      UR: 15,
+      N: 72,
+      R: 137,
+      SR: 112,
+      SSR: 33,
+      UR: 40,
+      XR: 16,
     });
-    expect(Math.max(...Object.values(atlas.byRarity))).toBe(
-      atlas.byRarity.R,
-    );
+    const expectedRarity = (count: number) =>
+      count >= 100
+        ? "N"
+        : count >= 20
+          ? "R"
+          : count >= 5
+            ? "SR"
+            : count >= 2
+              ? "SSR"
+              : "UR";
     expect(
-      atlas.components.every(
-        (component) => {
-          const milestoneLimit =
-            component.rarity === "SSR"
-              ? component.charCount <= 3
-                ? 1
-                : 2
-              : component.rarity === "UR"
-                ? 1
-                : 3;
-          const selfCharacters = component.chars.filter(
+      atlas.components
+        .filter((component) => component.rarity !== "XR")
+        .every(
+          (component) =>
+            component.rarity ===
+            expectedRarity(
+              component.count /
+                (component.isExclusive ? 10 : 1),
+            ),
+        ),
+    ).toBe(true);
+    const characterDetails = readdirSync(
+      resolve(process.cwd(), "public/data/component-atlas"),
+    )
+      .filter((filename) => filename.endsWith(".json"))
+      .flatMap((filename) => {
+        const shard = readJson<ComponentCharacterShard>(
+          `public/data/component-atlas/${filename}`,
+        );
+        expect(shard.format).toBe(
+          "zigsaw-component-characters/1",
+        );
+        return shard.components;
+      });
+    const charactersByComponent = new Map(
+      characterDetails.map((component) => [
+        component.symbolId,
+        component.chars,
+      ]),
+    );
+    expect(charactersByComponent.size).toBe(410);
+    expect(
+      atlas.components.every((component) => {
+          const chars =
+            charactersByComponent.get(component.symbolId) ?? [];
+          const selfCharacters = chars.filter(
             (character) => character.isSelf,
           );
-          const regularCharacters = component.chars.filter(
+          const relatedCharacters = chars.filter(
             (character) => !character.isSelf,
           );
+          const regularCharacters = relatedCharacters.filter(
+            (character) =>
+              !character.isEx && !character.isUnreachable,
+          );
+          const tableCharacters = regularCharacters.filter(
+            (character) => !character.isExternal,
+          );
+          const exCharacters = relatedCharacters.filter(
+            (character) => character.isEx,
+          );
+          const progressionChars = component.isExclusive
+            ? exCharacters.length
+            : regularCharacters.length;
+          const category = (
+            character: (typeof chars)[number],
+          ) =>
+            character.isSelf
+              ? 0
+              : character.isUnreachable
+                ? 1
+                : character.isEx
+                  ? 5
+                  : 1 + character.level;
+          const expectedMilestones =
+            component.rarity === "SSR"
+              ? [
+                  progressionChars <= 1
+                    ? 100
+                    : Math.round(
+                        ((progressionChars - 1) /
+                          progressionChars) *
+                          100,
+                      ),
+                ]
+              : component.rarity === "SR"
+                ? [50, 80]
+                : component.rarity === "XR"
+                  ? []
+                  : component.rarity === "UR"
+                    ? [100]
+                    : null;
           return (
-            component.milestones.length ===
-              Math.min(milestoneLimit, component.charCount) &&
-            component.charCount === component.chars.length &&
+            (expectedMilestones
+              ? JSON.stringify(component.milestones) ===
+                JSON.stringify(expectedMilestones)
+              : component.milestones.length ===
+                Math.min(3, progressionChars)) &&
+            component.charCount === chars.length &&
+            component.progressCharCount ===
+              (component.rarity === "XR"
+                ? 0
+                : progressionChars) &&
             selfCharacters.length <= 1 &&
-            component.chars.slice(0, selfCharacters.length).every(
+            chars.slice(0, selfCharacters.length).every(
               (character) => character.isSelf,
             ) &&
-            regularCharacters.every(
+            chars.every(
               (character, index) =>
                 index === 0 ||
-                regularCharacters[index - 1].rank < character.rank,
-            )
+                category(chars[index - 1]) <=
+                  category(character),
+            ) &&
+            tableCharacters.every(
+              (character, index) =>
+                index === 0 ||
+                tableCharacters[index - 1].rank < character.rank,
+            ) &&
+            exCharacters.every(
+              (character, index) =>
+                index === 0 ||
+                (exCharacters[index - 1].char.codePointAt(0) ??
+                  0) <=
+                  (character.char.codePointAt(0) ?? 0),
+            ) &&
+            (exCharacters.length === 0 ||
+              relatedCharacters
+                .slice(-exCharacters.length)
+                .every(
+                  (character) => character.isEx === true,
+                ))
           );
-        },
-      ),
+        }),
     ).toBe(true);
     expect(
-      atlas.components.find((component) => component.symbolId === 434)
-        ?.chars[0],
+      charactersByComponent.get(434)?.[0],
     ).toMatchObject({
       char: "内",
       isSelf: true,
     });
+    expect(
+      atlas.components
+        .filter((component) => component.isExclusive)
+        .every(
+          (component) =>
+            component.rarity !== "XR" &&
+            component.count === component.progressCharCount &&
+            component.count > 0,
+        ),
+    ).toBe(true);
+    expect(
+      atlas.components
+        .filter(
+          (component) =>
+            !component.isExclusive &&
+            component.rarity !== "XR",
+        )
+        .every(
+          (component) =>
+            component.count === component.progressCharCount,
+        ),
+    ).toBe(true);
+    expect(
+      atlas.components
+        .filter((component) => component.rarity === "XR")
+        .every(
+          (component) =>
+            [...component.name].length === 1 &&
+            component.charCount > 0 &&
+            component.count ===
+              component.charCount -
+                (charactersByComponent
+                  .get(component.symbolId)
+                  ?.filter((character) => character.isSelf)
+                  .length ?? 0) &&
+            component.milestones.length === 0,
+        ),
+    ).toBe(true);
+    expect(
+      atlas.components.find((component) => component.name === "年"),
+    ).toMatchObject({
+      rarity: "XR",
+      count: 4,
+      charCount: 5,
+      isExclusive: false,
+    });
+    for (const rarity of ["N", "R", "SR", "SSR", "UR", "XR"]) {
+      const counts = atlas.components
+        .filter((component) => component.rarity === rarity)
+        .map((component) => component.count);
+      expect(
+        counts.every(
+          (count, index) =>
+            index === 0 || counts[index - 1] >= count,
+        ),
+      ).toBe(true);
+    }
+    for (const rarity of ["N", "R", "SR", "SSR", "UR"]) {
+      const sameRarity = atlas.components.filter(
+        (component) => component.rarity === rarity,
+      );
+      const lastExclusive = sameRarity
+        .map((component) => component.isExclusive)
+        .lastIndexOf(true);
+      const firstNormal = sameRarity.findIndex(
+        (component) => !component.isExclusive,
+      );
+      expect(
+        lastExclusive === -1 ||
+          firstNormal === -1 ||
+          lastExclusive < firstNormal,
+      ).toBe(true);
+    }
   });
 
   it("builds the EX pool and excludes unadapted component names", () => {

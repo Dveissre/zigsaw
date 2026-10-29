@@ -1,8 +1,9 @@
 import "./styles.css";
 import {
+  loadComponentCharacters,
   loadComponentAtlas,
   type AtlasCharacterReference,
-  type AtlasComponent,
+  type AtlasComponentSummary,
   type ComponentAtlasData,
   type ComponentRarity,
 } from "./game/atlas";
@@ -23,21 +24,53 @@ if (!root) {
 
 type RarityFilter = ComponentRarity | "all";
 type AccessFilter = "unlocked" | "all";
+type HistoryMode = "auto" | "close" | "none" | "replace";
 
 const appRoot = root;
 const appBaseUrl = new URL("../", document.baseURI).href;
 const collection = new CollectionStore();
 const charDetails = new CharDetailStore(appBaseUrl);
-const rarityOrder: ComponentRarity[] = ["N", "R", "SR", "SSR", "UR"];
+const rarityOrder: ComponentRarity[] = [
+  "N",
+  "R",
+  "SR",
+  "SSR",
+  "UR",
+  "XR",
+];
+const EX_MARK_MARKUP = `
+  <span class="atlas-ex-mark" title="EX 关联部件" aria-label="EX 关联部件">
+    <svg viewBox="0 0 24 24" aria-hidden="true">
+      <path d="M12 1.5c.7 6.2 4.3 9.8 10.5 10.5-6.2.7-9.8 4.3-10.5 10.5C11.3 16.3 7.7 12.7 1.5 12 7.7 11.3 11.3 7.7 12 1.5Z"></path>
+    </svg>
+  </span>
+`;
 
 let atlas: ComponentAtlasData | null = null;
 let gameData: GameData | null = null;
 let activeRarity: RarityFilter = "all";
-let activeAccess: AccessFilter = "all";
-let activeCharAccess: AccessFilter = "all";
-let activeComponent: AtlasComponent | null = null;
+let activeAccess: AccessFilter = "unlocked";
+let activeCharAccess: AccessFilter = "unlocked";
+let activeComponent: AtlasComponentSummary | null = null;
+let activeCharacters: AtlasCharacterReference[] = [];
 let detailView: CharDetailView | null = null;
 let debugUnlockAll = false;
+let componentLoadToken = 0;
+let gameDataPromise: Promise<GameData> | null = null;
+
+window.addEventListener("popstate", () => {
+  if (!atlas) {
+    return;
+  }
+  const requested = Number(
+    new URL(location.href).searchParams.get("component"),
+  );
+  const component =
+    atlas.components.find(
+      (entry) => entry.symbolId === requested,
+    ) ?? null;
+  void selectComponent(component, "none");
+});
 
 function escapeHtml(value: string): string {
   return value
@@ -52,7 +85,7 @@ function assetUrl(source: string): string {
   return new URL(`../${source}`, document.baseURI).href;
 }
 
-function isComponentUnlocked(component: AtlasComponent): boolean {
+function isComponentUnlocked(component: AtlasComponentSummary): boolean {
   return (
     debugUnlockAll ||
     collection.hasComponent(component.symbolId)
@@ -61,7 +94,7 @@ function isComponentUnlocked(component: AtlasComponent): boolean {
 
 function isCharacterUnlocked(
   character: AtlasCharacterReference,
-  component: AtlasComponent,
+  component: AtlasComponentSummary,
 ): boolean {
   return (
     (character.isSelf && isComponentUnlocked(component)) ||
@@ -74,7 +107,7 @@ function isCharacterUnlocked(
 }
 
 function renderComponentGlyph(
-  component: AtlasComponent,
+  component: AtlasComponentSummary,
   className = "",
 ): string {
   const label = escapeHtml(component.name);
@@ -84,29 +117,64 @@ function renderComponentGlyph(
   return `<span class="${className}" aria-label="${label}">${label}</span>`;
 }
 
-function collectedCharacterCount(component: AtlasComponent): number {
-  return component.chars.reduce(
-    (total, character) =>
-      total +
-      (isCharacterUnlocked(character, component)
-        ? 1
-        : 0),
-    0,
+function collectedCharacters(
+  component: AtlasComponentSummary,
+): { normal: number; external: number } {
+  if (debugUnlockAll) {
+    return {
+      normal: component.progressCharCount,
+      external: component.exCharCount,
+    };
+  }
+  return {
+    normal: Math.min(
+      component.progressCharCount,
+      collection.collectedNormalCountForComponent(
+        component.symbolId,
+        component.selfChar,
+      ),
+    ),
+    external: Math.min(
+      component.exCharCount,
+      collection.collectedExternalCountForComponent(
+        component.symbolId,
+      ),
+    ),
+  };
+}
+
+function completionPercentage(
+  component: AtlasComponentSummary,
+): number {
+  if (component.rarity === "XR") {
+    return 0;
+  }
+  const collected = collectedCharacters(component);
+  if (component.isExclusive) {
+    return component.progressCharCount > 0
+      ? Math.min(
+          100,
+          (collected.external / component.progressCharCount) * 100,
+        )
+      : 0;
+  }
+  return Math.min(
+    100,
+    (component.progressCharCount > 0
+      ? (collected.normal / component.progressCharCount) * 100
+      : 0) +
+      collected.external * 10,
   );
 }
 
-function reachedMilestones(component: AtlasComponent): number {
-  const collected = collectedCharacterCount(component);
-  const percentage =
-    component.charCount > 0
-      ? (collected / component.charCount) * 100
-      : 0;
+function reachedMilestones(component: AtlasComponentSummary): number {
+  const percentage = completionPercentage(component);
   return component.milestones.filter(
     (milestone) => percentage >= milestone,
   ).length;
 }
 
-function renderMilestoneTicks(component: AtlasComponent): string {
+function renderMilestoneTicks(component: AtlasComponentSummary): string {
   const reached = reachedMilestones(component);
   return `
     <span class="atlas-card-milestones" aria-hidden="true">
@@ -120,15 +188,16 @@ function renderMilestoneTicks(component: AtlasComponent): string {
   `;
 }
 
-function renderComponentCard(component: AtlasComponent): string {
+function renderComponentCard(component: AtlasComponentSummary): string {
   const unlocked = isComponentUnlocked(component);
   const completed =
+    component.rarity !== "XR" &&
     unlocked &&
     reachedMilestones(component) === component.milestones.length;
   const selected = activeComponent?.symbolId === component.symbolId;
   return `
     <button
-      class="atlas-component-card rarity-${component.rarity.toLowerCase()} ${unlocked ? "is-unlocked" : "is-locked"} ${completed ? "is-milestone-complete" : ""} ${selected ? "is-selected" : ""}"
+      class="atlas-component-card rarity-${component.rarity.toLowerCase()} ${unlocked ? "is-unlocked" : "is-locked"} ${completed ? "is-milestone-complete" : ""} ${selected ? "is-selected" : ""} ${component.isExclusive ? "has-ex-origin" : ""}"
       type="button"
       data-component-id="${component.symbolId}"
       aria-label="${unlocked ? `${escapeHtml(component.name)}，${component.rarity}级部件` : "未解锁部件"}"
@@ -139,7 +208,8 @@ function renderComponentCard(component: AtlasComponent): string {
             <span class="atlas-rarity">${component.rarity}</span>
             <span class="atlas-card-glyph">${renderComponentGlyph(component, "atlas-glyph-content")}</span>
             <span class="atlas-card-count">${component.count}</span>
-            ${renderMilestoneTicks(component)}
+            ${component.milestones.length ? renderMilestoneTicks(component) : ""}
+            ${component.isExclusive ? EX_MARK_MARKUP : ""}
           `
           : ""
       }
@@ -193,10 +263,14 @@ function renderCatalog(): void {
     ${switchMarkup(
       [
         { value: "all", label: "全部" },
-        ...rarityOrder.map((rarity) => ({
-          value: rarity,
-          label: rarity,
-        })),
+        ...rarityOrder
+          .filter(
+            (rarity) => rarity !== "XR" || debugUnlockAll,
+          )
+          .map((rarity) => ({
+            value: rarity,
+            label: rarity,
+          })),
       ],
       activeRarity,
       "rarity-filter",
@@ -277,6 +351,8 @@ function renderComponentGrid(): void {
   }
   const components = atlas.components.filter(
     (component) =>
+      (component.rarity !== "XR" || debugUnlockAll) &&
+      (!component.isExclusive || isComponentUnlocked(component)) &&
       (activeRarity === "all" ||
         component.rarity === activeRarity) &&
       (activeAccess === "all" ||
@@ -287,13 +363,14 @@ function renderComponentGrid(): void {
 
 function characterCard(
   character: AtlasCharacterReference,
-  component: AtlasComponent,
-  isEx: boolean,
+  component: AtlasComponentSummary,
 ): string {
   const unlocked = isCharacterUnlocked(character, component);
-  const levelClass = isEx
-    ? "is-ex"
-    : `is-level-${character.level}`;
+  const levelClass = character.isUnreachable
+    ? "is-unreachable"
+    : character.isEx
+      ? "is-ex"
+      : `is-level-${character.level}`;
   const selfClass = character.isSelf ? "is-self" : "";
   const codePoint = character.char.codePointAt(0) ?? 0;
   const levelLabel =
@@ -302,7 +379,7 @@ function characterCard(
       : character.level === 2
         ? "二级"
         : "三级";
-  const meta = isEx
+  const meta = character.isUnreachable || character.isEx
     ? `表外 U+${codePoint.toString(16).toUpperCase().padStart(4, "0")}`
     : `${levelLabel} ${String(character.rank).padStart(4, "0")}`;
   return `
@@ -321,53 +398,138 @@ function characterCard(
   `;
 }
 
-function exCharactersFor(component: AtlasComponent): string[] {
-  const baseChars = new Set(
-    component.chars.map((character) => character.char),
-  );
-  if (debugUnlockAll && gameData) {
-    return [...gameData.ways.keys()]
-      .filter((char) => {
-        const codePoint = char.codePointAt(0) ?? 0;
-        const ways = gameData?.ways.get(char) ?? [];
-        return (
-          !baseChars.has(char) &&
-          !gameData?.levels.has(char) &&
-          codePoint >= 0x4e00 &&
-          codePoint <= 0x9fff &&
-          gameData?.isCharSelectable(char) &&
-          ways.some((way) => way.length >= 3) &&
-          ways.some((way) => way.includes(component.symbolId))
-        );
-      })
-      .sort(
-        (left, right) =>
-          (left.codePointAt(0) ?? 0) -
-          (right.codePointAt(0) ?? 0),
-      );
-  }
-  return collection.seenChars().filter(
-    (char) =>
-      !baseChars.has(char) &&
-      collection
-        .waysForChar(char)
-        .some((way) => way.includes(component.symbolId)),
-  );
+function visibleCharactersFor(
+  component: AtlasComponentSummary,
+): AtlasCharacterReference[] {
+  return activeCharacters.filter((character) => {
+    if (character.isUnreachable && !debugUnlockAll) {
+      return false;
+    }
+    return (
+      activeCharAccess === "all" ||
+      isCharacterUnlocked(character, component)
+    );
+  });
 }
 
-function openCharacterDetail(char: string): void {
-  if (!detailView || !gameData) {
+function detailCountLabel(component: AtlasComponentSummary): string {
+  if (component.rarity === "XR") {
+    return `${component.count} 字`;
+  }
+  const collected = collectedCharacters(component);
+  if (component.isExclusive) {
+    return `${collected.external} / ${component.progressCharCount}`;
+  }
+  if (component.exCharCount > 0) {
+    return `${collected.normal}+${collected.external} / ${component.progressCharCount}+${component.exCharCount}`;
+  }
+  return `${collected.normal} / ${component.progressCharCount}`;
+}
+
+function detailShellMarkup(
+  component: AtlasComponentSummary,
+  characterContent: string,
+): string {
+  const percentage = completionPercentage(component);
+  return `
+    <header class="atlas-detail-header">
+      <button class="char-detail-close atlas-detail-close" type="button" data-atlas-detail-back aria-label="关闭详情">
+        <svg viewBox="0 0 24 24" aria-hidden="true">
+          <path d="M4 4 20 20M20 4 4 20"></path>
+        </svg>
+      </button>
+      <div class="atlas-detail-symbol rarity-${component.rarity.toLowerCase()} ${component.isExclusive ? "has-ex-origin" : ""}">
+        ${renderComponentGlyph(component, "atlas-detail-glyph")}
+        ${component.isExclusive ? EX_MARK_MARKUP : ""}
+      </div>
+      <span class="atlas-detail-rarity ${component.isExclusive ? "is-exclusive" : ""}">${component.rarity}${component.isExclusive ? "-EX" : ""}</span>
+    </header>
+    <div class="atlas-detail-summary">
+      <span>${detailCountLabel(component)}</span>
+    </div>
+    ${
+      component.rarity !== "XR"
+        ? `<div class="atlas-milestones">
+      <div class="atlas-milestone-track">
+        <span class="atlas-milestone-fill" style="width:${percentage}%"></span>
+        ${component.milestones
+          .map(
+            (milestone) =>
+              `<i class="${percentage >= milestone ? "is-reached" : ""}" style="left:${milestone}%"></i>`,
+          )
+          .join("")}
+      </div>
+      <div class="atlas-milestone-labels">
+        ${component.milestones
+          .map(
+            (milestone) =>
+              `<span class="${milestone === 100 ? "is-end" : ""}" style="left:${milestone}%">${milestone}%</span>`,
+          )
+          .join("")}
+      </div>
+    </div>`
+        : ""
+    }
+    ${switchMarkup<AccessFilter>(
+      [
+        { value: "unlocked", label: "已解锁" },
+        { value: "all", label: "全部" },
+      ],
+      activeCharAccess,
+      "char-access",
+    )}
+    <div class="atlas-char-grid">${characterContent}</div>
+  `;
+}
+
+function ensureGameData(): Promise<GameData> {
+  gameDataPromise ??= loadGameData(appBaseUrl)
+    .then((loaded) => {
+      gameData = loaded;
+      collection.reconcile(
+        loaded.ways,
+        (symbolId) => loaded.component(symbolId).name,
+        atlas?.sourceHash ?? "",
+        (char) => !loaded.levels.has(char),
+      );
+      return loaded;
+    })
+    .catch((error: unknown) => {
+      gameDataPromise = null;
+      throw error;
+    });
+  return gameDataPromise;
+}
+
+async function openCharacterDetail(char: string): Promise<void> {
+  const loadedGameData = await ensureGameData();
+  if (!detailView) {
+    setupDetailView();
+  }
+  if (!detailView) {
     return;
   }
   const meta =
-    gameData.answerMeta(char) || externalCharacterMeta(char);
+    loadedGameData.answerMeta(char) ||
+    externalCharacterMeta(char);
   detailView.open(char, meta);
 }
 
-function selectComponent(
-  component: AtlasComponent | null,
-): void {
+async function selectComponent(
+  component: AtlasComponentSummary | null,
+  historyMode: HistoryMode = "auto",
+): Promise<void> {
+  const wasOpen = activeComponent !== null;
+  if (component?.rarity === "XR" && !debugUnlockAll) {
+    component = null;
+  }
+  if (component?.symbolId !== activeComponent?.symbolId) {
+    activeCharAccess = "unlocked";
+  }
   activeComponent = component;
+  activeCharacters = [];
+  componentLoadToken += 1;
+  const loadToken = componentLoadToken;
   const layout = document.querySelector<HTMLElement>(".atlas-layout");
   const detail = document.querySelector<HTMLElement>("[data-atlas-detail]");
   if (!layout || !detail) {
@@ -375,6 +537,7 @@ function selectComponent(
   }
 
   layout.classList.toggle("is-detail-open", Boolean(component));
+  detail.scrollTop = 0;
   document
     .querySelectorAll<HTMLElement>("[data-component-id]")
     .forEach((card) => {
@@ -387,12 +550,43 @@ function selectComponent(
   if (!component) {
     detail.innerHTML = `<div class="atlas-detail-empty">选择一个部件</div>`;
     url.searchParams.delete("component");
-    history.replaceState(null, "", url);
+    if (historyMode !== "none") {
+      if (
+        historyMode === "close" &&
+        history.state?.atlasDetailEntry === "push"
+      ) {
+        history.back();
+      } else {
+        history.replaceState(
+          { ...history.state, atlasDetail: false },
+          "",
+          url,
+        );
+      }
+    }
     return;
   }
 
   url.searchParams.set("component", String(component.symbolId));
-  history.replaceState(null, "", url);
+  if (historyMode !== "none") {
+    const nextState = {
+      ...history.state,
+      atlasDetail: true,
+      atlasDetailEntry:
+        wasOpen && history.state?.atlasDetailEntry === "push"
+          ? "push"
+          : historyMode === "replace"
+            ? history.state?.atlasDetailEntry === "push"
+              ? "push"
+              : "root"
+            : "push",
+    };
+    if (historyMode === "replace" || wasOpen) {
+      history.replaceState(nextState, "", url);
+    } else {
+      history.pushState(nextState, "", url);
+    }
+  }
 
   if (!isComponentUnlocked(component)) {
     detail.innerHTML = `
@@ -411,90 +605,73 @@ function selectComponent(
     return;
   }
 
-  const collected = collectedCharacterCount(component);
-  const percentage =
-    component.charCount > 0
-      ? (collected / component.charCount) * 100
-      : 0;
-  const exCharacters = exCharactersFor(component);
-  const visibleBaseCharacters =
-    activeCharAccess === "unlocked"
-      ? component.chars.filter((character) =>
-          isCharacterUnlocked(character, component),
-        )
-      : component.chars;
-  const selfCharacters = visibleBaseCharacters.filter(
-    (character) => character.isSelf,
+  detail.innerHTML = detailShellMarkup(
+    component,
+    '<div class="atlas-char-loading">载入中…</div>',
   );
-  const regularCharacters = visibleBaseCharacters.filter(
-    (character) => !character.isSelf,
-  );
-  const characters = [
-    ...selfCharacters.map((character) =>
-      characterCard(character, component, false),
-    ),
-    ...exCharacters.map((char) =>
-      characterCard(
-        { char, level: 3, rank: 0 },
-        component,
-        true,
-      ),
-    ),
-    ...regularCharacters.map((character) =>
-      characterCard(character, component, false),
-    ),
-  ].join("");
-
-  detail.innerHTML = `
-    <header class="atlas-detail-header">
-      <button class="char-detail-close atlas-detail-close" type="button" data-atlas-detail-back aria-label="关闭详情">
-        <svg viewBox="0 0 24 24" aria-hidden="true">
-          <path d="M4 4 20 20M20 4 4 20"></path>
-        </svg>
-      </button>
-      <div class="atlas-detail-symbol rarity-${component.rarity.toLowerCase()}">${renderComponentGlyph(component, "atlas-detail-glyph")}</div>
-      <span class="atlas-detail-rarity">${component.rarity}</span>
-    </header>
-    <div class="atlas-detail-summary">
-      <span>${component.count} 次</span>
-      <span>${collected} / ${component.charCount}</span>
-    </div>
-    <div class="atlas-milestones">
-      <div class="atlas-milestone-track">
-        <span class="atlas-milestone-fill" style="width:${percentage}%"></span>
-        ${component.milestones
-          .map(
-            (milestone) =>
-              `<i class="${percentage >= milestone ? "is-reached" : ""}" style="left:${milestone}%"></i>`,
-          )
-          .join("")}
-      </div>
-      <div class="atlas-milestone-labels">
-        ${component.milestones
-          .map(
-            (milestone) =>
-              `<span class="${milestone === 100 ? "is-end" : ""}" style="left:${milestone}%">${milestone}%</span>`,
-          )
-          .join("")}
-      </div>
-    </div>
-    ${switchMarkup<AccessFilter>(
-      [
-        { value: "unlocked", label: "已解锁" },
-        { value: "all", label: "全部" },
-      ],
-      activeCharAccess,
-      "char-access",
-    )}
-    <div class="atlas-char-grid">${characters || '<div class="atlas-char-empty">暂无已解锁汉字</div>'}</div>
-  `;
   bindDetailControls(detail);
+
+  const needsDebugCharacterRefresh =
+    debugUnlockAll && !gameData;
+  void ensureGameData().then((loaded) => {
+    if (
+      needsDebugCharacterRefresh &&
+      activeComponent?.symbolId === component.symbolId
+    ) {
+      void selectComponent(component, "replace");
+      return;
+    }
+    if (
+      collection.needsReconcile(atlas?.sourceHash ?? "") &&
+      activeComponent?.symbolId === component.symbolId
+    ) {
+      collection.reconcile(
+        loaded.ways,
+        (symbolId) => loaded.component(symbolId).name,
+        atlas?.sourceHash ?? "",
+        (char) => !loaded.levels.has(char),
+      );
+      void selectComponent(component, "replace");
+    }
+  });
+
+  let loadedCharacters: AtlasCharacterReference[];
+  try {
+    loadedCharacters = await loadComponentCharacters(
+      document.baseURI,
+      component.symbolId,
+    );
+  } catch {
+    if (
+      loadToken === componentLoadToken &&
+      activeComponent?.symbolId === component.symbolId
+    ) {
+      const grid = detail.querySelector<HTMLElement>(
+        ".atlas-char-grid",
+      );
+      if (grid) {
+        grid.innerHTML =
+          '<div class="atlas-char-loading">部件载入失败</div>';
+      }
+    }
+    return;
+  }
+  if (
+    loadToken !== componentLoadToken ||
+    activeComponent?.symbolId !== component.symbolId
+  ) {
+    return;
+  }
+  activeCharacters = loadedCharacters;
+  refreshCharacterGrid(detail);
 }
 
 function bindDetailControls(detail: HTMLElement): void {
   detail
     .querySelector<HTMLButtonElement>("[data-atlas-detail-back]")
-    ?.addEventListener("click", () => selectComponent(null));
+    ?.addEventListener("click", () => {
+      void selectComponent(null, "close");
+    });
   detail
     .querySelectorAll<HTMLButtonElement>("[data-char-access]")
     .forEach((button) => {
@@ -505,7 +682,19 @@ function bindDetailControls(detail: HTMLElement): void {
         refreshCharacterGrid(detail);
       });
     });
-  bindCharacterCards(detail);
+  detail
+    .querySelector<HTMLElement>(".atlas-char-grid")
+    ?.addEventListener("click", (event) => {
+      const target = event.target;
+      const card =
+        target instanceof Element
+          ? target.closest<HTMLElement>("[data-atlas-char]")
+          : null;
+      const char = card?.dataset.atlasChar;
+      if (char) {
+        void openCharacterDetail(char);
+      }
+    });
 }
 
 function refreshCharacterGrid(detail: HTMLElement): void {
@@ -517,50 +706,9 @@ function refreshCharacterGrid(detail: HTMLElement): void {
   if (!grid) {
     return;
   }
-  const visibleBaseCharacters =
-    activeCharAccess === "unlocked"
-      ? component.chars.filter((character) =>
-          isCharacterUnlocked(character, component),
-        )
-      : component.chars;
-  const selfCharacters = visibleBaseCharacters.filter(
-    (character) => character.isSelf,
-  );
-  const regularCharacters = visibleBaseCharacters.filter(
-    (character) => !character.isSelf,
-  );
-  grid.innerHTML = [
-    ...selfCharacters.map((character) =>
-      characterCard(character, component, false),
-    ),
-    ...exCharactersFor(component).map((char) =>
-      characterCard(
-        { char, level: 3, rank: 0 },
-        component,
-        true,
-      ),
-    ),
-    ...regularCharacters.map((character) =>
-      characterCard(character, component, false),
-    ),
-  ].join("");
-  bindCharacterCards(grid);
-}
-
-function bindCharacterCards(scope: ParentNode): void {
-  scope
-    .querySelectorAll<HTMLButtonElement>(
-      ".atlas-char-card.is-unlocked",
-    )
-    .forEach((card) => {
-      const open = () => {
-        const char = card.dataset.atlasChar;
-        if (char) {
-          openCharacterDetail(char);
-        }
-      };
-      card.addEventListener("click", open);
-    });
+  grid.innerHTML = visibleCharactersFor(component)
+    .map((character) => characterCard(character, component))
+    .join("");
 }
 
 function detailDialogMarkup(): string {
@@ -622,7 +770,7 @@ function setupDetailView(): void {
   const dialog = appRoot.querySelector<HTMLDialogElement>(
     ".char-detail-dialog",
   );
-  if (!dialog || !gameData) {
+  if (!dialog) {
     detailView = null;
     return;
   }
@@ -633,15 +781,32 @@ function setupDetailView(): void {
   );
 }
 
+function collectionCountLabel(): string {
+  if (!atlas) {
+    return "0 / 0";
+  }
+  const baseUnlocked = atlas.components.filter(
+    (component) =>
+      !component.isExclusive &&
+      component.rarity !== "XR" &&
+      collection.hasComponent(component.symbolId),
+  ).length;
+  const exclusiveUnlocked = atlas.components.filter(
+    (component) =>
+      component.isExclusive &&
+      collection.hasComponent(component.symbolId),
+  ).length;
+  if (exclusiveUnlocked === 0) {
+    return `${baseUnlocked} / ${atlas.componentCount}`;
+  }
+  return `${baseUnlocked}+${exclusiveUnlocked}/${atlas.componentCount}+${exclusiveUnlocked}`;
+}
+
 function renderAtlas(): void {
   if (!atlas) {
     return;
   }
   const selectedId = activeComponent?.symbolId;
-  const unlockedComponents = atlas.components.filter((component) =>
-    isComponentUnlocked(component),
-  ).length;
-
   appRoot.innerHTML = `
     <div class="app-shell page-atlas">
       <button class="advanced-corner" type="button" data-atlas-advanced aria-label="高级设置" aria-pressed="${debugUnlockAll}"></button>
@@ -657,11 +822,11 @@ function renderAtlas(): void {
         <section class="atlas-page-surface">
           <header class="atlas-page-heading">
             <div>
-              <div class="tutorial-kicker">COMPONENT INDEX</div>
+              <div class="tutorial-kicker">ATLAS</div>
               <h1 id="atlas-title">图鉴</h1>
             </div>
             <div class="atlas-heading-actions">
-              <span>${unlockedComponents} / ${atlas.componentCount}</span>
+              <span>${collectionCountLabel()}</span>
             </div>
           </header>
           <div class="atlas-layout">
@@ -694,20 +859,27 @@ function renderAtlas(): void {
         atlas?.components.find((entry) => entry.symbolId === id) ??
         null;
       if (component) {
-        selectComponent(component);
+        void selectComponent(component);
       }
     });
   appRoot
     .querySelector<HTMLButtonElement>("[data-atlas-advanced]")
     ?.addEventListener("click", () => {
       debugUnlockAll = !debugUnlockAll;
+      if (!debugUnlockAll && activeRarity === "XR") {
+        activeRarity = "all";
+      }
       renderAtlas();
+      if (!debugUnlockAll && activeComponent?.rarity === "XR") {
+        void selectComponent(null, "replace");
+        return;
+      }
       if (selectedId !== undefined) {
         const selected = atlas?.components.find(
           (component) => component.symbolId === selectedId,
         );
         if (selected) {
-          selectComponent(selected);
+          void selectComponent(selected, "replace");
         }
       }
     });
@@ -716,18 +888,20 @@ function renderAtlas(): void {
       (component) => component.symbolId === selectedId,
     );
     if (selected) {
-      selectComponent(selected);
+      void selectComponent(selected, "replace");
     }
   }
 }
 
-void Promise.all([
-  loadComponentAtlas(document.baseURI),
-  loadGameData(appBaseUrl),
-])
-  .then(([loadedAtlas, loadedGameData]) => {
+void loadComponentAtlas(document.baseURI)
+  .then((loadedAtlas) => {
     atlas = loadedAtlas;
-    gameData = loadedGameData;
+    const needsReconcile = collection.needsReconcile(
+      loadedAtlas.sourceHash,
+    );
+    if (!needsReconcile) {
+      collection.setSourceHash(loadedAtlas.sourceHash);
+    }
     renderAtlas();
     const requested = Number(
       new URL(location.href).searchParams.get("component"),
@@ -735,8 +909,26 @@ void Promise.all([
     const component = atlas.components.find(
       (entry) => entry.symbolId === requested,
     );
-    if (component) {
-      selectComponent(component);
+    if (
+      component &&
+      (debugUnlockAll || component.rarity !== "XR")
+    ) {
+      void selectComponent(component, "replace");
+    } else {
+      history.replaceState(
+        { ...history.state, atlasDetail: false },
+        "",
+        location.href,
+      );
+    }
+    if (needsReconcile) {
+      void ensureGameData()
+        .then(() => {
+          renderAtlas();
+        })
+        .catch(() => {
+          // Retain the migrated cache if the source table cannot load.
+        });
     }
   })
   .catch((error: unknown) => {

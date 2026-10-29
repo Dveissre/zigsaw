@@ -303,6 +303,19 @@ try {
     await page.locator(".atlas-page-heading h1").innerText(),
     "图鉴",
   );
+  await page.locator(".atlas-component-grid").waitFor();
+  assert.equal(
+    await page
+      .locator("[data-component-access='unlocked']")
+      .getAttribute("aria-pressed"),
+    "true",
+  );
+  assert.equal(await page.locator(".atlas-component-card").count(), 0);
+  assert.equal(
+    await page.locator("[data-rarity-filter='XR']").count(),
+    0,
+  );
+  await page.locator("[data-component-access='all']").click();
   await page.locator(".atlas-component-card").first().waitFor();
   assert.equal(await page.locator(".atlas-component-card").count(), 363);
   assert.equal(
@@ -352,14 +365,36 @@ try {
     (await page.locator(".atlas-component-card.is-locked").first().innerText()).trim(),
     "",
   );
+  assert.equal(await page.evaluate(() => history.state.atlasDetail), true);
+  await page.goBack();
+  await page.waitForURL(/\/atlas\/$/);
+  assert.equal(
+    await atlasLayout.evaluate((layout) =>
+      layout.classList.contains("is-detail-open"),
+    ),
+    false,
+  );
+  await page.locator(".atlas-component-card").first().click();
   await page.locator("[data-atlas-advanced]").click();
   await page.locator(".atlas-component-card.is-unlocked").first().waitFor();
   assert.equal(
     await page.locator(".atlas-component-card.is-unlocked").count(),
-    363,
+    410,
   );
+  await page.locator("[data-rarity-filter='XR']").click();
+  const xrCard = page.locator(".atlas-component-card.rarity-xr").first();
+  await xrCard.waitFor();
+  assert.equal(
+    await xrCard.locator(".atlas-card-milestones").count(),
+    0,
+  );
+  await page.locator("[data-rarity-filter='all']").click();
   await page.locator('[data-component-id="90"]').click();
   await page.locator(".atlas-detail-summary").waitFor();
+  assert.doesNotMatch(
+    await page.locator(".atlas-detail-summary").innerText(),
+    /次/,
+  );
   const selfCharacter = page.locator(".atlas-char-card.is-self").first();
   assert.equal(await selfCharacter.innerText(), "口\n一级 0038");
   await page.locator('[data-atlas-char="柬"]').click();
@@ -661,17 +696,17 @@ try {
   await page.getByRole("button", { name: "开始", exact: true }).click();
   await page.locator(".play-screen").waitFor();
   const firstCollected = await page.evaluate(() => {
-    const raw = localStorage.getItem("zigsaw.collection.v1");
+    const raw = localStorage.getItem("zigsaw.collection.v2");
     return raw ? Object.keys(JSON.parse(raw).chars).length : 0;
   });
   assert.ok(firstCollected >= 1);
   const collectedSample = await page.evaluate(() => {
-    const raw = localStorage.getItem("zigsaw.collection.v1");
+    const raw = localStorage.getItem("zigsaw.collection.v2");
     const chars = raw ? JSON.parse(raw).chars : {};
     const char = Object.keys(chars)[0];
     return {
       char,
-      symbolId: chars[char]?.[0]?.[0] ?? -1,
+      symbolId: chars[char]?.[0] ?? -1,
     };
   });
   assert.ok(collectedSample.char);
