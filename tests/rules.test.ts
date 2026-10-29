@@ -1,9 +1,10 @@
-import { describe, expect, it } from "vitest";
-import type { GameSettings } from "../src/game/data";
+import { afterEach, describe, expect, it, vi } from "vitest";
+import { GameData, type GameSettings } from "../src/game/data";
 import { recordKey } from "../src/game/records";
 import {
   balanceChallengeClassProbabilities,
   challengeClassProbabilities,
+  GameSession,
   shuffleQuestionParts,
 } from "../src/game/session";
 import { splitPartsIntoRows } from "../src/ui/parts";
@@ -126,6 +127,66 @@ describe("question part ordering", () => {
 
   it("keeps indistinguishable duplicate parts stable", () => {
     expect(shuffleQuestionParts(["一", "一"], () => 0)).toEqual(["一", "一"]);
+  });
+});
+
+describe("question timing", () => {
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
+  it("averages active play time and excludes pauses", () => {
+    vi.useFakeTimers();
+    const game = new GameData(
+      {
+        symbols: { "1": "一", "2": "丨" },
+        chars: { "二": [[1, 2]] },
+      },
+      {
+        levels: {
+          一级: ["二"],
+          二级: [],
+          三级: [],
+        },
+      },
+      null,
+      "https://example.com/",
+    );
+    const session = new GameSession(
+      game,
+      {
+        ...challenge,
+        mode: "normal",
+        levels: [1],
+        partsLow: 2,
+        partsHigh: 2,
+        count: 2,
+        seconds: 20,
+      },
+      { load: () => 0, save: () => undefined },
+      () => undefined,
+    );
+
+    vi.advanceTimersByTime(2000);
+    session.setDraft("二");
+    session.submit();
+    vi.advanceTimersByTime(900);
+
+    vi.advanceTimersByTime(1000);
+    session.togglePause();
+    vi.advanceTimersByTime(5000);
+    session.togglePause();
+    vi.advanceTimersByTime(1000);
+    session.setDraft("二");
+    session.submit();
+    vi.advanceTimersByTime(900);
+
+    expect(session.state.phase).toBe("results");
+    expect(session.state.result?.averageQuestionSeconds).toBeCloseTo(
+      2,
+      1,
+    );
+    session.destroy();
   });
 });
 

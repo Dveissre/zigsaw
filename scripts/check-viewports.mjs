@@ -74,7 +74,11 @@ try {
     await page.waitForURL(/\/atlas\/$/);
     await page.waitForLoadState("networkidle");
     const atlasLayout = await measureLayout(page);
-    await page.getByRole("link", { name: "返回", exact: true }).click();
+    await page.locator(".atlas-component-card").first().click();
+    await page.waitForTimeout(240);
+    const atlasDetailLayout = await measureLayout(page);
+    await page.locator(".atlas-detail-close").click();
+    await page.getByRole("link", { name: "返回主页", exact: true }).click();
     await page.waitForURL((url) => !url.pathname.endsWith("/atlas/"));
     await page.locator(".start-button:not([disabled])").waitFor();
     await page.getByRole("button", { name: "自由", exact: true }).click();
@@ -118,6 +122,7 @@ try {
       startLayout,
       tutorialLayout,
       atlasLayout,
+      atlasDetailLayout,
       gameLayout,
       resultLayout,
       challengeLayout,
@@ -136,6 +141,7 @@ try {
         `start=${startLayout.scrollWidth}/${startLayout.viewportWidth}`,
         `tutorial=${tutorialLayout.scrollWidth}/${tutorialLayout.viewportWidth}`,
         `atlas=${atlasLayout.scrollWidth}/${atlasLayout.viewportWidth}`,
+        `atlas-detail=${atlasDetailLayout.scrollWidth}/${atlasDetailLayout.viewportWidth}`,
         `game=${gameLayout.scrollWidth}/${gameLayout.viewportWidth}`,
         `result=${resultLayout.scrollWidth}/${resultLayout.viewportWidth}`,
         `challenge=${challengeLayout.scrollWidth}/${challengeLayout.viewportWidth}`,
@@ -148,6 +154,7 @@ try {
       startLayout,
       tutorialLayout,
       atlasLayout,
+      atlasDetailLayout,
       gameLayout,
       resultLayout,
       challengeLayout,

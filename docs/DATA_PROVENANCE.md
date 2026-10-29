@@ -9,6 +9,7 @@ Web 版只复制游戏运行时需要的成品 JSON，不复制原始素材或�
 | `public/data/char-detail/*.json` | `C:\Projects\Python\wordlist\char_detail.json` | 结算卡按需读取的汉字读音、释义、例词与古籍征引 |
 | `public/data/char-school.json` | `C:\Projects\Python\wordlist\shizi_biao.json`、`xiezi_biao.json` | 识字表、写字表所在年级与册次 |
 | `public/data/component-usage.json` | 由通规字表和 `char_sym.json` 生成 | 每个部件在全部通规拆法中的使用次数，供图鉴使用 |
+| `public/data/component-atlas.json` | 由可玩的通规多部件拆法生成 | 部件稀有度、可收集状态和按字表顺序排列的汉字列表 |
 | `public/component_svg/*.svg` | 项目内试行矢量图 | 未收录或 Unicode 支持较差的 sym |
 | `docs/component-usage.csv` | 从 `component-usage.json` 导出 | 可直接查看的部件使用次数表 |
 | `docs/component-glyph-priority.csv` | `C:\Projects\Python\char_components\component_glyph_priority.csv` | 多字符 sym 名的补字优先级 |
@@ -28,6 +29,15 @@ sym 自动回退到 `char_sym.json` 中的文字名称。
 都会先执行该命令，因此拆字表更新后只需重新启动开发服务或重新构建，统计会自动更新。
 统计范围为《通用规范汉字表》全部 8105 字，每套拆分方式分别计入；重复部件
 在一次拆分中出现两次，也按两次计。
+
+`component-atlas.json` 由 `npm run build:atlas` 生成，并在开发和构建前自动更新。
+首版图鉴只包含通规字、可实际游玩的多部件拆法中出现过的部件。只存在于单部件
+自指拆法中的部件暂不加入图鉴。稀有度阈值为 N ≥ 100、R ≥ 20、SR ≥ 5、
+SSR ≥ 2、其余 UR。
+
+题目出现时，游戏会把“汉字 + 该题实际拆法”写入
+`localStorage["zigsaw.collection.v1"]`。同一汉字以后使用另一套拆法出现时会追加；
+图鉴中的部件和部件下的汉字均由此实际遇到记录解锁。
 
 释义源文件约 12 MB，不直接发布。运行
 `npm run build:details -- "C:\Projects\Python\wordlist\char_detail.json"`

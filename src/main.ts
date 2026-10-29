@@ -8,9 +8,11 @@ import {
   type Level,
   type Mode,
 } from "./game/data";
+import { CollectionStore } from "./game/collection";
 import { CharDetailStore } from "./game/details";
 import { LocalRecordStore, recordKey } from "./game/records";
 import { GameSession, type GameState } from "./game/session";
+import { buildChallengeShareText } from "./game/share";
 import { ATLAS_TRIGGER_MARKUP } from "./ui/atlas";
 import { CharDetailView } from "./ui/char-detail";
 import { splitPartsIntoRows } from "./ui/parts";
@@ -51,10 +53,12 @@ let advancedSettingsOpen = false;
 let startingGame = false;
 let startLayoutObserver: ResizeObserver | null = null;
 let pageTransitionActive = false;
+let shareToastTimer: number | null = null;
 
 const MODE_ORDER: Mode[] = ["challenge", "normal", "endless"];
 
 const records = new LocalRecordStore();
+const collection = new CollectionStore();
 const charDetails = new CharDetailStore(document.baseURI);
 const tutorialDialog = createTutorialDialog();
 let resumeAfterTutorial = false;
@@ -66,6 +70,66 @@ function escapeHtml(value: string): string {
     .replaceAll(">", "&gt;")
     .replaceAll('"', "&quot;")
     .replaceAll("'", "&#039;");
+}
+
+async function copyText(text: string): Promise<boolean> {
+  try {
+    await navigator.clipboard.writeText(text);
+    return true;
+  } catch {
+    const textarea = document.createElement("textarea");
+    textarea.value = text;
+    textarea.style.position = "fixed";
+    textarea.style.opacity = "0";
+    textarea.setAttribute("readonly", "");
+    document.body.append(textarea);
+    textarea.select();
+    const copied = document.execCommand("copy");
+    textarea.remove();
+    return copied;
+  }
+}
+
+function showShareToast(message: string): void {
+  let toast = document.querySelector<HTMLElement>("[data-share-toast]");
+  if (!toast) {
+    toast = document.createElement("div");
+    toast.className = "share-toast";
+    toast.dataset.shareToast = "";
+    toast.setAttribute("role", "status");
+    toast.setAttribute("aria-live", "polite");
+    toast.addEventListener("transitionend", () => {
+      if (!toast?.classList.contains("is-visible")) {
+        if (toast) {
+          toast.hidden = true;
+        }
+      }
+    });
+    document.body.append(toast);
+  }
+
+  const actions = document
+    .querySelector<HTMLElement>(".result-actions")
+    ?.getBoundingClientRect();
+  if (actions) {
+    toast.style.bottom = `${Math.max(
+      24,
+      window.innerHeight - actions.top + 12,
+    )}px`;
+  }
+
+  if (shareToastTimer !== null) {
+    window.clearTimeout(shareToastTimer);
+  }
+  toast.textContent = message;
+  toast.hidden = false;
+  toast.classList.remove("is-visible");
+  void toast.offsetWidth;
+  toast.classList.add("is-visible");
+  shareToastTimer = window.setTimeout(() => {
+    shareToastTimer = null;
+    toast?.classList.remove("is-visible");
+  }, 1800);
 }
 
 function renderComponent(component: ComponentDefinition): {
@@ -842,6 +906,12 @@ function renderGame(game: GameSession): void {
   const questionKey = `${state.settings.mode}|${state.index}`;
   const questionEnter = questionKey !== lastQuestionKey;
   lastQuestionKey = questionKey;
+  if (questionEnter) {
+    collection.recordEncounter(
+      state.current.char,
+      state.current.symbolIds,
+    );
+  }
   const challengeBounds =
     state.settings.mode === "challenge"
       ? data!.challengeBounds(state.settings, state.index)
@@ -1048,6 +1118,23 @@ function renderResults(game: GameSession): void {
       : ` · 阶段${finalBounds.stage}`
     : "";
   const score = `${modeLabel} · ${state.correctCount}题${stageSuffix}`;
+  const shareStage = finalBounds
+    ? finalBounds.isEx
+      ? "EX"
+      : String(finalBounds.stage)
+    : "1";
+  const shareText = buildChallengeShareText({
+    correctCount: state.correctCount,
+    stage: shareStage,
+    isEx: finalBounds?.isEx ?? false,
+    averageQuestionSeconds:
+      result.averageQuestionSeconds,
+    history: state.history.map((item) => ({
+      ok: item.ok,
+      isEx: item.isEx,
+      level: data!.levels.get(item.answer),
+    })),
+  });
   const victory =
     state.settings.mode === "normal" && result.title === "胜利";
   const victoryStart = (state.history.length - 1) * 65 + 440;
@@ -1098,6 +1185,7 @@ function renderResults(game: GameSession): void {
 
         <div class="result-actions">
           <button class="primary-action" type="button" data-again>再来一局</button>
+          ${state.settings.mode === "challenge" ? '<button class="result-share" type="button" data-share>分享</button>' : ""}
           <button type="button" data-settings>返回</button>
         </div>
       </section>
@@ -1146,7 +1234,16 @@ function renderResults(game: GameSession): void {
     detailDialog &&
     new CharDetailView(detailDialog, charDetails, (char) => {
       const way = data?.shortestDecomposition(char);
-      return way && data ? data.names(way).join(" ") : "";
+      const source = data;
+      if (!way || !source) {
+        return "";
+      }
+      return way
+        .map(
+          (symbolId) =>
+            `<span class="char-detail-split-part">${renderComponent(source.component(symbolId)).html}</span>`,
+        )
+        .join("");
     });
   if (reviewList) {
     const reducedMotion = window.matchMedia(
@@ -1217,6 +1314,19 @@ function renderResults(game: GameSession): void {
 
   document.querySelector<HTMLButtonElement>("[data-again]")?.addEventListener("click", () => {
     withPageTransition(() => startGame(state.settings));
+  });
+  document.querySelector<HTMLButtonElement>("[data-share]")?.addEventListener("click", async (event) => {
+    const button = event.currentTarget as HTMLButtonElement;
+    button.disabled = true;
+    try {
+      showShareToast(
+        (await copyText(shareText))
+          ? "已复制至剪贴板"
+          : "复制失败",
+      );
+    } finally {
+      button.disabled = false;
+    }
   });
   document.querySelector<HTMLButtonElement>("[data-settings]")?.addEventListener("click", () => {
     withPageTransition(() => renderStart(state.settings));

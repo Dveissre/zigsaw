@@ -8,9 +8,10 @@
   },
   "scripts": {
     "dev": "vite",
-    "predev": "npm run build:component-usage",
+    "predev": "npm run build:component-usage && npm run build:atlas",
     "build": "tsc && vite build",
-    "prebuild": "npm run build:component-usage",
+    "prebuild": "npm run build:component-usage && npm run build:atlas",
+    "build:atlas": "node scripts/build-atlas-index.mjs",
     "build:component-usage": "node scripts/build-component-usage.mjs",
     "build:details": "node scripts/build-char-detail-shards.mjs",
     "build:school": "node scripts/build-school-index.mjs",

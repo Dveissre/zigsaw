@@ -12,6 +12,9 @@ const symData = JSON.parse(
 const schoolData = JSON.parse(
   readFileSync("public/data/char-school.json", "utf8"),
 );
+const componentAssets = JSON.parse(
+  readFileSync("public/data/component-assets.json", "utf8"),
+);
 
 const questionsByParts = new Map();
 for (const [char, ways] of Object.entries(symData.chars)) {
@@ -34,7 +37,10 @@ const browser = await chromium.launch({
 });
 
 try {
-  const page = await browser.newPage({ viewport: { width: 900, height: 800 } });
+  const context = await browser.newContext({
+    viewport: { width: 900, height: 800 },
+  });
+  const page = await context.newPage();
   const errors = [];
   page.on("pageerror", (error) => errors.push(error.message));
   const readDisplayedParts = () =>
@@ -293,12 +299,136 @@ try {
   await page.waitForURL(/\/atlas\/$/);
   await page.waitForLoadState("networkidle");
   assert.equal(await page.title(), "ZIGSAW · 图鉴");
-  assert.equal(await page.locator(".atlas-page-heading h1").innerText(), "图鉴");
   assert.equal(
-    await page.locator(".atlas-page-placeholder").innerText(),
-    "施工中",
+    await page.locator(".atlas-page-heading h1").innerText(),
+    "图鉴",
   );
-  await page.getByRole("link", { name: "返回", exact: true }).click();
+  await page.locator(".atlas-component-card").first().waitFor();
+  assert.equal(await page.locator(".atlas-component-card").count(), 363);
+  assert.equal(
+    await page.locator("[data-rarity-filter='R']").innerText(),
+    "R",
+  );
+  assert.equal(
+    await page.locator(".atlas-component-card.is-locked").count(),
+    363,
+  );
+  const atlasLayout = page.locator(".atlas-layout");
+  assert.equal(
+    await atlasLayout.evaluate((layout) =>
+      layout.classList.contains("is-detail-open"),
+    ),
+    false,
+  );
+  const raritySwitch = page
+    .locator("[data-atlas-filters] .atlas-switch")
+    .first();
+  await raritySwitch.evaluate((group) => {
+    group.dataset.persistenceCheck = "same-node";
+  });
+  await page.locator("[data-rarity-filter='R']").click();
+  await page.waitForTimeout(220);
+  assert.deepEqual(
+    await raritySwitch.evaluate((group) => ({
+      index: group.style.getPropertyValue("--switch-index"),
+      marker: group.dataset.persistenceCheck,
+    })),
+    { index: "2", marker: "same-node" },
+  );
+  await page.locator("[data-rarity-filter='all']").click();
+  await page.waitForTimeout(220);
+  await page.locator(".atlas-component-card").first().click();
+  assert.equal(
+    await atlasLayout.evaluate((layout) =>
+      layout.classList.contains("is-detail-open"),
+    ),
+    true,
+  );
+  assert.equal(
+    await page.locator(".atlas-detail-locked strong").innerText(),
+    "尚未收集",
+  );
+  assert.equal(
+    (await page.locator(".atlas-component-card.is-locked").first().innerText()).trim(),
+    "",
+  );
+  await page.locator("[data-atlas-advanced]").click();
+  await page.locator(".atlas-component-card.is-unlocked").first().waitFor();
+  assert.equal(
+    await page.locator(".atlas-component-card.is-unlocked").count(),
+    363,
+  );
+  await page.locator('[data-component-id="90"]').click();
+  await page.locator(".atlas-detail-summary").waitFor();
+  const selfCharacter = page.locator(".atlas-char-card.is-self").first();
+  assert.equal(await selfCharacter.innerText(), "口\n一级 0038");
+  await page.locator('[data-atlas-char="柬"]').click();
+  await page.locator(".char-detail-dialog[open]").waitFor();
+  assert.match(
+    await page.locator("[data-detail-split]").innerText(),
+    /口/,
+  );
+  await page
+    .locator(".char-detail-dialog")
+    .getByRole("button", { name: "关闭" })
+    .click();
+  await page.locator("[data-rarity-filter='UR']").click();
+  const urCard = page.locator(".atlas-component-card.is-unlocked").first();
+  await urCard.waitFor();
+  assert.match(
+    await urCard.evaluate((card) => getComputedStyle(card).backgroundImage),
+    /linear-gradient/,
+  );
+  await urCard.click();
+  await page.locator(".atlas-detail-summary").waitFor();
+  assert.ok(
+    (await page.locator(".atlas-milestone-track > i").count()) <= 3,
+  );
+  const charSwitch = page
+    .locator("[data-atlas-detail] > .atlas-switch")
+    .first();
+  await charSwitch.evaluate((group) => {
+    group.dataset.persistenceCheck = "same-node";
+  });
+  await page.locator("[data-char-access='unlocked']").click();
+  await page.waitForTimeout(220);
+  assert.deepEqual(
+    await charSwitch.evaluate((group) => ({
+      index: group.style.getPropertyValue("--switch-index"),
+      marker: group.dataset.persistenceCheck,
+    })),
+    { index: "0", marker: "same-node" },
+  );
+  const atlasCharacter = page.locator(".atlas-char-card.is-unlocked").first();
+  const atlasCharacterValue = await atlasCharacter.getAttribute(
+    "data-atlas-char",
+  );
+  await atlasCharacter.click();
+  await page.locator(".char-detail-dialog[open]").waitFor();
+  assert.equal(
+    await page.locator("#char-detail-title").innerText(),
+    atlasCharacterValue,
+  );
+  await page
+    .locator(".char-detail-dialog")
+    .getByRole("button", { name: "关闭" })
+    .click();
+  await page.locator("[data-rarity-filter='all']").click();
+  await page.locator('[data-component-id="420"]').click();
+  await page.locator(".atlas-detail-summary").waitFor();
+  await page.locator('[data-atlas-char="笼"]').click();
+  await page.locator(".char-detail-dialog[open]").waitFor();
+  assert.equal(
+    await page
+      .locator("[data-detail-split] .component-symbol")
+      .count(),
+    2,
+  );
+  await page
+    .locator(".char-detail-dialog")
+    .getByRole("button", { name: "关闭" })
+    .click();
+  await page.getByRole("link", { name: "返回主页", exact: true }).click();
   await page.waitForURL((url) => !url.pathname.endsWith("/atlas/"));
   await page.locator(".start-button:not([disabled])").waitFor();
   assert.equal(await page.getByText("把部件拼回一个字").count(), 0);
@@ -530,6 +660,43 @@ try {
   await page.locator("#game-count").fill("3");
   await page.getByRole("button", { name: "开始", exact: true }).click();
   await page.locator(".play-screen").waitFor();
+  const firstCollected = await page.evaluate(() => {
+    const raw = localStorage.getItem("zigsaw.collection.v1");
+    return raw ? Object.keys(JSON.parse(raw).chars).length : 0;
+  });
+  assert.ok(firstCollected >= 1);
+  const collectedSample = await page.evaluate(() => {
+    const raw = localStorage.getItem("zigsaw.collection.v1");
+    const chars = raw ? JSON.parse(raw).chars : {};
+    const char = Object.keys(chars)[0];
+    return {
+      char,
+      symbolId: chars[char]?.[0]?.[0] ?? -1,
+    };
+  });
+  assert.ok(collectedSample.char);
+  assert.ok(collectedSample.symbolId > 0);
+  const collectionAtlas = await page.context().newPage();
+  try {
+    await collectionAtlas.goto(
+      `${targetUrl}atlas/?component=${collectedSample.symbolId}`,
+      { waitUntil: "networkidle" },
+    );
+    await collectionAtlas.locator(".atlas-detail-summary").waitFor();
+    assert.ok(
+      (await collectionAtlas.locator(".atlas-char-card").count()) > 0,
+    );
+    assert.equal(
+      await collectionAtlas
+        .locator(
+          `[data-atlas-char="${collectedSample.char}"]`,
+        )
+        .evaluate((card) => card.classList.contains("is-unlocked")),
+      true,
+    );
+  } finally {
+    await collectionAtlas.close();
+  }
   await tutorialTrigger.click();
   await page.locator("#tutorial-dialog[open]").waitFor();
   await page.locator(".parts.is-paused").waitFor();
@@ -651,6 +818,7 @@ try {
   await page.locator(".result-screen").waitFor();
   assert.match(await page.locator(".result-header").innerText(), /胜利/);
   assert.match(await page.locator(".result-score").innerText(), /自由模式 · 3题/);
+  assert.equal(await page.locator("[data-share]").count(), 0);
   const scoreFont = await page.locator(".result-score").evaluate(
     (element) => getComputedStyle(element).fontFamily,
   );
@@ -848,6 +1016,20 @@ try {
   const splitText = await page.locator("[data-detail-split]").innerText();
   assert.notEqual(splitText, "—");
   assert.doesNotMatch(splitText, /\+/);
+  const shortestWay = (symData.chars[detailChar] ?? [])
+    .filter((way) => way.length >= 2)
+    .sort((left, right) => left.length - right.length)[0];
+  assert.ok(shortestWay);
+  assert.equal(
+    await page.locator("[data-detail-split] .char-detail-split-part").count(),
+    shortestWay.length,
+  );
+  assert.equal(
+    await page.locator("[data-detail-split] .component-symbol").count(),
+    shortestWay.filter(
+      (symbolId) => String(symbolId) in componentAssets.symbols,
+    ).length,
+  );
   const expectedSchool = schoolData[detailChar];
   if (expectedSchool) {
     const schoolText = await page.locator("[data-detail-school]").innerText();
@@ -1074,6 +1256,87 @@ try {
   assert.equal(await page.locator(".review-result.is-correct").count(), 3);
   assert.equal(await page.locator(".review-result.is-wrong").count(), 1);
   assert.equal(await page.locator(".review-list li.is-error").count(), 1);
+  assert.deepEqual(
+    (await page.locator(".result-actions button").allTextContents()).map(
+      (text) => text.trim(),
+    ),
+    ["再来一局", "分享", "返回"],
+  );
+  const expectedShareSymbols = await page
+    .locator(".review-card")
+    .evaluateAll((cards) =>
+      cards.map((card) => {
+        if (card.classList.contains("is-error")) {
+          return "🟥";
+        }
+        if (card.classList.contains("is-ex-correct")) {
+          return "🟪";
+        }
+        if (card.classList.contains("is-level-2")) {
+          return "🟩";
+        }
+        if (card.classList.contains("is-level-3")) {
+          return "🟦";
+        }
+        return "⬜";
+      }),
+    );
+  await page.evaluate(() => {
+    window.__copiedShareText = "";
+    Object.defineProperty(navigator, "clipboard", {
+      configurable: true,
+      value: {
+        writeText: async (text) => {
+          window.__copiedShareText = text;
+        },
+      },
+    });
+  });
+  await page.locator("[data-share]").click();
+  await page.waitForFunction(() => Boolean(window.__copiedShareText));
+  const copiedShareText = await page.evaluate(
+    () => window.__copiedShareText,
+  );
+  const copiedShareLines = copiedShareText.split("\n");
+  assert.equal(copiedShareLines.length, 6);
+  assert.equal(copiedShareLines[0], "ZIGSAW - 挑战模式");
+  assert.equal(copiedShareLines[1], "🌱 3 题﹫阶段 2");
+  assert.match(
+    copiedShareLines[2],
+    /^(⚡|💫|🕒|⏳) 平均用时 \d+\.\ds$/,
+  );
+  assert.equal(copiedShareLines[3], expectedShareSymbols.join(""));
+  assert.equal(copiedShareLines[4], "");
+  assert.equal(
+    copiedShareLines[5],
+    "https://dveissre.github.io/zigsaw/",
+  );
+  const shareToast = page.locator("[data-share-toast]");
+  await shareToast.waitFor();
+  await page.waitForTimeout(220);
+  assert.equal(await shareToast.innerText(), "已复制至剪贴板");
+  assert.equal(await page.locator("[data-share]").innerText(), "分享");
+  const toastPosition = await shareToast.evaluate((toast) => {
+    const box = toast.getBoundingClientRect();
+    return {
+      center: box.left + box.width / 2,
+      viewportCenter: innerWidth / 2,
+      bottom: innerHeight - box.bottom,
+      toastBottom: box.bottom,
+      actionsTop:
+        document.querySelector(".result-actions")?.getBoundingClientRect()
+          .top ?? -1,
+      opacity: getComputedStyle(toast).opacity,
+    };
+  });
+  assert.ok(
+    Math.abs(toastPosition.center - toastPosition.viewportCenter) <= 1,
+  );
+  assert.ok(toastPosition.bottom >= 20);
+  assert.ok(toastPosition.toastBottom <= toastPosition.actionsTop - 10);
+  assert.equal(toastPosition.opacity, "1");
+  await page.waitForTimeout(2200);
+  assert.equal(await shareToast.isHidden(), true);
   assert.equal(
     await page.locator(".review-list li.is-error").evaluate(
       (card) => getComputedStyle(card).borderTopWidth,

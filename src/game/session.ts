@@ -32,6 +32,7 @@ export interface ResultState {
   title: string;
   record: number;
   newRecord: boolean;
+  averageQuestionSeconds: number;
 }
 
 export interface GameState {
@@ -189,6 +190,10 @@ export class GameSession {
   private timerId: ReturnType<typeof setInterval> | null = null;
   private advanceId: ReturnType<typeof setTimeout> | null = null;
   private currentRecorded = false;
+  private questionRunStartedAt: number | null = null;
+  private questionElapsedMs = 0;
+  private totalQuestionTimeMs = 0;
+  private timedQuestionCount = 0;
 
   constructor(
     data: GameData,
@@ -248,6 +253,8 @@ export class GameSession {
 
   private nextQuestion(): void {
     this.clearTimers();
+    this.questionRunStartedAt = null;
+    this.questionElapsedMs = 0;
     this.state.index += 1;
     this.state.current = this.pickQuestion();
     this.state.remaining = this.state.settings.seconds;
@@ -528,7 +535,12 @@ export class GameSession {
     }
 
     if (!this.state.paused) {
+      const now = performance.now();
       this.state.remaining = this.remainingSeconds();
+      if (this.questionRunStartedAt !== null) {
+        this.questionElapsedMs += now - this.questionRunStartedAt;
+        this.questionRunStartedAt = null;
+      }
       this.state.paused = true;
       this.state.feedback = "paused";
       this.clearTimer();
@@ -639,6 +651,7 @@ export class GameSession {
       return;
     }
     this.currentRecorded = true;
+    this.finalizeQuestionTime();
     this.state.history.push({
       parts: this.state.current.parts,
       displayParts: [...this.state.current.displayParts],
@@ -697,7 +710,17 @@ export class GameSession {
       title = "挑战结束";
     }
 
-    this.state.result = { title, record, newRecord };
+    this.state.result = {
+      title,
+      record,
+      newRecord,
+      averageQuestionSeconds:
+        this.timedQuestionCount > 0
+          ? this.totalQuestionTimeMs /
+            this.timedQuestionCount /
+            1000
+          : 0,
+    };
     this.emit();
   }
 
@@ -707,8 +730,28 @@ export class GameSession {
 
   private startTimer(): void {
     this.clearTimer();
-    this.deadline = performance.now() + this.state.remaining * 1000;
+    const now = performance.now();
+    this.deadline = now + this.state.remaining * 1000;
+    this.questionRunStartedAt = now;
     this.timerId = setInterval(() => this.tick(), 200);
+  }
+
+  private finalizeQuestionTime(): void {
+    if (this.questionRunStartedAt !== null) {
+      this.questionElapsedMs +=
+        performance.now() - this.questionRunStartedAt;
+      this.questionRunStartedAt = null;
+    }
+    const elapsed = Math.max(
+      0,
+      Math.min(
+        this.questionElapsedMs,
+        this.state.settings.seconds * 1000,
+      ),
+    );
+    this.totalQuestionTimeMs += elapsed;
+    this.timedQuestionCount += 1;
+    this.questionElapsedMs = 0;
   }
 
   private remainingSeconds(): number {

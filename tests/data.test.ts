@@ -52,6 +52,27 @@ type ComponentUsageTable = {
   }>;
 };
 
+type ComponentAtlasTable = {
+  format: string;
+  componentCount: number;
+  characterCount: number;
+  byRarity: Record<string, number>;
+  components: Array<{
+    symbolId: number;
+    name: string;
+    rarity: string;
+    count: number;
+    charCount: number;
+    milestones: number[];
+    chars: Array<{
+      char: string;
+      level: number;
+      rank: number;
+      isSelf?: boolean;
+    }>;
+  }>;
+};
+
 const readJson = <T>(path: string): T =>
   JSON.parse(readFileSync(resolve(process.cwd(), path), "utf8")) as T;
 
@@ -60,7 +81,7 @@ describe("static game data", () => {
     const data = readJson<SymTable>("public/data/char_sym.json");
 
     expect(data.counts.chars).toBe(27692);
-    expect(data.counts.symbols).toBe(427);
+    expect(data.counts.symbols).toBe(428);
     expect(data.chars["氢"]).toEqual([[168, 429, 75]]);
     expect(
       data.chars["氢"][0].map((symbolId) => data.symbols[String(symbolId)]),
@@ -228,7 +249,7 @@ describe("static game data", () => {
 
     expect(usage.format).toBe("zigsaw-component-usage/1");
     expect(usage.characterCount).toBe(8105);
-    expect(usage.decompositionCount).toBe(8791);
+    expect(usage.decompositionCount).toBe(8863);
     expect(usage.componentCount).toBe(usage.symbols.length);
     expect(new Set(ids).size).toBe(ids.length);
     expect(usage.totalUsageCount).toBe(
@@ -247,12 +268,73 @@ describe("static game data", () => {
     expect(usage.symbols[0]).toMatchObject({
       symbolId: 90,
       name: "口",
-      count: 1735,
+      count: 1756,
     });
     expect(
       usage.symbols.find((symbol) => symbol.symbolId === 425)
         ?.asset,
     ).toBe("component_svg/425N.svg");
+  });
+
+  it("builds the playable component atlas with the requested rarity split", () => {
+    const atlas = readJson<ComponentAtlasTable>(
+      "public/data/component-atlas.json",
+    );
+
+    expect(atlas.format).toBe("zigsaw-component-atlas/1");
+    expect(atlas.componentCount).toBe(363);
+    expect(atlas.characterCount).toBe(8105);
+    expect(atlas.byRarity).toEqual({
+      N: 77,
+      R: 136,
+      SR: 105,
+      SSR: 30,
+      UR: 15,
+    });
+    expect(Math.max(...Object.values(atlas.byRarity))).toBe(
+      atlas.byRarity.R,
+    );
+    expect(
+      atlas.components.every(
+        (component) => {
+          const milestoneLimit =
+            component.rarity === "SSR"
+              ? component.charCount <= 3
+                ? 1
+                : 2
+              : component.rarity === "UR"
+                ? 1
+                : 3;
+          const selfCharacters = component.chars.filter(
+            (character) => character.isSelf,
+          );
+          const regularCharacters = component.chars.filter(
+            (character) => !character.isSelf,
+          );
+          return (
+            component.milestones.length ===
+              Math.min(milestoneLimit, component.charCount) &&
+            component.charCount === component.chars.length &&
+            selfCharacters.length <= 1 &&
+            component.chars.slice(0, selfCharacters.length).every(
+              (character) => character.isSelf,
+            ) &&
+            regularCharacters.every(
+              (character, index) =>
+                index === 0 ||
+                regularCharacters[index - 1].rank < character.rank,
+            )
+          );
+        },
+      ),
+    ).toBe(true);
+    expect(
+      atlas.components.find((component) => component.symbolId === 434)
+        ?.chars[0],
+    ).toMatchObject({
+      char: "内",
+      isSelf: true,
+    });
   });
 
   it("builds the EX pool and excludes unadapted component names", () => {

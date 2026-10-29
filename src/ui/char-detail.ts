@@ -242,7 +242,7 @@ export class CharDetailView {
         : `U+${codePoint.toString(16).toUpperCase().padStart(4, "0")}`;
     this.schoolRow.hidden = true;
     this.schoolElement.textContent = "";
-    this.splitElement.textContent = this.decompositionFor(char) || "—";
+    this.splitElement.innerHTML = this.decompositionFor(char) || "—";
     this.contentElement.innerHTML =
       '<div class="char-detail-state" role="status">正在载入释义</div>';
     this.dialog.removeAttribute("data-detail-error");
