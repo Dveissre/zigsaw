@@ -7,7 +7,10 @@ import {
   type ComponentAtlasData,
   type ComponentRarity,
 } from "./game/atlas";
-import { CollectionStore } from "./game/collection";
+import {
+  CollectionStore,
+  componentCompletionPercentage,
+} from "./game/collection";
 import {
   externalCharacterMeta,
   loadGameData,
@@ -146,25 +149,14 @@ function collectedCharacters(
 function completionPercentage(
   component: AtlasComponentSummary,
 ): number {
-  if (component.rarity === "XR") {
-    return 0;
-  }
   const collected = collectedCharacters(component);
-  if (component.isExclusive) {
-    return component.progressCharCount > 0
-      ? Math.min(
-          100,
-          (collected.external / component.progressCharCount) * 100,
-        )
-      : 0;
-  }
-  return Math.min(
-    100,
-    (component.progressCharCount > 0
-      ? (collected.normal / component.progressCharCount) * 100
-      : 0) +
-      collected.external * 10,
-  );
+  return componentCompletionPercentage({
+    rarity: component.rarity,
+    isExclusive: Boolean(component.isExclusive),
+    progressCharCount: component.progressCharCount,
+    collectedNormal: collected.normal,
+    collectedExternal: collected.external,
+  });
 }
 
 function reachedMilestones(component: AtlasComponentSummary): number {

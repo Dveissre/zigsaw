@@ -1,5 +1,8 @@
 import { describe, expect, it } from "vitest";
-import { CollectionStore } from "../src/game/collection";
+import {
+  CollectionStore,
+  componentCompletionPercentage,
+} from "../src/game/collection";
 
 class MemoryStorage {
   private values = new Map<string, string>();
@@ -87,5 +90,29 @@ describe("component collection", () => {
     expect(
       collection.collectedNormalCountForComponent(168, "氢"),
     ).toBe(0);
+  });
+
+  it("weights EX characters against the normal denominator", () => {
+    expect(
+      componentCompletionPercentage({
+        rarity: "N",
+        isExclusive: false,
+        progressCharCount: 1499,
+        collectedNormal: 43,
+        collectedExternal: 9,
+      }),
+    ).toBeCloseTo(((43 + 9 * 0.1) / 1499) * 100);
+  });
+
+  it("uses the EX pool as the denominator for exclusive components", () => {
+    expect(
+      componentCompletionPercentage({
+        rarity: "UR",
+        isExclusive: true,
+        progressCharCount: 20,
+        collectedNormal: 0,
+        collectedExternal: 8,
+      }),
+    ).toBe(40);
   });
 });

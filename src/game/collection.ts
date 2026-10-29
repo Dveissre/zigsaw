@@ -18,6 +18,31 @@ export interface CollectionStorage {
   setItem(key: string, value: string): void;
 }
 
+export function componentCompletionPercentage({
+  rarity,
+  isExclusive,
+  progressCharCount,
+  collectedNormal,
+  collectedExternal,
+}: {
+  rarity: string;
+  isExclusive: boolean;
+  progressCharCount: number;
+  collectedNormal: number;
+  collectedExternal: number;
+}): number {
+  if (rarity === "XR" || progressCharCount <= 0) {
+    return 0;
+  }
+  const weightedCollected = isExclusive
+    ? collectedExternal
+    : collectedNormal + collectedExternal * 0.1;
+  return Math.min(
+    100,
+    (weightedCollected / progressCharCount) * 100,
+  );
+}
+
 function parseCollection(raw: string | null): CollectionData | null {
   if (!raw) {
     return null;
