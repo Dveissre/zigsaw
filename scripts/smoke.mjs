@@ -509,9 +509,9 @@ try {
   );
 
   await page.getByRole("button", { name: "增加五秒" }).click();
-  assert.equal(await page.locator("#game-seconds").inputValue(), "25");
+  assert.equal(await page.locator("#game-seconds").inputValue(), "45");
   await page.getByRole("button", { name: "减少五秒" }).click();
-  assert.equal(await page.locator("#game-seconds").inputValue(), "20");
+  assert.equal(await page.locator("#game-seconds").inputValue(), "40");
 
   await page.getByRole("button", { name: "高级设置" }).click();
   await page.getByRole("button", { name: "挑战", exact: true }).click();
