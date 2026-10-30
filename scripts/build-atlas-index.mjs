@@ -81,6 +81,23 @@ const isSelectable = (char) =>
   !(sym.chars[char] ?? []).some((way) =>
     way.some((symbolId) => unsupported.has(symbolId)),
   );
+const isRenderableSymbol = (symbolId) => {
+  const name = sym.symbols[String(symbolId)];
+  return Boolean(
+    name &&
+      name !== "?" &&
+      name !== "？" &&
+      ([...name].length === 1 ||
+        String(symbolId) in assetData.symbols),
+  );
+};
+const isDrawableCharacter = (char) =>
+  (sym.chars[char] ?? []).some(
+    (way) =>
+      way.length >= 2 &&
+      way.length <= 10 &&
+      way.every(isRenderableSymbol),
+  );
 
 const orderedCharacters = [];
 const characterMeta = new Map();
@@ -180,6 +197,16 @@ const relationsBySymbol = new Map();
 for (const [char, ways] of Object.entries(sym.chars)) {
   for (const way of ways) {
     for (const symbolId of new Set(way)) {
+      const isSelfRelation =
+        way.length === 1 &&
+        sym.symbols[String(symbolId)] === char;
+      if (
+        !isDrawableCharacter(char) &&
+        !isSelectable(char) &&
+        !isSelfRelation
+      ) {
+        continue;
+      }
       const entries = relationsBySymbol.get(symbolId) ?? [];
       entries.push({
         char,

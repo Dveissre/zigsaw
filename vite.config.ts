@@ -8,7 +8,7 @@ export default defineConfig({
       input: {
         main: resolve(process.cwd(), "index.html"),
         atlas: resolve(process.cwd(), "atlas/index.html"),
-        draw: resolve(process.cwd(), "draw/index.html"),
+        gacha: resolve(process.cwd(), "gacha/index.html"),
       },
     },
   },

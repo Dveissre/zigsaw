@@ -224,7 +224,7 @@ function shell(
       </header>
       ${
         page === "start"
-          ? `<a class="home-decoration" href="./draw/" data-draw-entry aria-label="卡片抽选"><span class="draw-decoration-label" aria-hidden="true">抽选</span>${CHALLENGE_CARD_DECOR_MARKUP}</a>`
+          ? `<a class="home-decoration" href="./gacha/" data-gacha-entry aria-label="进入写字台"><span class="gacha-decoration-label" aria-hidden="true">进入写字台</span>${CHALLENGE_CARD_DECOR_MARKUP}</a>`
           : ""
       }
       ${content}
@@ -447,22 +447,22 @@ document.addEventListener("click", (event) => {
     return;
   }
 
-  const drawEntry = target.closest<HTMLAnchorElement>(
-    "[data-draw-entry]",
+  const gachaEntry = target.closest<HTMLAnchorElement>(
+    "[data-gacha-entry]",
   );
-  if (drawEntry) {
+  if (gachaEntry) {
     if (
       window.matchMedia("(hover: none), (pointer: coarse)").matches &&
-      !drawEntry.classList.contains("is-open")
+      !gachaEntry.classList.contains("is-open")
     ) {
       event.preventDefault();
-      drawEntry.classList.add("is-open");
+      gachaEntry.classList.add("is-open");
     }
     return;
   }
 
   document
-    .querySelectorAll<HTMLElement>("[data-draw-entry].is-open")
+    .querySelectorAll<HTMLElement>("[data-gacha-entry].is-open")
     .forEach((entry) => entry.classList.remove("is-open"));
 });
 

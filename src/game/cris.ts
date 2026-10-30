@@ -104,4 +104,18 @@ export class CrisStore implements CrisLedger {
     }
     return next;
   }
+
+  spend(amount: number): boolean {
+    const cost = Math.max(0, Math.floor(amount));
+    const current = this.load();
+    if (current < cost) {
+      return false;
+    }
+    try {
+      this.storage.setItem(STORAGE_KEY, String(current - cost));
+    } catch {
+      return false;
+    }
+    return true;
+  }
 }

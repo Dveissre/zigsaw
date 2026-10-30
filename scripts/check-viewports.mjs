@@ -52,14 +52,42 @@ let failed = false;
 
 try {
   for (const [name, width, height] of viewports) {
-    const page = await browser.newPage({
+    const context = await browser.newContext({
       viewport: { width, height },
       deviceScaleFactor: 1,
     });
+    const page = await context.newPage();
 
     await page.goto(targetUrl, { waitUntil: "networkidle" });
     await page.locator(".start-button:not([disabled])").waitFor();
     const startLayout = await measureLayout(page);
+    await page.evaluate(() =>
+      localStorage.setItem("zigsaw.cris.v1", "1000"),
+    );
+    const gachaPage = await context.newPage();
+    await gachaPage.goto(
+      new URL("gacha/", targetUrl).href,
+      { waitUntil: "networkidle" },
+    );
+    await gachaPage
+      .locator("[data-gacha-start]:not([disabled])")
+      .waitFor();
+    const gachaIdleLayout = await measureLayout(gachaPage);
+    await gachaPage
+      .locator("[data-gacha-tutorial-trigger]")
+      .click();
+    await gachaPage.locator("#gacha-tutorial-dialog[open]").waitFor();
+    const gachaTutorialLayout = await measureLayout(gachaPage);
+    await gachaPage
+      .locator("#gacha-tutorial-dialog [data-gacha-tutorial-close]")
+      .click();
+    await gachaPage
+      .locator("#gacha-tutorial-dialog")
+      .waitFor({ state: "hidden" });
+    await gachaPage.locator("[data-gacha-start]").click();
+    await gachaPage.locator(".gacha-playing").waitFor();
+    const gachaHandLayout = await measureLayout(gachaPage);
+    await gachaPage.close();
     await page.getByRole("button", { name: "游玩方法" }).click();
     await page.locator("#tutorial-dialog[open]").waitFor();
     const tutorialLayout = await measureLayout(page);
@@ -121,6 +149,9 @@ try {
 
     const hasOverflow = [
       startLayout,
+      gachaIdleLayout,
+      gachaTutorialLayout,
+      gachaHandLayout,
       tutorialLayout,
       atlasLayout,
       atlasDetailLayout,
@@ -140,6 +171,9 @@ try {
       [
         `${name} ${width}x${height}`,
         `start=${startLayout.scrollWidth}/${startLayout.viewportWidth}`,
+        `gacha=${gachaIdleLayout.scrollWidth}/${gachaIdleLayout.viewportWidth}`,
+        `gacha-tutorial=${gachaTutorialLayout.scrollWidth}/${gachaTutorialLayout.viewportWidth}`,
+        `gacha-hand=${gachaHandLayout.scrollWidth}/${gachaHandLayout.viewportWidth}`,
         `tutorial=${tutorialLayout.scrollWidth}/${tutorialLayout.viewportWidth}`,
         `atlas=${atlasLayout.scrollWidth}/${atlasLayout.viewportWidth}`,
         `atlas-detail=${atlasDetailLayout.scrollWidth}/${atlasDetailLayout.viewportWidth}`,
@@ -153,6 +187,9 @@ try {
 
     for (const layout of [
       startLayout,
+      gachaIdleLayout,
+      gachaTutorialLayout,
+      gachaHandLayout,
       tutorialLayout,
       atlasLayout,
       atlasDetailLayout,
@@ -166,7 +203,7 @@ try {
       }
     }
 
-    await page.close();
+    await context.close();
   }
 } finally {
   await browser.close();

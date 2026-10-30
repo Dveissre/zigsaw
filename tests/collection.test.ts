@@ -92,6 +92,18 @@ describe("component collection", () => {
     ).toBe(0);
   });
 
+  it("persists directly acquired component cards", () => {
+    const storage = new MemoryStorage();
+    const collection = new CollectionStore(storage);
+
+    collection.recordComponent(999);
+
+    expect(collection.hasComponent(999)).toBe(true);
+    expect(
+      new CollectionStore(storage).hasComponent(999),
+    ).toBe(true);
+  });
+
   it("weights EX characters against the normal denominator", () => {
     expect(
       componentCompletionPercentage({

@@ -6,6 +6,7 @@ interface CollectionData {
   sourceHash: string;
   chars: Record<string, number[]>;
   externalChars: string[];
+  directComponents: number[];
 }
 
 interface LegacyCollectionData {
@@ -88,6 +89,16 @@ function parseCollection(raw: string | null): CollectionData | null {
             ),
           ]
         : [],
+      directComponents: Array.isArray(parsed.directComponents)
+        ? [
+            ...new Set(
+              parsed.directComponents.filter(
+                (symbolId): symbolId is number =>
+                  typeof symbolId === "number",
+              ),
+            ),
+          ].sort((left, right) => left - right)
+        : [],
     };
   } catch {
     return null;
@@ -127,6 +138,7 @@ function migrateLegacyCollection(
       sourceHash: "",
       chars,
       externalChars: [],
+      directComponents: [],
     };
   } catch {
     return null;
@@ -155,6 +167,7 @@ export class CollectionStore {
           sourceHash: "",
           chars: {},
           externalChars: [],
+          directComponents: [],
         };
     } catch {
       this.data = {
@@ -162,6 +175,7 @@ export class CollectionStore {
         sourceHash: "",
         chars: {},
         externalChars: [],
+        directComponents: [],
       };
     }
     this.rebuildComponentIndex();
@@ -172,11 +186,14 @@ export class CollectionStore {
     char: string,
     symbolIds: number[],
     isExternal = false,
+    expandToAllWays = true,
   ): void {
     if (char in this.data.chars) {
       return;
     }
-    const current = this.currentWays?.get(char) ?? [];
+    const current = expandToAllWays
+      ? this.currentWays?.get(char) ?? []
+      : [];
     const componentIds = new Set(
       (current.length ? current : [symbolIds]).flatMap((way) =>
         way.map((symbolId) => Number(symbolId)),
@@ -191,6 +208,18 @@ export class CollectionStore {
       ];
     }
     this.rebuildComponentIndex();
+    this.persist();
+  }
+
+  recordComponent(symbolId: number): void {
+    if (this.data.directComponents.includes(symbolId)) {
+      return;
+    }
+    this.data.directComponents = [
+      ...this.data.directComponents,
+      symbolId,
+    ].sort((left, right) => left - right);
+    this.componentIds.add(symbolId);
     this.persist();
   }
 
@@ -293,6 +322,9 @@ export class CollectionStore {
     this.componentIds.clear();
     this.componentCounts.clear();
     this.externalComponentCounts.clear();
+    for (const symbolId of this.data.directComponents) {
+      this.componentIds.add(symbolId);
+    }
     for (const [char, componentIds] of Object.entries(this.data.chars)) {
       for (const symbolId of componentIds) {
         this.componentIds.add(symbolId);

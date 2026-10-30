@@ -269,6 +269,13 @@ function renderCatalog(): void {
   if (!filters) {
     return;
   }
+  const hasVisibleXr =
+    debugUnlockAll ||
+    atlas.components.some(
+      (component) =>
+        component.rarity === "XR" &&
+        collection.hasComponent(component.symbolId),
+    );
 
   filters.innerHTML = `
     ${switchMarkup(
@@ -276,7 +283,7 @@ function renderCatalog(): void {
         { value: "all", label: "全部" },
         ...rarityOrder
           .filter(
-            (rarity) => rarity !== "XR" || debugUnlockAll,
+            (rarity) => rarity !== "XR" || hasVisibleXr,
           )
           .map((rarity) => ({
             value: rarity,
@@ -362,7 +369,9 @@ function renderComponentGrid(): void {
   }
   const components = atlas.components.filter(
     (component) =>
-      (component.rarity !== "XR" || debugUnlockAll) &&
+      (component.rarity !== "XR" ||
+        debugUnlockAll ||
+        collection.hasComponent(component.symbolId)) &&
       (!component.isExclusive || isComponentUnlocked(component)) &&
       (activeRarity === "all" ||
         component.rarity === activeRarity) &&
@@ -413,7 +422,13 @@ function visibleCharactersFor(
   component: AtlasComponentSummary,
 ): AtlasCharacterReference[] {
   return activeCharacters.filter((character) => {
-    if (character.isUnreachable && !debugUnlockAll) {
+    if (
+      character.isUnreachable &&
+      !collection.hasCharWithComponent(
+        character.char,
+        component.symbolId,
+      )
+    ) {
       return false;
     }
     return (
@@ -807,10 +822,23 @@ function collectionCountLabel(): string {
       component.isExclusive &&
       collection.hasComponent(component.symbolId),
   ).length;
-  if (exclusiveUnlocked === 0) {
+  const xrUnlocked = atlas.components.filter(
+    (component) =>
+      component.rarity === "XR" &&
+      collection.hasComponent(component.symbolId),
+  ).length;
+  if (exclusiveUnlocked === 0 && xrUnlocked === 0) {
     return `${baseUnlocked} / ${atlas.componentCount}`;
   }
-  return `${baseUnlocked}+${exclusiveUnlocked}/${atlas.componentCount}+${exclusiveUnlocked}`;
+  const extraNumerator = [
+    exclusiveUnlocked > 0 ? `+${exclusiveUnlocked}` : "",
+    xrUnlocked > 0 ? `+${xrUnlocked}` : "",
+  ].join("");
+  const extraDenominator = [
+    exclusiveUnlocked > 0 ? `+${exclusiveUnlocked}` : "",
+    xrUnlocked > 0 ? `+${xrUnlocked}` : "",
+  ].join("");
+  return `${baseUnlocked}${extraNumerator}/${atlas.componentCount}${extraDenominator}`;
 }
 
 function renderAtlas(): void {
