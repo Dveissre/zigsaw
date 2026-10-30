@@ -64,7 +64,10 @@
 .atlas-detail-glyph,
 .review-part,
 .char-detail-split-part,
-.tutorial-part {
+.tutorial-part,
+.gacha-card-glyph,
+.gacha-tutorial-compact-card b,
+.tutorial-atlas-card b {
   font-family: var(--component-font-family);
   font-weight: 700;
 }

@@ -4,7 +4,7 @@ import type {
 } from "./atlas";
 import type { GameData } from "./data";
 
-export const GACHA_COST = 100;
+export const GACHA_COST = 20;
 export const GACHA_HAND_SIZE = 10;
 
 export const GACHA_RARITIES: ComponentRarity[] = [

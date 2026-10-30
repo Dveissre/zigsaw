@@ -1,4 +1,5 @@
 import { crisIconMarkup } from "./cris";
+import { GACHA_COST } from "../game/gacha";
 
 export const GACHA_TUTORIAL_TRIGGER_MARKUP = `
   <button
@@ -59,7 +60,7 @@ export function createGachaTutorialDialog(): HTMLDialogElement {
               <div class="gacha-tutorial-draw" aria-hidden="true">
                 <div class="gacha-tutorial-price">
                   <span class="tutorial-cris-mark">${crisIconMarkup()}</span>
-                  <strong>100</strong>
+                  <strong>${GACHA_COST}</strong>
                 </div>
                 <span class="gacha-tutorial-equals"><i></i><i></i></span>
                 <div class="gacha-tutorial-deck">
@@ -69,7 +70,7 @@ export function createGachaTutorialDialog(): HTMLDialogElement {
                 </div>
               </div>
               <p class="tutorial-copy">
-                欢迎来到写字台！消耗 <span class="tutorial-inline-cris">${crisIconMarkup()}<b>100</b></span> 以抽取部件卡片。
+                欢迎来到写字台！消耗 <span class="tutorial-inline-cris">${crisIconMarkup()}<b>${GACHA_COST}</b></span> 以抽取部件卡片。
               </p>
               <p class="tutorial-copy">
                 补充您的图鉴，或者获得普通游玩时无法获得的部件！
