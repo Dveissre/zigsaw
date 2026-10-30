@@ -384,6 +384,9 @@ try {
     false,
   );
   await page.locator(".atlas-component-card").first().click();
+  await page.evaluate(() =>
+    sessionStorage.setItem("zigsaw.debug.unlocked", "1"),
+  );
   await page.locator("[data-atlas-advanced]").click();
   await page.locator(".atlas-component-card.is-unlocked").first().waitFor();
   assert.equal(
@@ -472,6 +475,9 @@ try {
     .locator(".char-detail-dialog")
     .getByRole("button", { name: "关闭" })
     .click();
+  await page.evaluate(() =>
+    sessionStorage.removeItem("zigsaw.debug.unlocked"),
+  );
   await page.getByRole("link", { name: "返回主页", exact: true }).click();
   await page.waitForURL((url) => !url.pathname.endsWith("/atlas/"));
   await page.locator(".start-button:not([disabled])").waitFor();
@@ -564,6 +570,9 @@ try {
   );
   await page.getByRole("button", { name: "启用", exact: true }).click();
   await page.locator("[data-game-settings-close]").click();
+  await page.evaluate(() =>
+    sessionStorage.setItem("zigsaw.debug.unlocked", "1"),
+  );
   await advancedCorner.click();
   assert.equal(
     await page.getByText("每题秒数", { exact: true }).isVisible(),
@@ -663,6 +672,9 @@ try {
   await page.getByRole("button", { name: "减少五秒" }).click();
   assert.equal(await page.locator("#game-seconds").inputValue(), "40");
 
+  await page.evaluate(() =>
+    sessionStorage.setItem("zigsaw.debug.unlocked", "1"),
+  );
   await page.getByRole("button", { name: "高级设置" }).click();
   await page.getByRole("button", { name: "挑战", exact: true }).click();
   assert.equal(
@@ -1167,6 +1179,9 @@ try {
     await page.getByText("题/阶段", { exact: true }).isVisible(),
     false,
   );
+  await page.evaluate(() =>
+    sessionStorage.setItem("zigsaw.debug.unlocked", "1"),
+  );
   await page.getByRole("button", { name: /高级设置/ }).click();
   await page.getByText("题/阶段", { exact: true }).waitFor();
   await page.locator("#stage-questions").fill("2");
@@ -1294,7 +1309,14 @@ try {
     /阶段2 · 3题 · 平均\d+\.\ds/,
   );
   assert.equal(await page.locator(".result-cris strong").innerText(), "+4");
-  assert.equal(await page.locator(".corner-cris strong").innerText(), "4");
+  assert.equal(
+    await page.locator(".corner-cris").evaluate(
+      (element) =>
+        element.querySelector("input")?.value ??
+        element.querySelector("strong")?.textContent?.trim(),
+    ),
+    "4",
+  );
   assert.equal(await page.locator(".review-result.is-correct").count(), 3);
   assert.equal(await page.locator(".review-result.is-wrong").count(), 1);
   assert.equal(await page.locator(".review-list li.is-error").count(), 1);
@@ -1404,7 +1426,9 @@ try {
     await page.locator("[data-start-record]").isHidden(),
     true,
   );
-  await page.getByRole("button", { name: /高级设置/ }).click();
+  if (!(await page.locator("#game-seconds").isVisible())) {
+    await page.getByRole("button", { name: /高级设置/ }).click();
+  }
   await page.locator("#game-seconds").fill("5");
   await page.getByRole("button", { name: "开始", exact: true }).click();
   await page.locator(".play-screen").waitFor();

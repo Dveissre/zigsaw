@@ -92,4 +92,16 @@ export class CrisStore implements CrisLedger {
     }
     return total;
   }
+
+  set(amount: number): number {
+    const next = Number.isFinite(amount)
+      ? Math.max(0, Math.floor(amount))
+      : 0;
+    try {
+      this.storage.setItem(STORAGE_KEY, String(next));
+    } catch {
+      return next;
+    }
+    return next;
+  }
 }

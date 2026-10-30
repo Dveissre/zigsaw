@@ -19,7 +19,12 @@ import {
 } from "./game/data";
 import { CharDetailStore } from "./game/details";
 import { CharDetailView } from "./ui/char-detail";
-import { crisIconMarkup } from "./ui/cris";
+import { crisBalanceMarkup } from "./ui/cris";
+import {
+  isDebugUnlocked,
+  requestDebugAccess,
+  revokeDebugAccess,
+} from "./ui/debug-auth";
 
 const root = document.querySelector<HTMLDivElement>("#app");
 
@@ -60,7 +65,7 @@ let activeCharAccess: AccessFilter = "unlocked";
 let activeComponent: AtlasComponentSummary | null = null;
 let activeCharacters: AtlasCharacterReference[] = [];
 let detailView: CharDetailView | null = null;
-let debugUnlockAll = false;
+let debugUnlockAll = isDebugUnlocked();
 let componentLoadToken = 0;
 let gameDataPromise: Promise<GameData> | null = null;
 
@@ -76,6 +81,17 @@ window.addEventListener("popstate", () => {
       (entry) => entry.symbolId === requested,
     ) ?? null;
   void selectComponent(component, "none");
+});
+
+document.addEventListener("change", (event) => {
+  const target = event.target;
+  if (
+    !(target instanceof HTMLInputElement) ||
+    !target.hasAttribute("data-debug-cris")
+  ) {
+    return;
+  }
+  target.value = String(cris.set(Number(target.value)));
 });
 
 function escapeHtml(value: string): string {
@@ -805,10 +821,7 @@ function renderAtlas(): void {
   appRoot.innerHTML = `
     <div class="app-shell page-atlas">
       <button class="advanced-corner" type="button" data-atlas-advanced aria-label="高级设置" aria-pressed="${debugUnlockAll}"></button>
-      <div class="corner-cris" role="status" aria-label="分光水晶 ${cris.load()}">
-        ${crisIconMarkup()}
-        <strong>${cris.load()}</strong>
-      </div>
+      ${crisBalanceMarkup(cris.load(), debugUnlockAll)}
       <a class="atlas-home" href="../" aria-label="返回主页">
         <svg viewBox="0 0 24 24" aria-hidden="true">
           <path d="M3.5 11 12 3.8l8.5 7.2"></path>
@@ -863,8 +876,16 @@ function renderAtlas(): void {
     });
   appRoot
     .querySelector<HTMLButtonElement>("[data-atlas-advanced]")
-    ?.addEventListener("click", () => {
-      debugUnlockAll = !debugUnlockAll;
+    ?.addEventListener("click", async () => {
+      if (debugUnlockAll) {
+        debugUnlockAll = false;
+        revokeDebugAccess();
+      } else {
+        if (!(await requestDebugAccess())) {
+          return;
+        }
+        debugUnlockAll = true;
+      }
       if (!debugUnlockAll && activeRarity === "XR") {
         activeRarity = "all";
       }

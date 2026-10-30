@@ -18,7 +18,15 @@ import { GameSession, type GameState } from "./game/session";
 import { buildChallengeShareText } from "./game/share";
 import { ATLAS_TRIGGER_MARKUP } from "./ui/atlas";
 import { CharDetailView } from "./ui/char-detail";
-import { crisIconMarkup } from "./ui/cris";
+import {
+  crisBalanceMarkup,
+  crisIconMarkup,
+} from "./ui/cris";
+import {
+  isDebugUnlocked,
+  requestDebugAccess,
+  revokeDebugAccess,
+} from "./ui/debug-auth";
 import { CHALLENGE_CARD_DECOR_MARKUP } from "./ui/decorations";
 import { splitPartsIntoRows } from "./ui/parts";
 import {
@@ -55,7 +63,7 @@ let lastSettings: GameSettings = structuredClone(DEFAULT_SETTINGS);
 let composing = false;
 let lastQuestionKey = "";
 let lastRenderedPaused = false;
-let advancedSettingsOpen = false;
+let advancedSettingsOpen = isDebugUnlocked();
 let startingGame = false;
 let startLayoutObserver: ResizeObserver | null = null;
 let pageTransitionActive = false;
@@ -200,10 +208,7 @@ function shell(
           ? `<button class="advanced-corner" type="button" aria-label="高级设置" aria-pressed="${advancedSettingsOpen}"></button>`
           : ""
       }
-      <div class="corner-cris" role="status" aria-label="分光水晶 ${crisTotal}">
-        ${crisIconMarkup()}
-        <strong>${crisTotal}</strong>
-      </div>
+      ${crisBalanceMarkup(crisTotal, advancedSettingsOpen)}
       <div class="corner-actions">
         ${TUTORIAL_TRIGGER_MARKUP}
         ${ATLAS_TRIGGER_MARKUP}
@@ -219,7 +224,7 @@ function shell(
       </header>
       ${
         page === "start"
-          ? `<div class="home-decoration">${CHALLENGE_CARD_DECOR_MARKUP}</div>`
+          ? `<a class="home-decoration" href="./draw/" data-draw-entry aria-label="卡片抽选"><span class="draw-decoration-label" aria-hidden="true">抽选</span>${CHALLENGE_CARD_DECOR_MARKUP}</a>`
           : ""
       }
       ${content}
@@ -256,6 +261,17 @@ function shell(
       </dialog>
     </div>
   `;
+}
+
+function refreshCrisBalance(): void {
+  const balance = document.querySelector<HTMLElement>(".corner-cris");
+  if (!balance) {
+    return;
+  }
+  balance.outerHTML = crisBalanceMarkup(
+    cris.load(),
+    advancedSettingsOpen,
+  );
 }
 
 function withPageTransition(update: () => void): void {
@@ -428,7 +444,39 @@ document.addEventListener("click", (event) => {
     if (settingsDialog) {
       openInfoDialog(settingsDialog);
     }
+    return;
   }
+
+  const drawEntry = target.closest<HTMLAnchorElement>(
+    "[data-draw-entry]",
+  );
+  if (drawEntry) {
+    if (
+      window.matchMedia("(hover: none), (pointer: coarse)").matches &&
+      !drawEntry.classList.contains("is-open")
+    ) {
+      event.preventDefault();
+      drawEntry.classList.add("is-open");
+    }
+    return;
+  }
+
+  document
+    .querySelectorAll<HTMLElement>("[data-draw-entry].is-open")
+    .forEach((entry) => entry.classList.remove("is-open"));
+});
+
+document.addEventListener("change", (event) => {
+  const target = event.target;
+  if (
+    !(target instanceof HTMLInputElement) ||
+    !target.hasAttribute("data-debug-cris")
+  ) {
+    return;
+  }
+  target.value = String(
+    cris.set(Number(target.value)),
+  );
 });
 
 function finishInfoDialog(): void {
@@ -739,7 +787,6 @@ function renderStart(initial: GameSettings = lastSettings): void {
   session = null;
   lastQuestionKey = "";
   lastRenderedPaused = false;
-  advancedSettingsOpen = false;
 
   const lowStop = initial.partsLow >= 5 ? 5 : clamp(initial.partsLow, 2, 4);
   const highStop = initial.partsHigh >= 5 ? 5 : clamp(initial.partsHigh, 2, 4);
@@ -891,13 +938,22 @@ function renderStart(initial: GameSettings = lastSettings): void {
   setupStartLayout();
 
   const advancedCorner = document.querySelector<HTMLButtonElement>(".advanced-corner");
-  advancedCorner?.addEventListener("click", () => {
-    advancedSettingsOpen = !advancedSettingsOpen;
+  advancedCorner?.addEventListener("click", async () => {
+    if (advancedSettingsOpen) {
+      advancedSettingsOpen = false;
+      revokeDebugAccess();
+    } else {
+      if (!(await requestDebugAccess())) {
+        return;
+      }
+      advancedSettingsOpen = true;
+    }
     advancedCorner.setAttribute("aria-pressed", String(advancedSettingsOpen));
     syncAdvancedSettings();
     if (form) {
       form.dataset.advancedOpen = String(advancedSettingsOpen);
     }
+    refreshCrisBalance();
     setupStartLayout();
   });
 
@@ -971,26 +1027,16 @@ function renderStart(initial: GameSettings = lastSettings): void {
     if (startingGame) {
       return;
     }
-    if (
-      window.matchMedia("(prefers-reduced-motion: reduce)").matches
-    ) {
-      startGame(settings);
-      return;
-    }
-
     startingGame = true;
-    document
-      .querySelector<HTMLElement>(".page-start")
-      ?.classList.add("is-starting");
     const startButton =
       document.querySelector<HTMLButtonElement>(".start-button");
     if (startButton) {
       startButton.disabled = true;
     }
-    setTimeout(() => {
+    withPageTransition(() => {
       startingGame = false;
       startGame(settings);
-    }, 320);
+    });
   });
 }
 

@@ -194,8 +194,36 @@ input:focus-visible {
 .corner-cris strong {
   color: var(--ink);
   font-family: var(--display-font-family);
-  font-size: 16px;
+  font-size: 18px;
   line-height: 1;
+}
+
+.corner-cris.is-debug {
+  pointer-events: auto;
+}
+
+.corner-cris input {
+  width: 56px;
+  min-width: 0;
+  padding: 2px 0;
+  border: 0;
+  border-bottom: 1px solid var(--accent);
+  border-radius: 0;
+  outline: 0;
+  color: var(--ink);
+  background: transparent;
+  font-family: var(--display-font-family);
+  font-size: 18px;
+  font-variant-numeric: tabular-nums;
+  font-weight: 700;
+  line-height: 1;
+  appearance: textfield;
+}
+
+.corner-cris input::-webkit-inner-spin-button,
+.corner-cris input::-webkit-outer-spin-button {
+  margin: 0;
+  appearance: none;
 }
 
 .page-atlas .corner-cris {
@@ -312,16 +340,6 @@ input:focus-visible {
   will-change: transform;
 }
 
-.page-start.is-starting .masthead {
-  transform: translateY(0);
-  transition: transform 320ms cubic-bezier(0.2, 0.75, 0.25, 1);
-}
-
-.page-start.is-starting .settings-form {
-  opacity: 0;
-  transition: opacity 180ms ease-out;
-}
-
 ::view-transition-group(zigsaw-title) {
   animation-duration: 380ms;
   animation-timing-function: cubic-bezier(0.2, 0.75, 0.25, 1);
@@ -407,13 +425,21 @@ input:focus-visible {
 
 .home-decoration {
   position: absolute;
-  z-index: 0;
-  bottom: max(16px, env(safe-area-inset-bottom));
+  z-index: 2;
+  bottom: max(34px, calc(env(safe-area-inset-bottom) + 18px));
   left: 50%;
-  width: 154px;
+  width: 156px;
   height: 68px;
-  pointer-events: none;
+  color: var(--ink);
+  text-decoration: none;
+  cursor: pointer;
+  pointer-events: auto;
   transform: translateX(-50%);
+}
+
+.home-decoration:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 6px;
 }
 
 .home-decoration .challenge-card-decor {
@@ -425,6 +451,25 @@ input:focus-visible {
   opacity: 1;
   visibility: visible;
   transform: none;
+}
+
+.draw-decoration-label {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  z-index: 3;
+  padding: 2px 7px;
+  color: var(--ink);
+  background: rgba(242, 240, 233, 0.94);
+  font-size: 18px;
+  font-weight: 700;
+  line-height: 1.2;
+  opacity: 0;
+  pointer-events: none;
+  transform: translate(-50%, -42%);
+  transition:
+    opacity 170ms ease,
+    transform 220ms cubic-bezier(0.2, 0.75, 0.25, 1);
 }
 
 .settings-form[data-active-mode="challenge"][data-advanced-open="false"]
@@ -439,6 +484,10 @@ input:focus-visible {
   height: 52px;
   border: 1px solid var(--line-strong);
   background: transparent;
+  transition:
+    top 240ms cubic-bezier(0.2, 0.75, 0.25, 1),
+    left 240ms cubic-bezier(0.2, 0.75, 0.25, 1),
+    transform 240ms cubic-bezier(0.2, 0.75, 0.25, 1);
 }
 
 .challenge-decor-card::after {
@@ -467,6 +516,38 @@ input:focus-visible {
   top: 14px;
   left: 98px;
   transform: rotate(-3deg);
+}
+
+.home-decoration:hover .challenge-decor-card,
+.home-decoration:focus-visible .challenge-decor-card,
+.home-decoration.is-open .challenge-decor-card {
+  top: 8px;
+  transform: translateY(-8px) rotate(0deg);
+}
+
+.home-decoration:hover .challenge-decor-card:nth-child(1),
+.home-decoration:focus-visible .challenge-decor-card:nth-child(1),
+.home-decoration.is-open .challenge-decor-card:nth-child(1) {
+  left: 0;
+}
+
+.home-decoration:hover .challenge-decor-card:nth-child(2),
+.home-decoration:focus-visible .challenge-decor-card:nth-child(2),
+.home-decoration.is-open .challenge-decor-card:nth-child(2) {
+  left: 52px;
+}
+
+.home-decoration:hover .challenge-decor-card:nth-child(3),
+.home-decoration:focus-visible .challenge-decor-card:nth-child(3),
+.home-decoration.is-open .challenge-decor-card:nth-child(3) {
+  left: 104px;
+}
+
+.home-decoration:hover .draw-decoration-label,
+.home-decoration:focus-visible .draw-decoration-label,
+.home-decoration.is-open .draw-decoration-label {
+  opacity: 1;
+  transform: translate(-50%, -50%);
 }
 
 .setting-block {
@@ -1685,6 +1766,80 @@ input:focus-visible {
   box-shadow: 8px 8px 0 rgba(32, 35, 31, 0.18);
 }
 
+.debug-auth-dialog {
+  width: min(390px, calc(100vw - 24px));
+  padding: 0;
+  border: 1px solid var(--ink);
+  color: var(--ink);
+  background: var(--surface);
+  box-shadow: 8px 8px 0 rgba(32, 35, 31, 0.18);
+}
+
+.debug-auth-dialog[open] {
+  animation: char-detail-in 160ms ease-out both;
+}
+
+.debug-auth-dialog::backdrop {
+  background: rgba(32, 35, 31, 0.42);
+  animation: char-detail-backdrop-in 150ms ease-out both;
+}
+
+.debug-auth-panel {
+  min-height: 0;
+}
+
+.debug-auth-header {
+  position: relative;
+  padding: 21px 58px 16px 22px;
+  border-bottom: 1px solid var(--line-strong);
+}
+
+.debug-auth-header h2 {
+  margin: 3px 0 0;
+  font-size: 30px;
+  line-height: 1;
+}
+
+.debug-auth-content {
+  display: grid;
+  gap: 12px;
+  padding: 20px 22px 22px;
+}
+
+.debug-auth-field {
+  display: grid;
+  grid-template-columns: 54px minmax(0, 1fr);
+  align-items: center;
+  gap: 10px;
+}
+
+.debug-auth-field > span {
+  color: var(--muted);
+  font-size: 14px;
+}
+
+.debug-auth-field input {
+  width: 100%;
+  min-width: 0;
+  height: 38px;
+  padding: 5px 9px;
+  border: 1px solid var(--line-strong);
+  border-radius: 0;
+  color: var(--ink);
+  background: var(--surface);
+}
+
+.debug-auth-error {
+  min-height: 18px;
+  margin: 0;
+  color: var(--accent);
+  font-size: 13px;
+}
+
+.debug-auth-content .primary-action {
+  justify-self: start;
+}
+
 .game-settings-dialog[open] {
   animation: char-detail-in 160ms ease-out both;
 }
@@ -2235,6 +2390,54 @@ input:focus-visible {
 
 .page-atlas .masthead {
   padding: 2px 0 3px;
+}
+
+.page-draw .masthead {
+  padding: 2px 0 3px;
+}
+
+.page-draw .wordmark {
+  font-size: clamp(26px, 2.8vw, 32px);
+}
+
+.page-draw .wordmark::after {
+  width: 28px;
+  height: 1px;
+  margin-top: 5px;
+}
+
+.draw-page-screen {
+  display: flex;
+  min-height: 0;
+  flex: 1;
+  justify-content: center;
+  overflow: hidden;
+  padding: 12px 0 max(16px, env(safe-area-inset-bottom));
+}
+
+.draw-page-surface {
+  width: min(100%, 650px);
+}
+
+.draw-page-heading {
+  padding-bottom: 14px;
+  border-bottom: 1px solid var(--line-strong);
+}
+
+.draw-page-heading h1 {
+  margin: 4px 0 0;
+  font-size: clamp(30px, 3.4vw, 40px);
+  line-height: 1;
+}
+
+.draw-construction {
+  display: grid;
+  min-height: min(320px, 42vh);
+  place-items: center;
+  border-bottom: 1px solid var(--line);
+  color: var(--muted);
+  font-size: clamp(24px, 3vw, 34px);
+  letter-spacing: 0.12em;
 }
 
 .page-atlas .wordmark {
@@ -4932,6 +5135,11 @@ input:focus-visible {
   *::before,
   *::after {
     scroll-behavior: auto !important;
+  }
+
+  .challenge-decor-card,
+  .draw-decoration-label {
+    transition: none !important;
   }
 
   .question-enter .part-card,

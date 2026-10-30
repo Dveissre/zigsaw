@@ -52,5 +52,7 @@ describe("Cris rewards", () => {
     expect(store.add(12)).toBe(12);
     expect(store.add(8)).toBe(20);
     expect(store.load()).toBe(20);
+    expect(store.set(7)).toBe(7);
+    expect(store.load()).toBe(7);
   });
 });
