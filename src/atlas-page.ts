@@ -11,6 +11,7 @@ import {
   CollectionStore,
   componentCompletionPercentage,
 } from "./game/collection";
+import { CrisStore } from "./game/cris";
 import {
   externalCharacterMeta,
   loadGameData,
@@ -18,6 +19,7 @@ import {
 } from "./game/data";
 import { CharDetailStore } from "./game/details";
 import { CharDetailView } from "./ui/char-detail";
+import { crisIconMarkup } from "./ui/cris";
 
 const root = document.querySelector<HTMLDivElement>("#app");
 
@@ -32,6 +34,7 @@ type HistoryMode = "auto" | "close" | "none" | "replace";
 const appRoot = root;
 const appBaseUrl = new URL("../", document.baseURI).href;
 const collection = new CollectionStore();
+const cris = new CrisStore();
 const charDetails = new CharDetailStore(appBaseUrl);
 const rarityOrder: ComponentRarity[] = [
   "N",
@@ -802,6 +805,10 @@ function renderAtlas(): void {
   appRoot.innerHTML = `
     <div class="app-shell page-atlas">
       <button class="advanced-corner" type="button" data-atlas-advanced aria-label="高级设置" aria-pressed="${debugUnlockAll}"></button>
+      <div class="corner-cris" role="status" aria-label="分光水晶 ${cris.load()}">
+        ${crisIconMarkup()}
+        <strong>${cris.load()}</strong>
+      </div>
       <a class="atlas-home" href="../" aria-label="返回主页">
         <svg viewBox="0 0 24 24" aria-hidden="true">
           <path d="M3.5 11 12 3.8l8.5 7.2"></path>

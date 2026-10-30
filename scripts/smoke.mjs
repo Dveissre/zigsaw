@@ -250,14 +250,23 @@ try {
     "在渐进的难度曲线下一路向前突进！",
     "每个阶段共5题，各阶段所取的通规字表区间会逐步后移。",
     "到达字表末端后，将进入阶段EX……会有什么呢？",
-    "阶段EX可在设置页关闭",
-    "自由 / 无尽模式",
-    "有更多可调整设置，适合对全字表进行练习。",
-    "但是超时仍然会结束游戏，尽可能多地答对吧！",
+    "阶段EX可在设置中关闭",
+    "练习 / 无尽模式",
+    "有更多可调整设置，换题次数不限。",
+    "适合对全字表进行练习，尽可能多地答对吧！",
+    "练习 / 无尽模式无法解锁图鉴",
+    "挑战模式中遇到的汉字与部件会自动收录。",
+    "点击部件卡片可查看关联汉字、完成度与里程碑。",
+    "以更高的收集度为目标吧！",
     "Created by fukurei",
   ]) {
     assert.ok(tutorialText.includes(text), text);
   }
+  assert.equal(await page.locator(".tutorial-atlas-card").count(), 5);
+  assert.deepEqual(
+    await page.locator(".tutorial-atlas-card b").allTextContents(),
+    ["木", "夕", "衣", "与"],
+  );
   assert.equal(
     await page.locator(".tutorial-disclaimer").first().innerText(),
     "部件的归类与拆分方式包含大量主观意见，如有错讹请联系作者",
@@ -502,7 +511,7 @@ try {
         left: controlBox.left,
       };
   });
-  const exAlignment = await page.locator(".ex-toggle").evaluate((control) => {
+  const difficultyAlignment = await page.locator(".difficulty-toggle").evaluate((control) => {
     const box = control.getBoundingClientRect();
     return {
       center: box.left + box.width / 2,
@@ -510,46 +519,12 @@ try {
     };
   });
   assert.ok(Math.abs(modeAlignment.control - modeAlignment.row) <= 1);
-  assert.ok(exAlignment.center < modeAlignment.row);
-  assert.ok(Math.abs(exAlignment.left - modeAlignment.left) <= 1);
-  const challengeDecor = page.locator(".challenge-card-decor");
-  assert.equal(await challengeDecor.isVisible(), true);
-  assert.equal(
-    await challengeDecor.locator(".challenge-decor-card").count(),
-    3,
-  );
-  const challengeDecorLayout = await challengeDecor.evaluate((decor) => {
-    const decorBox = decor.getBoundingClientRect();
-    const rows = [
-      ...document.querySelectorAll(".setting-block"),
-    ].filter(
-      (element) =>
-        !element.hidden &&
-        element.getBoundingClientRect().height > 0,
-    );
-    const lastSetting = rows.at(-1)?.getBoundingClientRect();
-    const startRow = document
-      .querySelector(".start-row")
-      ?.getBoundingClientRect();
-    return {
-      decorTop: decorBox.top,
-      decorBottom: decorBox.bottom,
-      lastSettingBottom: lastSetting?.bottom ?? -1,
-      startRowTop: startRow?.top ?? -1,
-      shadow: getComputedStyle(
-        decor.querySelector(".challenge-decor-card"),
-      ).boxShadow,
-    };
-  });
   assert.ok(
-    challengeDecorLayout.decorTop >=
-      challengeDecorLayout.lastSettingBottom,
+    Math.abs(difficultyAlignment.center - modeAlignment.row) <= 1,
   );
   assert.ok(
-    challengeDecorLayout.decorBottom <=
-      challengeDecorLayout.startRowTop,
+    Math.abs(difficultyAlignment.left - modeAlignment.left) <= 1,
   );
-  assert.equal(challengeDecorLayout.shadow, "none");
   assert.equal(
     await page.getByText("每题秒数", { exact: true }).isVisible(),
     false,
@@ -568,6 +543,12 @@ try {
   assert.equal(cornerPosition.left, 0);
   assert.equal(cornerPosition.top, 0);
   assert.equal((await advancedCorner.textContent())?.trim(), "");
+  const gameSettingsTrigger = page.getByRole("button", {
+    name: "设置",
+    exact: true,
+  });
+  await gameSettingsTrigger.click();
+  await page.locator("[data-game-settings-dialog][open]").waitFor();
   assert.equal(
     await page.getByRole("button", { name: "启用", exact: true }).getAttribute(
       "aria-pressed",
@@ -582,9 +563,13 @@ try {
     "true",
   );
   await page.getByRole("button", { name: "启用", exact: true }).click();
+  await page.locator("[data-game-settings-close]").click();
   await advancedCorner.click();
-  await page.getByText("每题秒数", { exact: true }).waitFor();
-  assert.equal(await challengeDecor.isVisible(), false);
+  assert.equal(
+    await page.getByText("每题秒数", { exact: true }).isVisible(),
+    false,
+  );
+  await page.getByText("题/阶段", { exact: true }).waitFor();
   const stableStartLayout = await page.evaluate(() => {
     const top = (selector) =>
       document.querySelector(selector)?.getBoundingClientRect().top ?? -1;
@@ -604,7 +589,7 @@ try {
       start: top(".start-button"),
     };
   });
-  await page.getByRole("button", { name: "自由", exact: true }).click();
+  await page.getByRole("button", { name: "练习", exact: true }).click();
   await page.waitForTimeout(220);
   const stableStartLayoutAfter = await page.evaluate(() => {
     const top = (selector) =>
@@ -686,11 +671,13 @@ try {
   );
   await page.getByRole("button", { name: /高级设置/ }).waitFor();
   assert.equal(await page.getByText("级别", { exact: true }).isVisible(), false);
+  await page.getByRole("button", { name: "设置", exact: true }).click();
   assert.equal(
     await page.getByRole("button", { name: "启用", exact: true }).isVisible(),
     true,
   );
-  await page.getByRole("button", { name: "自由", exact: true }).click();
+  await page.locator("[data-game-settings-close]").click();
+  await page.getByRole("button", { name: "练习", exact: true }).click();
 
   await page.locator("#game-count").fill("3");
   await page.getByRole("button", { name: "开始", exact: true }).click();
@@ -699,20 +686,33 @@ try {
     const raw = localStorage.getItem("zigsaw.collection.v2");
     return raw ? Object.keys(JSON.parse(raw).chars).length : 0;
   });
-  assert.ok(firstCollected >= 1);
-  const collectedSample = await page.evaluate(() => {
-    const raw = localStorage.getItem("zigsaw.collection.v2");
-    const chars = raw ? JSON.parse(raw).chars : {};
-    const char = Object.keys(chars)[0];
-    return {
-      char,
-      symbolId: chars[char]?.[0] ?? -1,
-    };
-  });
-  assert.ok(collectedSample.char);
-  assert.ok(collectedSample.symbolId > 0);
+  assert.equal(firstCollected, 0);
   const collectionAtlas = await page.context().newPage();
   try {
+    await collectionAtlas.goto(targetUrl, { waitUntil: "networkidle" });
+    await collectionAtlas
+      .locator(".start-button:not([disabled])")
+      .waitFor();
+    await collectionAtlas
+      .getByRole("button", { name: "挑战", exact: true })
+      .click();
+    await collectionAtlas
+      .getByRole("button", { name: "开始", exact: true })
+      .click();
+    await collectionAtlas.locator(".part").first().waitFor();
+    const collectedSample = await collectionAtlas.evaluate(() => {
+      const raw = localStorage.getItem("zigsaw.collection.v2");
+      const chars = raw ? JSON.parse(raw).chars : {};
+      const char = Object.keys(chars)[0];
+      return {
+        count: Object.keys(chars).length,
+        char,
+        symbolId: chars[char]?.[0] ?? -1,
+      };
+    });
+    assert.ok(collectedSample.count >= 1);
+    assert.ok(collectedSample.char);
+    assert.ok(collectedSample.symbolId > 0);
     await collectionAtlas.goto(
       `${targetUrl}atlas/?component=${collectedSample.symbolId}`,
       { waitUntil: "networkidle" },
@@ -822,7 +822,7 @@ try {
       (await page.locator(".play-actions button").allTextContents()).map((text) =>
         text.trim(),
       ),
-      ["暂停", "弃权", "重开", "返回"],
+      ["暂停", "弃权", "重开", "换题∞"],
     );
     if (question < 3) {
       assert.equal(await page.locator("[data-advance]").count(), 0);
@@ -852,7 +852,7 @@ try {
   assert.equal(await page.locator("[data-advance]").count(), 0);
   await page.locator(".result-screen").waitFor();
   assert.match(await page.locator(".result-header").innerText(), /胜利/);
-  assert.match(await page.locator(".result-score").innerText(), /自由模式 · 3题/);
+  assert.match(await page.locator(".result-score").innerText(), /练习模式 · 3题/);
   assert.equal(await page.locator("[data-share]").count(), 0);
   const scoreFont = await page.locator(".result-score").evaluate(
     (element) => getComputedStyle(element).fontFamily,
@@ -1170,7 +1170,6 @@ try {
   await page.getByRole("button", { name: /高级设置/ }).click();
   await page.getByText("题/阶段", { exact: true }).waitFor();
   await page.locator("#stage-questions").fill("2");
-  await page.locator("#game-seconds").fill("5");
   await page.getByRole("button", { name: "开始", exact: true }).click();
   await page.locator(".play-screen").waitFor();
   assert.match(await page.locator(".question-progress").innerText(), /阶段1 · 第1题/);
@@ -1250,7 +1249,10 @@ try {
   );
   const stableActionsBefore = await page.evaluate(() =>
     [...document.querySelectorAll(".play-actions button")]
-      .filter((button) => ["重开", "返回"].includes(button.textContent?.trim() ?? ""))
+      .filter((button) => {
+        const text = button.textContent?.trim() ?? "";
+        return text === "重开" || text.startsWith("换题");
+      })
       .map((button) => ({
         text: button.textContent?.trim(),
         left: button.getBoundingClientRect().left,
@@ -1270,7 +1272,10 @@ try {
   assert.equal(await page.getByRole("button", { name: "弃权" }).count(), 0);
   const stableActionsAfter = await page.evaluate(() =>
     [...document.querySelectorAll(".play-actions button")]
-      .filter((button) => ["重开", "返回"].includes(button.textContent?.trim() ?? ""))
+      .filter((button) => {
+        const text = button.textContent?.trim() ?? "";
+        return text === "重开" || text.startsWith("换题");
+      })
       .map((button) => ({
         text: button.textContent?.trim(),
         left: button.getBoundingClientRect().left,
@@ -1286,8 +1291,10 @@ try {
   assert.match(await page.locator(".record-row").innerText(), /纪录：3/);
   assert.match(
     await page.locator(".result-score").innerText(),
-    /挑战模式 · 3题 · 阶段2/,
+    /阶段2 · 3题 · 平均\d+\.\ds/,
   );
+  assert.equal(await page.locator(".result-cris strong").innerText(), "+4");
+  assert.equal(await page.locator(".corner-cris strong").innerText(), "4");
   assert.equal(await page.locator(".review-result.is-correct").count(), 3);
   assert.equal(await page.locator(".review-result.is-wrong").count(), 1);
   assert.equal(await page.locator(".review-list li.is-error").count(), 1);
@@ -1383,7 +1390,7 @@ try {
       localStorage.getItem("zigsaw.records.v1"),
     ),
     JSON.stringify({
-      "challenge|questions=2|size=1500|shift=300|seconds=5|ex=1": 3,
+      "challenge|difficulty=standard|questions=2|size=1500|shift=300|seconds=40|ex=1": 3,
     }),
   );
 
@@ -1397,6 +1404,8 @@ try {
     await page.locator("[data-start-record]").isHidden(),
     true,
   );
+  await page.getByRole("button", { name: /高级设置/ }).click();
+  await page.locator("#game-seconds").fill("5");
   await page.getByRole("button", { name: "开始", exact: true }).click();
   await page.locator(".play-screen").waitFor();
   const endlessDisplayedParts = await readDisplayedParts();
@@ -1421,7 +1430,7 @@ try {
   assert.match(await page.locator(".result-score").innerText(), /无尽模式 · 1题/);
 
   await page.getByRole("button", { name: "返回", exact: true }).click();
-  await page.getByRole("button", { name: "自由", exact: true }).click();
+  await page.getByRole("button", { name: "练习", exact: true }).click();
   await page.locator("#game-count").fill("10");
   await page.setViewportSize({ width: 1280, height: 898 });
   await page.getByRole("button", { name: "开始", exact: true }).click();

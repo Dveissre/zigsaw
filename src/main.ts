@@ -1,6 +1,8 @@
 import "./styles.css";
 import {
+  CHALLENGE_DIFFICULTY_SECONDS,
   loadGameData,
+  type ChallengeDifficulty,
   type ChallengeBounds,
   type ComponentDefinition,
   type GameData,
@@ -9,12 +11,15 @@ import {
   type Mode,
 } from "./game/data";
 import { CollectionStore } from "./game/collection";
+import { CrisStore } from "./game/cris";
 import { CharDetailStore } from "./game/details";
 import { LocalRecordStore, recordKey } from "./game/records";
 import { GameSession, type GameState } from "./game/session";
 import { buildChallengeShareText } from "./game/share";
 import { ATLAS_TRIGGER_MARKUP } from "./ui/atlas";
 import { CharDetailView } from "./ui/char-detail";
+import { crisIconMarkup } from "./ui/cris";
+import { CHALLENGE_CARD_DECOR_MARKUP } from "./ui/decorations";
 import { splitPartsIntoRows } from "./ui/parts";
 import {
   createTutorialDialog,
@@ -40,6 +45,7 @@ const DEFAULT_SETTINGS: GameSettings = {
   stageSize: 1500,
   stageShift: 300,
   exEnabled: true,
+  difficulty: "standard",
 };
 
 let data: GameData | null = null;
@@ -56,8 +62,36 @@ let pageTransitionActive = false;
 let shareToastTimer: number | null = null;
 
 const MODE_ORDER: Mode[] = ["challenge", "normal", "endless"];
+const DIFFICULTY_ORDER: ChallengeDifficulty[] = [
+  "beginner",
+  "standard",
+  "expert",
+];
+const DIFFICULTY_LABELS: Record<ChallengeDifficulty, string> = {
+  beginner: "入门",
+  standard: "普通",
+  expert: "专家",
+};
+const DIFFICULTY_NOTES: Record<
+  ChallengeDifficulty,
+  readonly [string, string]
+> = {
+  beginner: [
+    "作答时间 60 秒",
+    "每完成 1 阶段，获得 1 次换题",
+  ],
+  standard: [
+    "作答时间 40 秒",
+    "每完成 4 阶段，获得 1 次换题",
+  ],
+  expert: [
+    "作答时间 20 秒",
+    "进入 EX 获得 1 次换题；之后每 10 题获得 1 次",
+  ],
+};
 
 const records = new LocalRecordStore();
+const cris = new CrisStore();
 const collection = new CollectionStore();
 const charDetails = new CharDetailStore(document.baseURI);
 const tutorialDialog = createTutorialDialog();
@@ -156,6 +190,9 @@ function shell(
   content: string,
   page: "start" | "play" | "result",
 ): string {
+  const settingsLocked =
+    Boolean(session && session.state.phase === "playing");
+  const crisTotal = cris.load();
   return `
     <div class="app-shell page-${page}">
       ${
@@ -163,14 +200,60 @@ function shell(
           ? `<button class="advanced-corner" type="button" aria-label="高级设置" aria-pressed="${advancedSettingsOpen}"></button>`
           : ""
       }
+      <div class="corner-cris" role="status" aria-label="分光水晶 ${crisTotal}">
+        ${crisIconMarkup()}
+        <strong>${crisTotal}</strong>
+      </div>
       <div class="corner-actions">
         ${TUTORIAL_TRIGGER_MARKUP}
         ${ATLAS_TRIGGER_MARKUP}
+        <button class="corner-icon-button" type="button" data-game-settings-trigger aria-controls="game-settings-dialog" aria-label="设置">
+          <svg class="settings-icon" viewBox="0 0 24 24" aria-hidden="true">
+            <path d="M12.2 2h-.4a2 2 0 0 0-2 2v.2a2 2 0 0 1-1 1.7l-.4.3a2 2 0 0 1-2 0l-.2-.1a2 2 0 0 0-2.7.7l-.2.4a2 2 0 0 0 .7 2.7l.2.1a2 2 0 0 1 1 1.7v.5a2 2 0 0 1-1 1.7l-.2.1a2 2 0 0 0-.7 2.7l.2.4a2 2 0 0 0 2.7.7l.2-.1a2 2 0 0 1 2 0l.4.3a2 2 0 0 1 1 1.7v.2a2 2 0 0 0 2 2h.4a2 2 0 0 0 2-2v-.2a2 2 0 0 1 1-1.7l.4-.3a2 2 0 0 1 2 0l.2.1a2 2 0 0 0 2.7-.7l.2-.4a2 2 0 0 0-.7-2.7l-.2-.1a2 2 0 0 1-1-1.7v-.5a2 2 0 0 1 1-1.7l.2-.1a2 2 0 0 0 .7-2.7l-.2-.4a2 2 0 0 0-2.7-.7l-.2.1a2 2 0 0 1-2 0l-.4-.3a2 2 0 0 1-1-1.7V4a2 2 0 0 0-2-2Z"></path>
+            <circle cx="12" cy="12" r="3"></circle>
+          </svg>
+        </button>
       </div>
       <header class="masthead">
         <h1 class="wordmark">ZI<span>GSAW</span></h1>
       </header>
+      ${
+        page === "start"
+          ? `<div class="home-decoration">${CHALLENGE_CARD_DECOR_MARKUP}</div>`
+          : ""
+      }
       ${content}
+      <dialog class="game-settings-dialog" id="game-settings-dialog" data-game-settings-dialog aria-labelledby="game-settings-title">
+        <article class="game-settings-panel">
+          <header class="game-settings-header">
+            <div>
+              <div class="game-settings-kicker">SETTINGS</div>
+              <h2 id="game-settings-title">设置</h2>
+            </div>
+            <button class="char-detail-close game-settings-close" type="button" data-game-settings-close aria-label="关闭设置">
+              <svg viewBox="0 0 24 24" aria-hidden="true">
+                <path d="M4 4 20 20M20 4 4 20"></path>
+              </svg>
+            </button>
+          </header>
+          <div class="game-settings-content">
+            <div class="game-setting-row">
+              <div class="game-setting-copy">
+                <strong>阶段EX</strong>
+              </div>
+              <div class="segmented ex-toggle" role="group" aria-label="阶段EX" data-active-ex="${lastSettings.exEnabled}" style="--ex-position:${lastSettings.exEnabled ? 0 : 1}">
+                <span class="choice-slider" aria-hidden="true"></span>
+                <button type="button" data-ex-enabled="true" aria-pressed="${lastSettings.exEnabled ? "true" : "false"}" ${settingsLocked ? "disabled" : ""}>启用</button>
+                <button type="button" data-ex-enabled="false" aria-pressed="${lastSettings.exEnabled ? "false" : "true"}" ${settingsLocked ? "disabled" : ""}>关闭</button>
+              </div>
+            </div>
+            <a class="git-setting-link" href="https://github.com/Dveissre/zigsaw" target="_blank" rel="noreferrer">
+              <span>Git页</span>
+              <span>github.com/Dveissre/zigsaw ↗</span>
+            </a>
+          </div>
+        </article>
+      </dialog>
     </div>
   `;
 }
@@ -320,7 +403,12 @@ function openInfoDialog(dialog: HTMLDialogElement): void {
   if (resumeAfterTutorial) {
     session?.togglePause();
   }
-  dialog.showModal();
+  const currentDialog = dialog.isConnected
+    ? dialog
+    : document.querySelector<HTMLDialogElement>(
+        `#${CSS.escape(dialog.id)}`,
+      );
+  currentDialog?.showModal();
 }
 
 document.addEventListener("click", (event) => {
@@ -331,6 +419,15 @@ document.addEventListener("click", (event) => {
   if (target.closest("[data-tutorial-trigger]")) {
     openInfoDialog(tutorialDialog);
     return;
+  }
+  if (target.closest("[data-game-settings-trigger]")) {
+    const settingsDialog =
+      document.querySelector<HTMLDialogElement>(
+        "[data-game-settings-dialog]",
+      );
+    if (settingsDialog) {
+      openInfoDialog(settingsDialog);
+    }
   }
 });
 
@@ -348,6 +445,55 @@ function finishInfoDialog(): void {
 }
 
 tutorialDialog.addEventListener("close", finishInfoDialog);
+
+function wireGameSettingsDialog(): void {
+  const dialog =
+    document.querySelector<HTMLDialogElement>(
+      "[data-game-settings-dialog]",
+    );
+  if (!dialog || dialog.dataset.wired === "true") {
+    return;
+  }
+  dialog.dataset.wired = "true";
+  dialog.addEventListener("close", finishInfoDialog);
+  dialog.addEventListener("click", (event) => {
+    if (event.target === dialog) {
+      dialog.close();
+    }
+  });
+  dialog
+    .querySelector<HTMLButtonElement>("[data-game-settings-close]")
+    ?.addEventListener("click", () => dialog.close());
+  dialog
+    .querySelectorAll<HTMLButtonElement>("[data-ex-enabled]")
+    .forEach((button) => {
+      button.addEventListener("click", () => {
+        const enabled = button.dataset.exEnabled === "true";
+        dialog
+          .querySelectorAll<HTMLButtonElement>("[data-ex-enabled]")
+          .forEach((peer) => {
+            peer.setAttribute(
+              "aria-pressed",
+              String(peer === button),
+            );
+          });
+        const toggle =
+          dialog.querySelector<HTMLElement>(".ex-toggle");
+        if (toggle) {
+          toggle.dataset.activeEx = String(enabled);
+          toggle.style.setProperty(
+            "--ex-position",
+            enabled ? "0" : "1",
+          );
+        }
+        lastSettings.exEnabled = enabled;
+        session?.setExEnabled(enabled);
+        if (!session) {
+          updateStartRecord();
+        }
+      });
+    });
+}
 
 function clamp(value: number, minimum: number, maximum: number): number {
   return Math.min(maximum, Math.max(minimum, value));
@@ -410,6 +556,35 @@ function selectedMode(): Mode {
   );
 }
 
+function selectedDifficulty(): ChallengeDifficulty {
+  return (
+    (document.querySelector<HTMLButtonElement>(
+      "[data-difficulty][aria-pressed='true']",
+    )?.dataset.difficulty as ChallengeDifficulty | undefined) ??
+    "standard"
+  );
+}
+
+function updateDifficultyNotes(): void {
+  const difficulty = selectedDifficulty();
+  const slider =
+    document.querySelector<HTMLElement>(".difficulty-toggle");
+  if (slider) {
+    slider.style.setProperty(
+      "--difficulty-position",
+      String(DIFFICULTY_ORDER.indexOf(difficulty)),
+    );
+  }
+  const notes =
+    DIFFICULTY_NOTES[difficulty];
+  document
+    .querySelector<HTMLElement>("[data-difficulty-note='time']")
+    ?.replaceChildren(notes[0]);
+  document
+    .querySelector<HTMLElement>("[data-difficulty-note='reward']")
+    ?.replaceChildren(notes[1]);
+}
+
 function updateStartRecord(): void {
   const record = document.querySelector<HTMLElement>("[data-start-record]");
   if (!record) {
@@ -459,6 +634,7 @@ function updateModeFields(direction = 0): void {
       String(MODE_ORDER.indexOf(mode)),
     );
   }
+  syncAdvancedSettings();
 
   if (
     direction !== 0 &&
@@ -473,6 +649,18 @@ function updateModeFields(direction = 0): void {
       );
     }
   }
+}
+
+function syncAdvancedSettings(): void {
+  const mode = selectedMode();
+  document
+    .querySelectorAll<HTMLElement>("[data-advanced-setting]")
+    .forEach((element) => {
+      element.hidden =
+        !advancedSettingsOpen ||
+        (element.hasAttribute("data-time-setting") &&
+          mode === "challenge");
+    });
 }
 
 function wireNumberSteppers(): void {
@@ -517,14 +705,21 @@ function readSettings(): GameSettings {
     const input = document.querySelector<HTMLInputElement>(selector);
     return clamp(Number(input?.value) || fallback, minimum, maximum);
   };
+  const mode = selectedMode();
+  const difficulty = selectedDifficulty();
 
   return {
     levels,
     partsLow: lowStop,
     partsHigh: highStop === 5 ? 18 : highStop,
-    mode: selectedMode(),
+    mode,
     count: numberValue("#game-count", 10, 3, 50),
-    seconds: Math.round(numberValue("#game-seconds", 40, 5, 180) / 5) * 5,
+    seconds:
+      mode === "challenge"
+        ? CHALLENGE_DIFFICULTY_SECONDS[difficulty]
+        : Math.round(
+            numberValue("#game-seconds", 40, 5, 180) / 5,
+          ) * 5,
     stageQuestions: numberValue("#stage-questions", 5, 1, 50),
     stageSize: numberValue("#stage-size", 1500, 10, 8105),
     stageShift: numberValue("#stage-shift", 300, 1, 8105),
@@ -532,6 +727,7 @@ function readSettings(): GameSettings {
       document
         .querySelector<HTMLButtonElement>("[data-ex-enabled][aria-pressed='true']")
         ?.dataset.exEnabled === "true",
+    difficulty,
   };
 }
 
@@ -549,9 +745,9 @@ function renderStart(initial: GameSettings = lastSettings): void {
   const highStop = initial.partsHigh >= 5 ? 5 : clamp(initial.partsHigh, 2, 4);
   const checked = (level: Level) => initial.levels.includes(level) ? "checked" : "";
   const pressed = (mode: Mode) => initial.mode === mode ? "true" : "false";
-  const exPressed = (enabled: boolean) =>
-    initial.exEnabled === enabled ? "true" : "false";
   const advancedHidden = advancedSettingsOpen ? "" : "hidden";
+  const difficultyNotes =
+    DIFFICULTY_NOTES[initial.difficulty];
   const challengeRecord =
     initial.mode === "challenge"
       ? records.load(recordKey(initial))
@@ -566,7 +762,7 @@ function renderStart(initial: GameSettings = lastSettings): void {
             <div class="segmented mode-switch" role="group" aria-label="模式" data-active-mode="${initial.mode}" style="--mode-position:${MODE_ORDER.indexOf(initial.mode)}">
               <span class="mode-slider" aria-hidden="true"></span>
               <button type="button" data-mode="challenge" aria-pressed="${pressed("challenge")}">挑战</button>
-              <button type="button" data-mode="normal" aria-pressed="${pressed("normal")}">自由</button>
+              <button type="button" data-mode="normal" aria-pressed="${pressed("normal")}">练习</button>
               <button type="button" data-mode="endless" aria-pressed="${pressed("endless")}">无尽</button>
             </div>
           </section>
@@ -601,16 +797,24 @@ function renderStart(initial: GameSettings = lastSettings): void {
             </div>
           </section>
 
-          <section class="setting-block" data-mode-field="challenge" hidden>
-            <div class="setting-label">阶段EX</div>
-            <div class="segmented ex-toggle" role="group" aria-label="阶段EX" data-active-ex="${initial.exEnabled}" style="--ex-position:${initial.exEnabled ? 0 : 1}">
-              <span class="choice-slider" aria-hidden="true"></span>
-              <button type="button" data-ex-enabled="true" aria-pressed="${exPressed(true)}">启用</button>
-              <button type="button" data-ex-enabled="false" aria-pressed="${exPressed(false)}">关闭</button>
+          <section class="setting-block difficulty-setting" data-mode-field="challenge" hidden>
+            <div class="setting-label">难度</div>
+            <div class="difficulty-settings">
+              <div class="segmented difficulty-toggle" role="group" aria-label="挑战难度" data-active-difficulty="${initial.difficulty}" style="--difficulty-position:${DIFFICULTY_ORDER.indexOf(initial.difficulty)}">
+                <span class="choice-slider" aria-hidden="true"></span>
+                ${DIFFICULTY_ORDER.map(
+                  (difficulty) =>
+                    `<button type="button" data-difficulty="${difficulty}" aria-pressed="${initial.difficulty === difficulty ? "true" : "false"}">${DIFFICULTY_LABELS[difficulty]}</button>`,
+                ).join("")}
+              </div>
+              <div class="difficulty-notes">
+                <p data-difficulty-note="time">${escapeHtml(difficultyNotes[0])}</p>
+                <p data-difficulty-note="reward">${escapeHtml(difficultyNotes[1])}</p>
+              </div>
             </div>
           </section>
 
-          <section class="setting-block" data-advanced-setting ${advancedHidden}>
+          <section class="setting-block" data-advanced-setting data-time-setting ${advancedHidden}>
             <div class="setting-label">每题秒数</div>
             <div class="stepper" data-stepper>
               <button type="button" data-delta="-5" aria-label="减少五秒">−</button>
@@ -657,11 +861,6 @@ function renderStart(initial: GameSettings = lastSettings): void {
             </div>
           </section>
           </div>
-          <div class="challenge-card-decor" aria-hidden="true">
-            <span class="challenge-decor-card"></span>
-            <span class="challenge-decor-card"></span>
-            <span class="challenge-decor-card"></span>
-          </div>
         </div>
 
         <div class="start-row">
@@ -686,18 +885,16 @@ function renderStart(initial: GameSettings = lastSettings): void {
   updatePartsSlider();
   wireNumberSteppers();
   updateModeFields();
+  updateDifficultyNotes();
   updateStartRecord();
+  wireGameSettingsDialog();
   setupStartLayout();
 
   const advancedCorner = document.querySelector<HTMLButtonElement>(".advanced-corner");
   advancedCorner?.addEventListener("click", () => {
     advancedSettingsOpen = !advancedSettingsOpen;
     advancedCorner.setAttribute("aria-pressed", String(advancedSettingsOpen));
-    document
-      .querySelectorAll<HTMLElement>("[data-advanced-setting]")
-      .forEach((element) => {
-        element.hidden = !advancedSettingsOpen;
-      });
+    syncAdvancedSettings();
     if (form) {
       form.dataset.advancedOpen = String(advancedSettingsOpen);
     }
@@ -705,20 +902,25 @@ function renderStart(initial: GameSettings = lastSettings): void {
   });
 
   document
-    .querySelectorAll<HTMLButtonElement>("[data-ex-enabled]")
+    .querySelectorAll<HTMLButtonElement>("[data-difficulty]")
     .forEach((button) => {
       button.addEventListener("click", () => {
         document
-          .querySelectorAll<HTMLButtonElement>("[data-ex-enabled]")
+          .querySelectorAll<HTMLButtonElement>("[data-difficulty]")
           .forEach((peer) => {
-            peer.setAttribute("aria-pressed", String(peer === button));
+            peer.setAttribute(
+              "aria-pressed",
+              String(peer === button),
+            );
           });
-        const toggle = document.querySelector<HTMLElement>(".ex-toggle");
-        const enabled = button.dataset.exEnabled === "true";
+        const toggle =
+          document.querySelector<HTMLElement>(".difficulty-toggle");
         if (toggle) {
-          toggle.dataset.activeEx = String(enabled);
-          toggle.style.setProperty("--ex-position", enabled ? "0" : "1");
+          toggle.dataset.activeDifficulty =
+            button.dataset.difficulty ?? "standard";
         }
+        updateDifficultyNotes();
+        updateStartRecord();
       });
     });
 
@@ -903,10 +1105,10 @@ function renderGame(game: GameSession): void {
     return;
   }
 
-  const questionKey = `${state.settings.mode}|${state.index}`;
+  const questionKey = `${state.settings.mode}|${state.index}|${state.current.char}|${state.current.symbolIds.join(",")}`;
   const questionEnter = questionKey !== lastQuestionKey;
   lastQuestionKey = questionKey;
-  if (questionEnter) {
+  if (questionEnter && state.settings.mode === "challenge") {
     collection.recordEncounter(
       state.current.char,
       state.current.symbolIds,
@@ -1001,7 +1203,15 @@ function renderGame(game: GameSession): void {
         : state.paused
           ? "暂停"
           : "";
-  const keepActionSlots = !revealed || correct;
+  const skipCount =
+    state.settings.mode === "challenge"
+      ? String(state.skipsRemaining)
+      : "∞";
+  const skipDisabled =
+    revealed ||
+    state.paused ||
+    (state.settings.mode === "challenge" &&
+      state.skipsRemaining <= 0);
 
   root.innerHTML = shell(`
     <main class="play-screen">
@@ -1060,15 +1270,18 @@ function renderGame(game: GameSession): void {
         <div class="play-actions">
           ${revealed && state.advanceLabel ? `<button class="primary-action" type="button" data-advance>${escapeHtml(state.advanceLabel)}</button>` : ""}
           ${
-            keepActionSlots
+            revealed && state.advanceLabel
               ? `
+                <button type="button" data-restart>重开</button>
+                <button class="skip-action" type="button" data-skip disabled><span>换题</span><span class="skip-count">${skipCount}</span></button>
+              `
+              : `
                 <button type="button" data-pause ${revealed ? "disabled" : ""}>${state.paused ? "继续" : "暂停"}</button>
                 <button type="button" data-surrender ${revealed ? "disabled" : ""}>弃权</button>
+                <button type="button" data-restart>重开</button>
+                <button class="skip-action" type="button" data-skip ${skipDisabled ? "disabled" : ""}><span>换题</span><span class="skip-count">${skipCount}</span></button>
               `
-              : ""
           }
-          <button type="button" data-restart>重开</button>
-          <button type="button" data-settings>返回</button>
         </div>
       </section>
     </main>
@@ -1089,12 +1302,13 @@ function renderGame(game: GameSession): void {
   document.querySelector<HTMLButtonElement>("[data-advance]")?.addEventListener("click", () => {
     game.advance();
   });
+  document.querySelector<HTMLButtonElement>("[data-skip]")?.addEventListener("click", () => {
+    game.skipQuestion();
+  });
   document.querySelector<HTMLButtonElement>("[data-restart]")?.addEventListener("click", () => {
     startGame(state.settings);
   });
-  document.querySelector<HTMLButtonElement>("[data-settings]")?.addEventListener("click", () => {
-    withPageTransition(() => renderStart(state.settings));
-  });
+  wireGameSettingsDialog();
 }
 
 function renderResults(game: GameSession): void {
@@ -1105,7 +1319,7 @@ function renderResults(game: GameSession): void {
   }
 
   const modeLabel = {
-    normal: "自由模式",
+    normal: "练习模式",
     endless: "无尽模式",
     challenge: "挑战模式",
   }[state.settings.mode];
@@ -1113,12 +1327,15 @@ function renderResults(game: GameSession): void {
     state.settings.mode === "challenge"
       ? data!.challengeBounds(state.settings, state.index)
       : null;
-  const stageSuffix = finalBounds
+  const challengeStage = finalBounds
     ? finalBounds.isEx
-      ? " · 阶段EX"
-      : ` · 阶段${finalBounds.stage}`
+      ? "阶段EX"
+      : `阶段${finalBounds.stage}`
     : "";
-  const score = `${modeLabel} · ${state.correctCount}题${stageSuffix}`;
+  const score =
+    state.settings.mode === "challenge"
+      ? `${challengeStage} · ${state.correctCount}题 · 平均${result.averageQuestionSeconds.toFixed(1)}s`
+      : `${modeLabel} · ${state.correctCount}题`;
   const shareStage = finalBounds
     ? finalBounds.isEx
       ? "EX"
@@ -1175,6 +1392,14 @@ function renderResults(game: GameSession): void {
         <header class="result-header">
           <h1>${escapeHtml(result.title)}</h1>
           <div class="result-score">${escapeHtml(score)}</div>
+          ${
+            state.settings.mode === "challenge"
+              ? `<div class="result-cris" aria-label="获得分光水晶 ${result.crisEarned}">
+                  ${crisIconMarkup()}
+                  <strong>+${result.crisEarned}</strong>
+                </div>`
+              : ""
+          }
           ${
             state.settings.mode === "normal"
               ? ""
@@ -1332,6 +1557,7 @@ function renderResults(game: GameSession): void {
   document.querySelector<HTMLButtonElement>("[data-settings]")?.addEventListener("click", () => {
     withPageTransition(() => renderStart(state.settings));
   });
+  wireGameSettingsDialog();
 }
 
 function startGame(settings: GameSettings): void {
@@ -1345,21 +1571,28 @@ function startGame(settings: GameSettings): void {
   lastQuestionKey = "";
   lastRenderedPaused = false;
   lastSettings = structuredClone(settings);
-  session = new GameSession(data, settings, records, (state, event) => {
-    if (!session) {
-      return;
-    }
-    const activeSession = session;
-    if (event === "tick") {
-      updateTimer(state);
-      return;
-    }
-    if (state.phase === "results") {
-      withPageTransition(() => renderResults(activeSession));
-      return;
-    }
-    renderGame(activeSession);
-  });
+  session = new GameSession(
+    data,
+    settings,
+    records,
+    (state, event) => {
+      if (!session) {
+        return;
+      }
+      const activeSession = session;
+      if (event === "tick") {
+        updateTimer(state);
+        return;
+      }
+      if (state.phase === "results") {
+        withPageTransition(() => renderResults(activeSession));
+        return;
+      }
+      renderGame(activeSession);
+    },
+    Math.random,
+    cris,
+  );
   renderGame(session);
 }
 

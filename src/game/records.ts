@@ -13,7 +13,7 @@ export function recordKey(settings: GameSettings): string {
     return `endless|levels=${settings.levels.join(",")}|parts=${settings.partsLow}-${settings.partsHigh}|seconds=${settings.seconds}`;
   }
   if (settings.mode === "challenge") {
-    return `challenge|questions=${settings.stageQuestions}|size=${settings.stageSize}|shift=${settings.stageShift}|seconds=${settings.seconds}|ex=${settings.exEnabled ? 1 : 0}`;
+    return `challenge|difficulty=${settings.difficulty}|questions=${settings.stageQuestions}|size=${settings.stageSize}|shift=${settings.stageShift}|seconds=${settings.seconds}|ex=${settings.exEnabled ? 1 : 0}`;
   }
   return "";
 }
@@ -42,7 +42,20 @@ export class LocalRecordStore implements RecordStore {
   }
 
   load(key: string): number {
-    const value = Number(this.readAll()[key] ?? 0);
+    const records = this.readAll();
+    const legacyKey = key.startsWith(
+      "challenge|difficulty=standard|",
+    )
+      ? key.replace(
+          "challenge|difficulty=standard|",
+          "challenge|",
+        )
+      : "";
+    const stored =
+      records[key] ??
+      (legacyKey ? records[legacyKey] : undefined) ??
+      0;
+    const value = Number(stored);
     return Number.isFinite(value) ? Math.max(0, value) : 0;
   }
 

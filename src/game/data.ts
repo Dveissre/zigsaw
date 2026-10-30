@@ -1,5 +1,18 @@
 export type Level = 1 | 2 | 3;
 export type Mode = "normal" | "endless" | "challenge";
+export type ChallengeDifficulty =
+  | "beginner"
+  | "standard"
+  | "expert";
+
+export const CHALLENGE_DIFFICULTY_SECONDS: Record<
+  ChallengeDifficulty,
+  number
+> = {
+  beginner: 60,
+  standard: 40,
+  expert: 20,
+};
 
 export interface GameSettings {
   levels: Level[];
@@ -12,6 +25,7 @@ export interface GameSettings {
   stageSize: number;
   stageShift: number;
   exEnabled: boolean;
+  difficulty: ChallengeDifficulty;
 }
 
 export interface ChallengeBounds {

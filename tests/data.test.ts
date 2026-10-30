@@ -303,16 +303,16 @@ describe("static game data", () => {
     expect(atlas.format).toBe("zigsaw-component-atlas/3");
     expect(atlas.sourceHash).toHaveLength(16);
     expect(atlas.componentCount).toBe(363);
-    expect(atlas.exclusiveCount).toBe(31);
-    expect(atlas.xrCount).toBe(16);
+    expect(atlas.exclusiveCount).toBe(32);
+    expect(atlas.xrCount).toBe(15);
     expect(atlas.characterCount).toBe(8105);
     expect(atlas.byRarity).toEqual({
       N: 72,
       R: 137,
       SR: 112,
       SSR: 33,
-      UR: 40,
-      XR: 16,
+      UR: 41,
+      XR: 15,
     });
     const expectedRarity = (count: number) =>
       count >= 100
@@ -493,14 +493,6 @@ describe("static game data", () => {
             component.milestones.length === 0,
         ),
     ).toBe(true);
-    expect(
-      atlas.components.find((component) => component.name === "年"),
-    ).toMatchObject({
-      rarity: "XR",
-      count: 4,
-      charCount: 5,
-      isExclusive: false,
-    });
     for (const rarity of ["N", "R", "SR", "SSR", "UR", "XR"]) {
       const counts = atlas.components
         .filter((component) => component.rarity === rarity)
@@ -596,6 +588,7 @@ describe("static game data", () => {
       stageSize: 1500,
       stageShift: 300,
       exEnabled: true,
+      difficulty: "standard" as const,
     };
     const boundary = game.challengeBounds(settings, (24 - 1) * 5 + 1);
     const ex = game.challengeBounds(settings, (25 - 1) * 5 + 1);

@@ -535,7 +535,8 @@
       "symbolId": 181,
       "name": "𧘇",
       "count": 86,
-      "charCount": 84
+      "charCount": 84,
+      "asset": "component_svg/181.svg"
     },
     {
       "symbolId": 74,
@@ -643,7 +644,8 @@
       "symbolId": 13,
       "name": "𠃊",
       "count": 72,
-      "charCount": 69
+      "charCount": 69,
+      "asset": "component_svg/13.svg"
     },
     {
       "symbolId": 275,
@@ -824,7 +826,8 @@
       "symbolId": 213,
       "name": "𠀎",
       "count": 46,
-      "charCount": 38
+      "charCount": 38,
+      "asset": "component_svg/213.svg"
     },
     {
       "symbolId": 117,
@@ -836,7 +839,8 @@
       "symbolId": 33,
       "name": "𠂆",
       "count": 44,
-      "charCount": 44
+      "charCount": 44,
+      "asset": "component_svg/33.svg"
     },
     {
       "symbolId": 302,
@@ -1142,7 +1146,8 @@
       "symbolId": 421,
       "name": "𠃋",
       "count": 26,
-      "charCount": 10
+      "charCount": 10,
+      "asset": "component_svg/421.svg"
     },
     {
       "symbolId": 148,
@@ -1197,7 +1202,8 @@
       "symbolId": 243,
       "name": "𠕁",
       "count": 24,
-      "charCount": 24
+      "charCount": 24,
+      "asset": "component_svg/243.svg"
     },
     {
       "symbolId": 45,
@@ -1264,7 +1270,8 @@
       "symbolId": 305,
       "name": "𧰨",
       "count": 21,
-      "charCount": 21
+      "charCount": 21,
+      "asset": "component_svg/305.svg"
     },
     {
       "symbolId": 306,
@@ -1313,7 +1320,8 @@
       "symbolId": 414,
       "name": "𠃓",
       "count": 20,
-      "charCount": 19
+      "charCount": 19,
+      "asset": "component_svg/414.svg"
     },
     {
       "symbolId": 149,
@@ -1343,7 +1351,8 @@
       "symbolId": 419,
       "name": "𭠍",
       "count": 19,
-      "charCount": 19
+      "charCount": 19,
+      "asset": "component_svg/419.svg"
     },
     {
       "symbolId": 434,
@@ -1464,7 +1473,8 @@
       "symbolId": 161,
       "name": "𫩏",
       "count": 15,
-      "charCount": 15
+      "charCount": 15,
+      "asset": "component_svg/161.svg"
     },
     {
       "symbolId": 239,
@@ -1526,7 +1536,8 @@
       "symbolId": 204,
       "name": "𠃜",
       "count": 13,
-      "charCount": 13
+      "charCount": 13,
+      "asset": "component_svg/204.svg"
     },
     {
       "symbolId": 381,
@@ -1550,7 +1561,8 @@
       "symbolId": 103,
       "name": "𠂎",
       "count": 12,
-      "charCount": 12
+      "charCount": 12,
+      "asset": "component_svg/103.svg"
     },
     {
       "symbolId": 184,
@@ -1661,7 +1673,8 @@
       "symbolId": 89,
       "name": "𣥂",
       "count": 9,
-      "charCount": 9
+      "charCount": 9,
+      "asset": "component_svg/89.svg"
     },
     {
       "symbolId": 126,

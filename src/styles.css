@@ -176,6 +176,48 @@ input:focus-visible {
   gap: 6px;
 }
 
+.corner-cris {
+  position: absolute;
+  z-index: 50;
+  top: max(12px, env(safe-area-inset-top));
+  left: max(18px, calc((100% - 620px) / 2));
+  display: inline-flex;
+  height: 46px;
+  align-items: center;
+  gap: 6px;
+  color: var(--accent);
+  font-variant-numeric: tabular-nums;
+  line-height: 1;
+  pointer-events: none;
+}
+
+.corner-cris strong {
+  color: var(--ink);
+  font-family: var(--display-font-family);
+  font-size: 16px;
+  line-height: 1;
+}
+
+.page-atlas .corner-cris {
+  left: max(18px, calc((100% - 1180px) / 2 + 18px));
+}
+
+.cris-icon {
+  width: 31px;
+  height: 31px;
+  flex: 0 0 auto;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.7;
+  stroke-linecap: square;
+  stroke-linejoin: miter;
+}
+
+.cris-icon-core {
+  fill: currentColor;
+  stroke: none;
+}
+
 .corner-icon-button {
   display: grid;
   width: 46px;
@@ -201,6 +243,12 @@ input:focus-visible {
   stroke-width: 1.5;
   stroke-linecap: square;
   stroke-linejoin: miter;
+}
+
+.corner-icon-button .settings-icon {
+  width: 27px;
+  height: 27px;
+  stroke-width: 1.55;
 }
 
 .corner-icon-button:focus-visible {
@@ -236,6 +284,13 @@ input:focus-visible {
 
 .page-result .wordmark {
   font-size: clamp(32px, 4.2vw, 48px);
+}
+
+@media (min-width: 641px) {
+  .page-play .masthead {
+    padding-top: calc(clamp(16px, 3.8vh, 34px) + 10px);
+    padding-bottom: calc(clamp(14px, 2.8vh, 24px) - 10px);
+  }
 }
 
 .page-result .wordmark::after {
@@ -348,6 +403,28 @@ input:focus-visible {
   transform: translateX(50%);
   visibility: hidden;
   transition: opacity 150ms ease-out;
+}
+
+.home-decoration {
+  position: absolute;
+  z-index: 0;
+  bottom: max(16px, env(safe-area-inset-bottom));
+  left: 50%;
+  width: 154px;
+  height: 68px;
+  pointer-events: none;
+  transform: translateX(-50%);
+}
+
+.home-decoration .challenge-card-decor {
+  position: relative;
+  right: auto;
+  bottom: auto;
+  width: 100%;
+  height: 100%;
+  opacity: 1;
+  visibility: visible;
+  transform: none;
 }
 
 .settings-form[data-active-mode="challenge"][data-advanced-open="false"]
@@ -653,6 +730,78 @@ input:focus-visible {
 
 .ex-toggle button[aria-pressed="true"] {
   background: transparent;
+}
+
+.difficulty-settings {
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.difficulty-setting {
+  align-items: center;
+  column-gap: 16px;
+  row-gap: 8px;
+}
+
+.difficulty-setting .difficulty-settings {
+  display: contents;
+}
+
+.difficulty-setting .setting-label {
+  grid-column: 1;
+  grid-row: 1;
+}
+
+.difficulty-setting .difficulty-toggle {
+  grid-column: 2;
+  grid-row: 1;
+}
+
+.difficulty-setting .difficulty-notes {
+  grid-column: 2;
+  grid-row: 2;
+}
+
+.difficulty-toggle {
+  --difficulty-position: 1;
+  width: min(100%, 330px);
+}
+
+.difficulty-toggle .choice-slider {
+  width: 33.3333%;
+  transform: translateX(
+    calc(var(--difficulty-position) * 100%)
+  );
+}
+
+.difficulty-toggle[data-active-difficulty="beginner"] .choice-slider {
+  background: var(--level2-green);
+}
+
+.difficulty-toggle[data-active-difficulty="standard"] .choice-slider {
+  background: var(--accent);
+}
+
+.difficulty-toggle[data-active-difficulty="expert"] .choice-slider {
+  background: var(--ex-purple);
+}
+
+.difficulty-toggle button[aria-pressed="true"] {
+  background: transparent;
+}
+
+.difficulty-notes {
+  width: min(100%, 330px);
+  color: var(--muted);
+  font-size: 12px;
+  line-height: 1.55;
+  text-align: center;
+}
+
+.difficulty-notes p {
+  margin: 0;
 }
 
 .stepper {
@@ -1411,7 +1560,11 @@ input:focus-visible {
 
 .play-actions {
   display: grid;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
+  grid-template-columns:
+    minmax(68px, 0.9fr)
+    minmax(68px, 0.9fr)
+    minmax(68px, 0.9fr)
+    minmax(100px, 1.35fr);
   gap: 8px;
   width: min(100%, 352px);
   margin: 28px auto 0;
@@ -1421,6 +1574,38 @@ input:focus-visible {
 
 .play-actions .primary-action {
   grid-column: span 2;
+  min-height: 35px;
+  padding-block: 5px;
+}
+
+.play-actions button {
+  line-height: 1;
+}
+
+.play-actions button.skip-action {
+  display: inline-flex;
+  align-items: stretch;
+  justify-content: center;
+  min-height: 35px;
+  padding: 0;
+}
+
+.play-actions .skip-action > span:first-child {
+  display: grid;
+  flex: 1;
+  place-items: center;
+  padding: 5px 9px;
+  white-space: nowrap;
+}
+
+.play-actions .skip-count {
+  display: grid;
+  min-width: 30px;
+  border-left: 1px solid currentColor;
+  place-items: center;
+  background: transparent;
+  font-variant-numeric: tabular-nums;
+  font-weight: 700;
 }
 
 .result-actions {
@@ -1433,7 +1618,19 @@ input:focus-visible {
   border-top: 1px solid var(--line);
 }
 
-.play-actions button:not(.primary-action),
+.play-actions button:not(.primary-action) {
+  min-height: 35px;
+  padding: 5px 8px;
+  border: 1px solid var(--line-strong);
+  color: var(--muted);
+  background: var(--surface);
+  box-shadow: 2px 2px 0 var(--hard-shadow);
+  transition:
+    color 80ms ease,
+    background-color 80ms ease,
+    transform 80ms ease;
+}
+
 .result-actions button:not(.primary-action) {
   min-height: 36px;
   padding: 7px 13px;
@@ -1445,6 +1642,10 @@ input:focus-visible {
     color 80ms ease,
     background-color 80ms ease,
     transform 80ms ease;
+}
+
+.play-actions button.skip-action {
+  padding: 0;
 }
 
 .result-actions .result-share {
@@ -1473,6 +1674,121 @@ input:focus-visible {
 .share-toast.is-visible {
   opacity: 1;
   transform: translate(-50%, 0);
+}
+
+.game-settings-dialog {
+  width: min(430px, calc(100vw - 24px));
+  padding: 0;
+  border: 1px solid var(--ink);
+  color: var(--ink);
+  background: var(--surface);
+  box-shadow: 8px 8px 0 rgba(32, 35, 31, 0.18);
+}
+
+.game-settings-dialog[open] {
+  animation: char-detail-in 160ms ease-out both;
+}
+
+.game-settings-dialog::backdrop {
+  background: rgba(32, 35, 31, 0.42);
+  animation: char-detail-backdrop-in 150ms ease-out both;
+}
+
+.game-settings-panel {
+  display: flex;
+  min-height: 0;
+  flex-direction: column;
+}
+
+.game-settings-header {
+  position: relative;
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 20px;
+  padding: 21px 58px 16px 22px;
+  border-bottom: 1px solid var(--line-strong);
+}
+
+.game-settings-kicker {
+  color: var(--muted);
+  font-family: var(--display-font-family);
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.16em;
+}
+
+.game-settings-header h2 {
+  margin: 3px 0 0;
+  font-size: 30px;
+  line-height: 1;
+}
+
+.game-settings-close {
+  top: 8px;
+  right: 8px;
+}
+
+.game-settings-content {
+  padding: 5px 22px 20px;
+}
+
+.game-setting-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(190px, 0.9fr);
+  align-items: center;
+  gap: 18px;
+  padding: 17px 0;
+  border-bottom: 1px solid var(--line);
+}
+
+.game-setting-row .ex-toggle {
+  justify-self: end;
+  width: min(100%, 220px);
+}
+
+.game-setting-copy {
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.game-setting-copy strong {
+  font-size: 17px;
+  font-weight: 600;
+}
+
+.game-setting-copy span {
+  color: var(--muted);
+  font-size: 11px;
+  line-height: 1.45;
+}
+
+.git-setting-link {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 18px;
+  padding: 17px 0 2px;
+  color: var(--ink);
+  text-decoration: none;
+}
+
+.git-setting-link span:first-child {
+  font-size: 17px;
+  font-weight: 600;
+}
+
+.git-setting-link span:last-child {
+  color: var(--muted);
+  font-family: var(--display-font-family);
+  font-size: 12px;
+  text-align: right;
+}
+
+.git-setting-link:hover span:last-child {
+  color: var(--accent);
 }
 
 .play-actions button:not(.primary-action):hover,
@@ -1521,6 +1837,26 @@ input:focus-visible {
   margin-top: 9px;
   font-size: 18px;
   font-variant-numeric: tabular-nums;
+}
+
+.result-cris {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  margin-top: 7px;
+  color: var(--accent);
+  font-variant-numeric: tabular-nums;
+}
+
+.result-cris .cris-icon {
+  width: 17px;
+  height: 17px;
+}
+
+.result-cris strong {
+  font-family: var(--display-font-family);
+  font-size: 15px;
+  line-height: 1;
 }
 
 .record-row {
@@ -3378,6 +3714,140 @@ input:focus-visible {
   font-variant-numeric: tabular-nums;
 }
 
+.tutorial-atlas-demo {
+  width: min(100%, 520px);
+  margin: 0 auto 16px;
+  padding: 11px;
+  border: 1px solid var(--line-strong);
+  background: var(--surface);
+}
+
+.tutorial-atlas-summary {
+  display: flex;
+  justify-content: flex-end;
+  gap: 5px;
+  color: var(--muted);
+  font-size: 12px;
+  font-variant-numeric: tabular-nums;
+}
+
+.tutorial-atlas-summary strong {
+  color: var(--ink);
+  font-family: var(--display-font-family);
+  font-size: 17px;
+  line-height: 0.9;
+}
+
+.tutorial-atlas-grid {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: 8px;
+  margin-top: 9px;
+}
+
+.tutorial-atlas-card {
+  --atlas-demo-accent: #767973;
+  --atlas-demo-shadow: #d4d2cb;
+  position: relative;
+  display: grid;
+  aspect-ratio: 1;
+  container-type: inline-size;
+  overflow: hidden;
+  place-items: center;
+  border: 1px solid #9c9e98;
+  color: var(--ink);
+  background: #f3f1eb;
+  box-shadow: 3px 3px 0 var(--atlas-demo-shadow);
+}
+
+.tutorial-atlas-card::before {
+  content: "";
+  position: absolute;
+  inset: 4px;
+  z-index: 0;
+  border: 1px solid var(--atlas-demo-accent);
+  opacity: 0.24;
+  pointer-events: none;
+}
+
+.tutorial-atlas-rarity {
+  position: absolute;
+  top: 1px;
+  left: 5px;
+  z-index: 0;
+  color: currentColor;
+  font-family: var(--display-font-family);
+  font-size: 50cqw;
+  font-weight: 700;
+  font-style: italic;
+  letter-spacing: -0.08em;
+  line-height: 0.9;
+  opacity: 0.16;
+  pointer-events: none;
+}
+
+.tutorial-atlas-card b {
+  position: relative;
+  z-index: 1;
+  font-size: 52cqw;
+  font-weight: 700;
+  line-height: 1;
+}
+
+.tutorial-atlas-card small {
+  position: absolute;
+  right: 7px;
+  bottom: 4px;
+  z-index: 1;
+  color: currentColor;
+  font-family: var(--display-font-family);
+  font-size: 10px;
+  font-weight: 700;
+  line-height: 1;
+  opacity: 0.7;
+}
+
+.tutorial-atlas-card.rarity-r {
+  --atlas-demo-accent: #5a8462;
+  --atlas-demo-shadow: #c5d3c7;
+  border-color: #76917a;
+  color: #36513b;
+  background: #dfeadf;
+}
+
+.tutorial-atlas-card.rarity-sr {
+  --atlas-demo-accent: #5c8494;
+  --atlas-demo-shadow: #c6d6dc;
+  border-color: #718f9d;
+  color: #315361;
+  background: #dceaf0;
+}
+
+.tutorial-atlas-card.rarity-ssr {
+  --atlas-demo-accent: #785b87;
+  --atlas-demo-shadow: #d5c9dc;
+  border-color: #866b94;
+  color: #493554;
+  background: #e7dcf0;
+}
+
+.tutorial-atlas-card.is-locked {
+  border-color: #b9bab5;
+  background: #d8d7d1;
+  box-shadow: 3px 3px 0 #c9c7c0;
+}
+
+.tutorial-atlas-card.is-locked::before {
+  inset: 4px;
+  border: 1px solid #9ea09a;
+  background: repeating-linear-gradient(
+    135deg,
+    transparent 0 7px,
+    rgba(73, 76, 71, 0.14) 7px 8px
+  );
+  opacity: 1;
+}
+
 .char-detail-dialog {
   width: min(760px, calc(100vw - 32px));
   max-width: none;
@@ -3849,6 +4319,11 @@ input:focus-visible {
     padding: 14px 0 12px;
   }
 
+  .page-play .masthead,
+  .page-result .masthead {
+    padding-top: 46px;
+  }
+
   .start-screen {
     padding-top: 2px;
   }
@@ -4063,6 +4538,12 @@ input:focus-visible {
     gap: 4px;
   }
 
+  .corner-cris {
+    top: max(9px, env(safe-area-inset-top));
+    left: max(14px, env(safe-area-inset-left));
+    height: 40px;
+  }
+
   .corner-icon-button {
     width: 40px;
     height: 40px;
@@ -4071,6 +4552,56 @@ input:focus-visible {
   .corner-icon-button svg {
     width: 27px;
     height: 27px;
+  }
+
+  .corner-icon-button .settings-icon {
+    width: 24px;
+    height: 24px;
+  }
+
+  .cris-icon {
+    width: 27px;
+    height: 27px;
+  }
+
+  .page-atlas .corner-cris {
+    left: max(14px, env(safe-area-inset-left));
+  }
+
+  .game-settings-dialog {
+    width: calc(100vw - 20px);
+  }
+
+  .game-settings-header {
+    padding: 18px 54px 14px 17px;
+  }
+
+  .game-settings-header h2 {
+    font-size: 27px;
+  }
+
+  .game-settings-content {
+    padding: 4px 17px 17px;
+  }
+
+  .game-setting-row {
+    grid-template-columns: minmax(86px, 1fr) minmax(164px, 0.95fr);
+    gap: 12px;
+  }
+
+  .game-setting-row .ex-toggle {
+    justify-self: end;
+    width: min(100%, 190px);
+  }
+
+  .git-setting-link {
+    align-items: center;
+    flex-direction: row;
+    gap: 12px;
+  }
+
+  .git-setting-link span:last-child {
+    text-align: right;
   }
 
   .tutorial-dialog {
@@ -4261,6 +4792,15 @@ input:focus-visible {
 
   .tutorial-mode-card {
     padding: 11px 12px;
+  }
+
+  .tutorial-atlas-demo {
+    padding: 8px;
+  }
+
+  .tutorial-atlas-grid {
+    gap: 5px;
+    margin-top: 7px;
   }
 
   .tutorial-copy {

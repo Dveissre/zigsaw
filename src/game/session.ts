@@ -1,10 +1,15 @@
 import type {
+  ChallengeDifficulty,
   ChallengeBounds,
   GameData,
   GameSettings,
   Mode,
 } from "./data";
 import { externalCharacterMeta } from "./data";
+import {
+  calculateCrisReward,
+  type CrisLedger,
+} from "./cris";
 import { recordKey, type RecordStore } from "./records";
 
 export interface Question {
@@ -33,6 +38,7 @@ export interface ResultState {
   record: number;
   newRecord: boolean;
   averageQuestionSeconds: number;
+  crisEarned: number;
 }
 
 export interface GameState {
@@ -44,6 +50,7 @@ export interface GameState {
   paused: boolean;
   revealing: boolean;
   pendingSettlement: boolean;
+  skipsRemaining: number;
   feedback: string;
   draft: string;
   current: Question | null;
@@ -62,6 +69,14 @@ export interface ChallengeClassProbabilities {
   three: number;
   four: number;
   longer: number;
+}
+
+export const MAX_CHALLENGE_SKIPS = 5;
+
+export function initialChallengeSkips(
+  difficulty: ChallengeDifficulty,
+): number {
+  return difficulty === "expert" ? 0 : 1;
 }
 
 const shuffle = <T>(items: T[], random: () => number): T[] => {
@@ -183,6 +198,7 @@ export class GameSession {
   private readonly records: RecordStore;
   private readonly onChange: SessionListener;
   private readonly random: () => number;
+  private readonly crisLedger: CrisLedger | null;
   private pool: string[] = [];
   private usedBags = new Set<string>();
   private usedChars = new Set<string>();
@@ -194,6 +210,8 @@ export class GameSession {
   private questionElapsedMs = 0;
   private totalQuestionTimeMs = 0;
   private timedQuestionCount = 0;
+  private challengeExEntered = false;
+  private challengeExCorrectCount = 0;
 
   constructor(
     data: GameData,
@@ -201,11 +219,13 @@ export class GameSession {
     records: RecordStore,
     onChange: SessionListener,
     random: () => number = Math.random,
+    crisLedger: CrisLedger | null = null,
   ) {
     this.data = data;
     this.records = records;
     this.onChange = onChange;
     this.random = random;
+    this.crisLedger = crisLedger;
     this.state = {
       phase: "playing",
       settings: structuredClone(settings),
@@ -215,6 +235,10 @@ export class GameSession {
       paused: false,
       revealing: false,
       pendingSettlement: false,
+      skipsRemaining:
+        settings.mode === "challenge"
+          ? initialChallengeSkips(settings.difficulty)
+          : Number.POSITIVE_INFINITY,
       feedback: "",
       draft: "",
       current: null,
@@ -267,6 +291,7 @@ export class GameSession {
     this.state.revealMeta = "";
     this.state.advanceLabel = "";
     this.currentRecorded = false;
+    this.grantExEntrySkip();
     this.startTimer();
     this.emit();
   }
@@ -279,17 +304,27 @@ export class GameSession {
     );
   }
 
-  private pickQuestion(): Question {
+  private pickQuestion(
+    componentCount?: number,
+    excludeChar?: string,
+  ): Question {
     if (this.state.settings.mode === "challenge") {
-      return this.pickChallengeQuestion();
+      return this.pickChallengeQuestion(componentCount, excludeChar);
     }
+
+    const waysFor = (char: string): number[][] =>
+      this.waysInRange(char).filter(
+        (way) =>
+          componentCount === undefined ||
+          way.length === componentCount,
+      );
 
     while (this.pool.length > 0) {
       const char = this.pool.pop();
-      if (!char) {
+      if (!char || char === excludeChar) {
         break;
       }
-      const ways = this.waysInRange(char);
+      const ways = waysFor(char);
       if (ways.length === 0) {
         continue;
       }
@@ -299,19 +334,26 @@ export class GameSession {
         continue;
       }
       this.usedBags.add(key);
+      this.usedChars.add(char);
       return this.toQuestion(char, way);
     }
 
-    const chars = this.buildPool();
+    const chars = this.buildPool().filter(
+      (char) => char !== excludeChar && waysFor(char).length > 0,
+    );
     if (chars.length === 0) {
       throw new Error("没有符合设置的字");
     }
     const char = pickRandom(chars, this.random);
-    const way = pickRandom(this.waysInRange(char), this.random);
+    const way = pickRandom(waysFor(char), this.random);
+    this.usedChars.add(char);
     return this.toQuestion(char, way);
   }
 
-  private pickChallengeQuestion(): Question {
+  private pickChallengeQuestion(
+    componentCount?: number,
+    excludeChar?: string,
+  ): Question {
     const bounds = this.challengeBounds();
     const minParts = bounds.isEx ? 3 : 2;
     const source = bounds.isEx
@@ -370,13 +412,43 @@ export class GameSession {
     const allChoices = [...choicesByLength.values()].flatMap((group) =>
       [...group.values()],
     );
-    const unusedChoices = allChoices.filter(
+    const eligibleChoices = excludeChar
+      ? allChoices.filter((choice) => choice.char !== excludeChar)
+      : allChoices;
+    if (eligibleChoices.length === 0) {
+      throw new Error("没有另一道相同部件数的题");
+    }
+    const unusedChoices = eligibleChoices.filter(
       (choice) => !this.usedChars.has(choice.char),
     );
     const availableChoices =
-      unusedChoices.length > 0 ? unusedChoices : allChoices;
+      unusedChoices.length > 0 ? unusedChoices : eligibleChoices;
     if (availableChoices.length === 0) {
       throw new Error("没有符合当前阶段的字");
+    }
+
+    const makeQuestion = (selected: Choice): Question => {
+      const unusedWays = selected.ways.filter(
+        (way) =>
+          !this.usedBags.has([...way].sort((a, b) => a - b).join(",")),
+      );
+      const way = pickRandom(
+        unusedWays.length > 0 ? unusedWays : selected.ways,
+        this.random,
+      );
+      this.usedChars.add(selected.char);
+      this.usedBags.add([...way].sort((a, b) => a - b).join(","));
+      return this.toQuestion(selected.char, way);
+    };
+
+    if (componentCount !== undefined) {
+      const sameLength = availableChoices.filter(
+        (choice) => choice.length === componentCount,
+      );
+      if (sameLength.length === 0) {
+        throw new Error("没有另一道相同部件数的题");
+      }
+      return makeQuestion(pickRandom(sameLength, this.random));
     }
 
     const groups = new Map<number, Choice[]>();
@@ -449,18 +521,7 @@ export class GameSession {
       selectedGroup = groups.get(category.componentCount) ?? [];
     }
 
-    const selected = pickRandom(selectedGroup, this.random);
-    const unusedWays = selected.ways.filter(
-      (way) =>
-        !this.usedBags.has([...way].sort((a, b) => a - b).join(",")),
-    );
-    const way = pickRandom(
-      unusedWays.length > 0 ? unusedWays : selected.ways,
-      this.random,
-    );
-    this.usedChars.add(selected.char);
-    this.usedBags.add([...way].sort((a, b) => a - b).join(","));
-    return this.toQuestion(selected.char, way);
+    return makeQuestion(pickRandom(selectedGroup, this.random));
   }
 
   private toQuestion(char: string, way: number[]): Question {
@@ -481,6 +542,64 @@ export class GameSession {
     this.state.draft = value;
     if (this.state.feedback === "wrong") {
       this.state.feedback = "";
+    }
+  }
+
+  skipQuestion(): void {
+    if (
+      this.state.phase !== "playing" ||
+      this.state.revealing ||
+      this.state.paused ||
+      !this.state.current
+    ) {
+      return;
+    }
+    if (
+      this.state.settings.mode === "challenge" &&
+      this.state.skipsRemaining <= 0
+    ) {
+      return;
+    }
+
+    const current = this.state.current;
+    let replacement: Question;
+    try {
+      replacement = this.pickQuestion(
+        current.symbolIds.length,
+        current.char,
+      );
+    } catch {
+      return;
+    }
+
+    if (this.state.settings.mode === "challenge") {
+      this.state.skipsRemaining -= 1;
+    }
+    this.clearTimers();
+    this.questionRunStartedAt = null;
+    this.questionElapsedMs = 0;
+    this.state.current = replacement;
+    this.state.remaining = this.state.settings.seconds;
+    this.state.paused = false;
+    this.state.revealing = false;
+    this.state.pendingSettlement = false;
+    this.state.feedback = "";
+    this.state.draft = "";
+    this.state.revealAnswer = "";
+    this.state.revealMeta = "";
+    this.state.advanceLabel = "";
+    this.currentRecorded = false;
+    this.startTimer();
+    this.emit();
+  }
+
+  setExEnabled(enabled: boolean): void {
+    if (this.state.settings.mode !== "challenge") {
+      return;
+    }
+    this.state.settings.exEnabled = enabled;
+    if (enabled && !this.challengeExEntered) {
+      this.challengeExCorrectCount = 0;
     }
   }
 
@@ -508,6 +627,7 @@ export class GameSession {
     this.clearTimers();
     this.state.correctCount += 1;
     this.recordCurrent(true, answer, answer);
+    this.grantChallengeProgressReward();
     this.state.revealing = true;
     this.state.feedback = "correct";
     this.state.revealAnswer = answer;
@@ -563,7 +683,11 @@ export class GameSession {
     this.clearTimers();
     this.state.paused = false;
     this.recordCurrent(false, this.state.draft);
-    this.revealCurrent("结算", true);
+    const practice = this.state.settings.mode === "normal";
+    this.revealCurrent(
+      practice ? "继续" : "结算",
+      !practice,
+    );
   }
 
   advance(): void {
@@ -618,14 +742,10 @@ export class GameSession {
     }
     this.clearTimers();
     this.recordCurrent(false, this.state.draft);
-    const isLastNormalQuestion =
-      this.state.settings.mode === "normal" &&
-      this.state.index >= this.state.settings.count;
-    const settle =
-      this.state.settings.mode !== "normal" || isLastNormalQuestion;
+    const practice = this.state.settings.mode === "normal";
     this.revealCurrent(
-      settle ? "结算" : "下一题",
-      settle,
+      practice ? "继续" : "结算",
+      !practice,
     );
   }
 
@@ -678,6 +798,64 @@ export class GameSession {
     return meta ? `（${meta}）` : "";
   }
 
+  private addChallengeSkip(): void {
+    if (this.state.settings.mode !== "challenge") {
+      return;
+    }
+    this.state.skipsRemaining = Math.min(
+      MAX_CHALLENGE_SKIPS,
+      this.state.skipsRemaining + 1,
+    );
+  }
+
+  private grantExEntrySkip(): void {
+    if (
+      this.state.settings.mode !== "challenge" ||
+      !this.state.settings.exEnabled ||
+      !this.challengeBounds().isEx
+    ) {
+      return;
+    }
+    if (this.challengeExEntered) {
+      return;
+    }
+    this.challengeExEntered = true;
+    if (
+      this.state.settings.difficulty === "expert"
+    ) {
+      this.addChallengeSkip();
+    }
+  }
+
+  private grantChallengeProgressReward(): void {
+    if (this.state.settings.mode !== "challenge") {
+      return;
+    }
+    const bounds = this.challengeBounds();
+    if (bounds.isEx) {
+      if (this.state.settings.difficulty !== "expert") {
+        return;
+      }
+      this.challengeExCorrectCount += 1;
+      if (this.challengeExCorrectCount % 10 === 0) {
+        this.addChallengeSkip();
+      }
+      return;
+    }
+    if (
+      this.state.index % this.state.settings.stageQuestions !== 0
+    ) {
+      return;
+    }
+    const difficulty = this.state.settings.difficulty;
+    if (
+      difficulty === "beginner" ||
+      (difficulty === "standard" && bounds.stage % 4 === 0)
+    ) {
+      this.addChallengeSkip();
+    }
+  }
+
   private finish(): void {
     if (this.state.phase === "results") {
       return;
@@ -720,7 +898,35 @@ export class GameSession {
             this.timedQuestionCount /
             1000
           : 0,
+      crisEarned: 0,
     };
+    if (mode === "challenge") {
+      const normalCorrect = this.state.history.filter(
+        (item) => item.ok && !item.isEx,
+      ).length;
+      const exCorrect = this.state.history.filter(
+        (item) => item.ok && item.isEx,
+      ).length;
+      const crisEarned = calculateCrisReward(
+        {
+          difficulty: this.state.settings.difficulty,
+          normalCorrect,
+          exCorrect,
+          stagesCleared: Math.floor(
+            normalCorrect /
+              Math.max(1, this.state.settings.stageQuestions),
+          ),
+          stageQuestions: this.state.settings.stageQuestions,
+          enteredEx: this.state.history.some(
+            (item) => item.isEx,
+          ),
+        },
+      );
+      this.state.result.crisEarned = crisEarned;
+      if (crisEarned > 0) {
+        this.crisLedger?.add(crisEarned);
+      }
+    }
     this.emit();
   }
 

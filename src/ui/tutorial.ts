@@ -138,17 +138,17 @@ export function createTutorialDialog(): HTMLDialogElement {
               <p class="tutorial-copy">
                 到达字表末端后，将进入<strong class="tutorial-ex-name">阶段EX</strong>……会有什么呢？
               </p>
-              <p class="tutorial-disclaimer">阶段EX可在设置页关闭</p>
+              <p class="tutorial-disclaimer">阶段EX可在设置中关闭</p>
             </section>
 
             <section class="tutorial-section">
               <header class="tutorial-section-heading">
                 <span>03</span>
-                <h3>自由 / 无尽模式</h3>
+                <h3>练习 / 无尽模式</h3>
               </header>
               <div class="tutorial-mode-pair">
                 <div class="tutorial-mode-card">
-                  <div class="tutorial-mode-name">自由</div>
+                  <div class="tutorial-mode-name">练习</div>
                   <div class="tutorial-progress-track">
                     <span style="width: 70%"></span>
                   </div>
@@ -163,10 +163,39 @@ export function createTutorialDialog(): HTMLDialogElement {
                 </div>
               </div>
               <p class="tutorial-copy">
-                有更多可调整设置，适合对全字表进行练习。
+                有更多可调整设置，换题次数不限。
               </p>
               <p class="tutorial-copy">
-                但是超时仍然会结束游戏，尽可能多地答对吧！
+                适合对全字表进行练习，尽可能多地答对吧！
+              </p>
+              <p class="tutorial-disclaimer">
+                练习 / 无尽模式无法解锁图鉴
+              </p>
+            </section>
+
+            <section class="tutorial-section">
+              <header class="tutorial-section-heading">
+                <span>04</span>
+                <h3>图鉴</h3>
+              </header>
+              <div class="tutorial-atlas-demo" aria-label="图鉴示意">
+                <div class="tutorial-atlas-summary">
+                  <span>已收集</span>
+                  <strong>128</strong>
+                  <span>/ 363</span>
+                </div>
+                <div class="tutorial-atlas-grid" aria-hidden="true">
+                  <span class="tutorial-atlas-card rarity-n"><span class="tutorial-atlas-rarity">N</span><b>木</b><small>735</small></span>
+                  <span class="tutorial-atlas-card rarity-r"><span class="tutorial-atlas-rarity">R</span><b>夕</b><small>86</small></span>
+                  <span class="tutorial-atlas-card rarity-sr"><span class="tutorial-atlas-rarity">SR</span><b>衣</b><small>19</small></span>
+                  <span class="tutorial-atlas-card rarity-ssr"><span class="tutorial-atlas-rarity">SSR</span><b>与</b><small>4</small></span>
+                  <span class="tutorial-atlas-card is-locked"></span>
+                </div>
+              </div>
+              <p class="tutorial-copy">
+                挑战模式中遇到的汉字与部件会自动收录。<br>
+                点击部件卡片可查看关联汉字、完成度与里程碑。<br>
+                以更高的收集度为目标吧！
               </p>
             </section>
             <div class="tutorial-return-row">

@@ -82,7 +82,7 @@ try {
     await page.getByRole("link", { name: "返回主页", exact: true }).click();
     await page.waitForURL((url) => !url.pathname.endsWith("/atlas/"));
     await page.locator(".start-button:not([disabled])").waitFor();
-    await page.getByRole("button", { name: "自由", exact: true }).click();
+    await page.getByRole("button", { name: "练习", exact: true }).click();
     await page.waitForTimeout(220);
     await page.locator(".parts-slider").waitFor();
     const controlAlignment = await page.evaluate(() => {
