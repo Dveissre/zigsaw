@@ -206,10 +206,17 @@ describe("static game data", () => {
       svgFiles.filter((filename) => !supersededFiles.includes(filename)),
     );
     expect(supersededFiles).toEqual([
+      "121.svg",
       "159.svg",
       "198.svg",
+      "240.svg",
+      "266.svg",
+      "298.svg",
       "338.svg",
+      "347.svg",
+      "355.svg",
       "425.svg",
+      "431.svg",
     ]);
     for (const [symbolId, asset] of Object.entries(assets.symbols)) {
       expect(symTable.symbols[symbolId]).toBe(asset.name);
@@ -268,7 +275,7 @@ describe("static game data", () => {
 
     expect(usage.format).toBe("zigsaw-component-usage/1");
     expect(usage.characterCount).toBe(8105);
-    expect(usage.decompositionCount).toBe(8859);
+    expect(usage.decompositionCount).toBe(8861);
     expect(usage.componentCount).toBe(usage.symbols.length);
     expect(new Set(ids).size).toBe(ids.length);
     expect(usage.totalUsageCount).toBe(
@@ -303,16 +310,16 @@ describe("static game data", () => {
     expect(atlas.format).toBe("zigsaw-component-atlas/3");
     expect(atlas.sourceHash).toHaveLength(16);
     expect(atlas.componentCount).toBe(363);
-    expect(atlas.exclusiveCount).toBe(32);
-    expect(atlas.xrCount).toBe(15);
+    expect(atlas.exclusiveCount).toBe(31);
+    expect(atlas.xrCount).toBe(16);
     expect(atlas.characterCount).toBe(8105);
     expect(atlas.byRarity).toEqual({
       N: 72,
-      R: 137,
-      SR: 112,
+      R: 138,
+      SR: 111,
       SSR: 33,
-      UR: 41,
-      XR: 15,
+      UR: 40,
+      XR: 16,
     });
     const expectedRarity = (count: number) =>
       count >= 100

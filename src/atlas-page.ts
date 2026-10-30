@@ -361,6 +361,7 @@ function renderComponentGrid(): void {
   if (!atlas) {
     return;
   }
+  renderRarityProgress();
   const grid = document.querySelector<HTMLElement>(
     "[data-component-grid]",
   );
@@ -381,6 +382,42 @@ function renderComponentGrid(): void {
   grid.innerHTML = components.map(renderComponentCard).join("");
 }
 
+function renderRarityProgress(): void {
+  const progress = document.querySelector<HTMLElement>(
+    "[data-atlas-rarity-progress]",
+  );
+  if (!progress || !atlas) {
+    return;
+  }
+  if (activeRarity === "all") {
+    progress.hidden = true;
+    return;
+  }
+  const rarity = activeRarity;
+  if (rarity === "XR") {
+    progress.hidden = false;
+    progress.innerHTML = `
+      <span class="atlas-rarity-progress-track"><span style="width:100%"></span></span>
+      <strong>100%</strong>
+    `;
+    return;
+  }
+  const components = atlas.components.filter(
+    (component) =>
+      component.rarity === rarity && !component.isExclusive,
+  );
+  const unlocked = components.filter(isComponentUnlocked).length;
+  const percentage =
+    components.length === 0
+      ? 0
+      : Math.round((unlocked / components.length) * 100);
+  progress.hidden = false;
+  progress.innerHTML = `
+    <span class="atlas-rarity-progress-track"><span style="width:${percentage}%"></span></span>
+    <strong>${percentage}%</strong>
+  `;
+}
+
 function characterCard(
   character: AtlasCharacterReference,
   component: AtlasComponentSummary,
@@ -399,7 +436,10 @@ function characterCard(
       : character.level === 2
         ? "二级"
         : "三级";
-  const meta = character.isUnreachable || character.isEx
+  const meta =
+    character.isUnreachable ||
+    character.isExternal ||
+    character.isEx
     ? `表外 U+${codePoint.toString(16).toUpperCase().padStart(4, "0")}`
     : `${levelLabel} ${String(character.rank).padStart(4, "0")}`;
   return `
@@ -546,7 +586,10 @@ async function selectComponent(
   historyMode: HistoryMode = "auto",
 ): Promise<void> {
   const wasOpen = activeComponent !== null;
-  if (component?.rarity === "XR" && !debugUnlockAll) {
+  if (
+    component?.rarity === "XR" &&
+    !isComponentUnlocked(component)
+  ) {
     component = null;
   }
   if (component?.symbolId !== activeComponent?.symbolId) {
@@ -848,7 +891,7 @@ function renderAtlas(): void {
   const selectedId = activeComponent?.symbolId;
   appRoot.innerHTML = `
     <div class="app-shell page-atlas">
-      <button class="advanced-corner" type="button" data-atlas-advanced aria-label="高级设置" aria-pressed="${debugUnlockAll}"></button>
+      <button class="advanced-corner" type="button" data-atlas-advanced aria-label="调试入口" aria-pressed="${debugUnlockAll}"></button>
       ${crisBalanceMarkup(cris.load(), debugUnlockAll)}
       <a class="atlas-home" href="../" aria-label="返回主页">
         <svg viewBox="0 0 24 24" aria-hidden="true">
@@ -872,6 +915,7 @@ function renderAtlas(): void {
           <div class="atlas-layout">
             <section class="atlas-catalog">
               <div class="atlas-filters" data-atlas-filters></div>
+              <div class="atlas-rarity-progress" data-atlas-rarity-progress hidden></div>
               <div class="atlas-component-grid" data-component-grid></div>
             </section>
             <aside class="atlas-detail" data-atlas-detail>
@@ -918,7 +962,10 @@ function renderAtlas(): void {
         activeRarity = "all";
       }
       renderAtlas();
-      if (!debugUnlockAll && activeComponent?.rarity === "XR") {
+      if (
+        activeComponent?.rarity === "XR" &&
+        !isComponentUnlocked(activeComponent)
+      ) {
         void selectComponent(null, "replace");
         return;
       }
@@ -959,7 +1006,8 @@ void loadComponentAtlas(document.baseURI)
     );
     if (
       component &&
-      (debugUnlockAll || component.rarity !== "XR")
+      (component.rarity !== "XR" ||
+        isComponentUnlocked(component))
     ) {
       void selectComponent(component, "replace");
     } else {

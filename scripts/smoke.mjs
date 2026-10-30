@@ -539,7 +539,7 @@ try {
     await page.getByText("题/阶段", { exact: true }).isVisible(),
     false,
   );
-  const advancedCorner = page.getByRole("button", { name: "高级设置" });
+  const advancedCorner = page.getByRole("button", { name: "调试入口" });
   const cornerPosition = await advancedCorner.evaluate((button) => {
     const style = getComputedStyle(button);
     const box = button.getBoundingClientRect();
@@ -675,13 +675,13 @@ try {
   await page.evaluate(() =>
     sessionStorage.setItem("zigsaw.debug.unlocked", "1"),
   );
-  await page.getByRole("button", { name: "高级设置" }).click();
+  await page.getByRole("button", { name: "调试入口" }).click();
   await page.getByRole("button", { name: "挑战", exact: true }).click();
   assert.equal(
     await page.getByText("题/阶段", { exact: true }).isVisible(),
     false,
   );
-  await page.getByRole("button", { name: /高级设置/ }).waitFor();
+  await page.getByRole("button", { name: /调试入口/ }).waitFor();
   assert.equal(await page.getByText("级别", { exact: true }).isVisible(), false);
   await page.getByRole("button", { name: "设置", exact: true }).click();
   assert.equal(
@@ -1182,7 +1182,7 @@ try {
   await page.evaluate(() =>
     sessionStorage.setItem("zigsaw.debug.unlocked", "1"),
   );
-  await page.getByRole("button", { name: /高级设置/ }).click();
+  await page.getByRole("button", { name: /调试入口/ }).click();
   await page.getByText("题/阶段", { exact: true }).waitFor();
   await page.locator("#stage-questions").fill("2");
   await page.getByRole("button", { name: "开始", exact: true }).click();
@@ -1427,7 +1427,7 @@ try {
     true,
   );
   if (!(await page.locator("#game-seconds").isVisible())) {
-    await page.getByRole("button", { name: /高级设置/ }).click();
+    await page.getByRole("button", { name: /调试入口/ }).click();
   }
   await page.locator("#game-seconds").fill("5");
   await page.getByRole("button", { name: "开始", exact: true }).click();

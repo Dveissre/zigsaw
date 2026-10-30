@@ -3013,6 +3013,10 @@ input:focus-visible {
   margin-top: clamp(22px, 4vh, 36px);
 }
 
+.gacha-submit-row.is-wrong {
+  animation: wrong-flash 260ms ease-out;
+}
+
 .gacha-submit-row input {
   width: min(180px, 46vw);
   height: 42px;
@@ -3020,6 +3024,11 @@ input:focus-visible {
   border: 1px solid var(--line-strong);
   color: var(--ink);
   background: var(--surface);
+}
+
+.gacha-submit-row.is-wrong input {
+  border-color: var(--accent);
+  background: #f7ece8;
 }
 
 .gacha-submit-row .primary-action {
@@ -3065,6 +3074,17 @@ input:focus-visible {
   grid-template-columns: repeat(5, minmax(0, 1fr));
   gap: 8px;
   width: 100%;
+}
+
+.gacha-summary-cards.is-empty .gacha-summary-locked-card {
+  grid-column: 3;
+  width: 100%;
+  pointer-events: none;
+}
+
+.gacha-summary-cards.is-empty .gacha-summary-locked-card:hover {
+  box-shadow: 3px 3px 0 #c9c7c0;
+  transform: none;
 }
 
 .gacha-summary-cards .gacha-card {
@@ -3190,6 +3210,159 @@ input:focus-visible {
   justify-content: center;
   gap: 3px;
   line-height: 1;
+}
+
+.gacha-debug-dialog {
+  width: min(620px, calc(100vw - 24px));
+  max-height: calc(100svh - 32px);
+  padding: 0;
+  border: 1px solid var(--ink);
+  color: var(--ink);
+  background: var(--surface);
+  box-shadow: 8px 8px 0 rgba(32, 35, 31, 0.18);
+}
+
+.gacha-debug-dialog[open] {
+  animation: char-detail-in 160ms ease-out both;
+}
+
+.gacha-debug-dialog::backdrop {
+  background: rgba(32, 35, 31, 0.42);
+  animation: char-detail-backdrop-in 150ms ease-out both;
+}
+
+.gacha-debug-panel {
+  display: flex;
+  max-height: calc(100svh - 34px);
+  flex-direction: column;
+}
+
+.gacha-debug-header {
+  position: relative;
+  padding: 21px 58px 16px 22px;
+  border-bottom: 1px solid var(--line-strong);
+}
+
+.gacha-debug-header h2 {
+  margin: 3px 0 0;
+  font-size: 30px;
+  line-height: 1;
+}
+
+.gacha-debug-content {
+  min-height: 0;
+  overflow-y: auto;
+  padding: 4px 22px 22px;
+  scrollbar-color: var(--line-strong) transparent;
+  scrollbar-gutter: stable;
+  scrollbar-width: thin;
+}
+
+.gacha-debug-empty {
+  display: grid;
+  min-height: 180px;
+  place-items: center;
+  color: var(--muted);
+  font-size: 16px;
+}
+
+.gacha-debug-state {
+  display: grid;
+  gap: 4px;
+}
+
+.gacha-debug-section {
+  padding: 15px 0 12px;
+  border-bottom: 1px solid var(--line);
+}
+
+.gacha-debug-section:last-child {
+  border-bottom: 0;
+}
+
+.gacha-debug-section > header {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 9px;
+}
+
+.gacha-debug-section h3 {
+  margin: 0;
+  font-size: 17px;
+}
+
+.gacha-debug-section > header > span {
+  color: var(--muted);
+  font-size: 13px;
+  font-variant-numeric: tabular-nums;
+}
+
+.gacha-debug-ways {
+  display: grid;
+  gap: 2px;
+}
+
+.gacha-debug-way {
+  display: grid;
+  grid-template-columns: 48px 22px minmax(0, 1fr) 36px;
+  align-items: center;
+  gap: 8px;
+  min-height: 48px;
+  padding: 4px 0;
+}
+
+.gacha-debug-way > strong {
+  font-size: 29px;
+  line-height: 1;
+  text-align: center;
+}
+
+.gacha-debug-arrow {
+  position: relative;
+  width: 17px;
+  height: 1px;
+  background: var(--line-strong);
+}
+
+.gacha-debug-arrow::after {
+  content: "";
+  position: absolute;
+  top: -3px;
+  right: 0;
+  width: 6px;
+  height: 6px;
+  border-top: 1px solid var(--line-strong);
+  border-right: 1px solid var(--line-strong);
+  transform: rotate(45deg);
+}
+
+.gacha-debug-parts {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 5px;
+}
+
+.gacha-debug-parts .gacha-part-card {
+  width: 38px;
+}
+
+.gacha-debug-parts .gacha-part-card > .gacha-card-glyph {
+  font-size: 22px;
+}
+
+.gacha-debug-rarity {
+  color: var(--muted);
+  font-family: var(--display-font-family);
+  font-size: 14px;
+  font-weight: 700;
+  font-style: italic;
+  text-align: right;
+}
+
+.gacha-debug-filler {
+  min-height: 38px;
 }
 
 @keyframes gacha-card-in {
@@ -3375,6 +3548,43 @@ input:focus-visible {
 .atlas-filters > .atlas-switch:last-child {
   width: 132px;
   flex: 0 0 auto;
+}
+
+.atlas-rarity-progress {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 12px;
+  margin: 12px 8px 0 1px;
+}
+
+.atlas-rarity-progress[hidden] {
+  display: none;
+}
+
+.atlas-rarity-progress-track {
+  height: 8px;
+  overflow: hidden;
+  background: var(--accent-pale);
+}
+
+.atlas-rarity-progress-track > span {
+  display: block;
+  height: 100%;
+  background: var(--accent);
+  transition: width 180ms ease-out;
+}
+
+.atlas-rarity-progress strong {
+  min-width: 4ch;
+  color: var(--accent);
+  font-size: 16px;
+  font-variant-numeric: tabular-nums;
+  text-align: right;
+}
+
+.atlas-rarity-progress:not([hidden]) + .atlas-component-grid {
+  margin-top: 10px;
 }
 
 .atlas-switch-indicator {

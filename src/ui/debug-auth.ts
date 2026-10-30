@@ -63,7 +63,7 @@ export function requestDebugAccess(): Promise<boolean> {
         <header class="debug-auth-header">
           <div>
             <div class="game-settings-kicker">DEBUG ACCESS</div>
-            <h2 id="debug-auth-title">高级设置</h2>
+            <h2 id="debug-auth-title">调试入口</h2>
           </div>
           <button class="char-detail-close game-settings-close" type="button" data-debug-cancel aria-label="取消">
             <svg viewBox="0 0 24 24" aria-hidden="true">

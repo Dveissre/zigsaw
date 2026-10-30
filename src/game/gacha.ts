@@ -16,26 +16,51 @@ export const GACHA_RARITIES: ComponentRarity[] = [
   "XR",
 ];
 
-const rarityWeights: Array<[ComponentRarity, number]> = [
-  ["N", 0.33],
-  ["R", 0.45],
-  ["SR", 0.12],
-  ["SSR", 0.06],
-  ["UR", 0.03],
-  ["XR", 0.01],
-];
+export const GACHA_RARITY_WEIGHTS: Record<
+  ComponentRarity,
+  number
+> = {
+  N: 0.32,
+  R: 0.45,
+  SR: 0.17,
+  SSR: 0.04,
+  UR: 0.015,
+  XR: 0.005,
+};
+
+export const GACHA_CHARACTER_CLASS_WEIGHTS = {
+  level1: 40,
+  level2: 30,
+  level3: 20,
+  external: 4,
+} as const;
+
+type CharacterClass =
+  keyof typeof GACHA_CHARACTER_CLASS_WEIGHTS;
 
 interface DrawWay {
   char: string;
   way: number[];
   maxRarity: ComponentRarity;
-  weight: number;
+  characterClass: CharacterClass;
 }
 
 export interface GachaCard {
   uid: number;
   symbolId: number;
   rarity: ComponentRarity;
+}
+
+export interface GachaDrawTrace {
+  decompositions: Array<{
+    char: string;
+    way: number[];
+    rarity: ComponentRarity;
+  }>;
+  fillerCards: Array<{
+    symbolId: number;
+    rarity: ComponentRarity;
+  }>;
 }
 
 export interface GachaSubmission {
@@ -51,6 +76,46 @@ const bagKey = (symbolIds: number[]): string =>
 const rarityRank = (rarity: ComponentRarity): number =>
   GACHA_RARITIES.indexOf(rarity);
 
+function pickUniform<T>(
+  items: T[],
+  random: () => number,
+): T {
+  return items[Math.floor(random() * items.length)];
+}
+
+export function componentDrawWeights(
+  components: AtlasComponentSummary[],
+  rarity: ComponentRarity,
+): number[] {
+  if (rarity === "XR" || components.length === 0) {
+    return components.map(() => 1);
+  }
+  const nonExclusive = components.filter(
+    (component) => !component.isExclusive,
+  );
+  const exclusive = components.filter(
+    (component) => component.isExclusive,
+  );
+  if (
+    nonExclusive.length === 0 ||
+    exclusive.length === 0
+  ) {
+    return components.map(() => 1);
+  }
+
+  const nonExclusiveWeight = nonExclusive.length * 4;
+  const nativeExclusiveWeight = exclusive.length;
+  const cappedExclusiveWeight = Math.min(
+    nativeExclusiveWeight,
+    nonExclusiveWeight / 4,
+  );
+  const exclusiveWeight =
+    cappedExclusiveWeight / exclusive.length;
+  return components.map((component) =>
+    component.isExclusive ? exclusiveWeight : 4,
+  );
+}
+
 export class GachaDrawer {
   private readonly cardBySymbol = new Map<
     number,
@@ -63,6 +128,7 @@ export class GachaDrawer {
   private readonly waysBySymbol = new Map<number, DrawWay[]>();
   private readonly drawableWays: DrawWay[] = [];
   private readonly bagIndex = new Set<string>();
+  private drawTrace: GachaDrawTrace | null = null;
   private cardUid = 0;
 
   constructor(
@@ -110,7 +176,7 @@ export class GachaDrawer {
           char,
           way: [...way],
           maxRarity: highest,
-          weight: this.characterWeight(char),
+          characterClass: this.characterClass(char),
         };
         this.drawableWays.push(entry);
         for (const symbolId of new Set(way)) {
@@ -124,27 +190,60 @@ export class GachaDrawer {
   }
 
   draw(): GachaCard[] {
+    this.drawTrace = {
+      decompositions: [],
+      fillerCards: [],
+    };
     const cards: GachaCard[] = [];
     const seed = this.drawDecomposition(GACHA_HAND_SIZE);
     if (!seed) {
       throw new Error("没有可抽取的汉字拆法");
     }
+    this.recordDecomposition(seed);
     cards.push(...this.cardsForWay(seed.way));
 
-    while (GACHA_HAND_SIZE - cards.length > 3) {
+    while (
+      cards.length < GACHA_HAND_SIZE - 1 &&
+      GACHA_HAND_SIZE - cards.length > 3
+    ) {
       const remaining = GACHA_HAND_SIZE - cards.length;
       const next = this.drawDecomposition(remaining);
       if (!next) {
         break;
       }
+      this.recordDecomposition(next);
       cards.push(...this.cardsForWay(next.way));
     }
 
     while (cards.length < GACHA_HAND_SIZE) {
-      cards.push(this.randomCard());
+      const forceRarity =
+        !cards.some((card) => card.rarity === "R") &&
+        GACHA_HAND_SIZE - cards.length === 1
+          ? "R"
+          : undefined;
+      const filler = this.randomFillerCard(forceRarity);
+      cards.push(filler);
+      this.drawTrace.fillerCards.push({
+        symbolId: filler.symbolId,
+        rarity: filler.rarity,
+      });
+    }
+
+    if (!cards.some((card) => card.rarity === "R")) {
+      const replacement = this.randomFillerCard("R");
+      cards[Math.floor(this.random() * cards.length)] =
+        replacement;
+      this.drawTrace.fillerCards.push({
+        symbolId: replacement.symbolId,
+        rarity: replacement.rarity,
+      });
     }
 
     return this.shuffle(cards);
+  }
+
+  get lastTrace(): GachaDrawTrace | null {
+    return this.drawTrace;
   }
 
   findSubmission(
@@ -215,10 +314,7 @@ export class GachaDrawer {
       if (candidates.length === 0) {
         continue;
       }
-      const component =
-        candidates[
-          Math.floor(this.random() * candidates.length)
-        ];
+      const component = this.pickComponent(candidates, rarity);
       const matching = (
         this.waysBySymbol.get(component.symbolId) ?? []
       ).filter(
@@ -227,21 +323,21 @@ export class GachaDrawer {
           entry.maxRarity === rarity,
       );
       if (matching.length > 0) {
-        return this.pickWeightedWay(matching);
+        return this.pickDecomposition(matching);
       }
     }
     const fallback = this.drawableWays.filter(
       (entry) => entry.way.length <= slots,
     );
     return fallback.length > 0
-      ? fallback[Math.floor(this.random() * fallback.length)]
+      ? this.pickDecomposition(fallback)
       : null;
   }
 
   private rollRarity(): ComponentRarity {
     let target = this.random();
-    for (const [rarity, weight] of rarityWeights) {
-      target -= weight;
+    for (const rarity of GACHA_RARITIES) {
+      target -= GACHA_RARITY_WEIGHTS[rarity];
       if (target <= 0) {
         return rarity;
       }
@@ -249,51 +345,102 @@ export class GachaDrawer {
     return "XR";
   }
 
-  private characterWeight(char: string): number {
+  private characterClass(char: string): CharacterClass {
     const level = this.data.levels.get(char);
     if (level === 1) {
-      return 20;
+      return "level1";
     }
     if (level === 2) {
-      return 15;
+      return "level2";
     }
     if (level === 3) {
-      return 10;
+      return "level3";
     }
-    return 4;
+    return "external";
   }
 
-  private pickWeightedWay(ways: DrawWay[]): DrawWay {
-    const total = ways.reduce(
-      (sum, entry) => sum + entry.weight,
+  private pickComponent(
+    components: AtlasComponentSummary[],
+    rarity: ComponentRarity,
+  ): AtlasComponentSummary {
+    const weights = componentDrawWeights(components, rarity);
+    const total = weights.reduce(
+      (sum, weight) => sum + weight,
       0,
     );
     let target = this.random() * total;
-    for (const entry of ways) {
-      target -= entry.weight;
+    for (let index = 0; index < components.length; index += 1) {
+      target -= weights[index];
       if (target <= 0) {
-        return entry;
+        return components[index];
       }
     }
-    return ways[ways.length - 1];
+    return components[components.length - 1];
   }
 
-  private randomCard(): GachaCard {
-    const rarity = this.rollRarity();
+  private pickDecomposition(ways: DrawWay[]): DrawWay {
+    const waysByClass = new Map<CharacterClass, DrawWay[]>();
+    for (const way of ways) {
+      const group = waysByClass.get(way.characterClass) ?? [];
+      group.push(way);
+      waysByClass.set(way.characterClass, group);
+    }
+    const availableClasses = [
+      ...waysByClass.keys(),
+    ] as CharacterClass[];
+    const total = availableClasses.reduce(
+      (sum, characterClass) =>
+        sum + GACHA_CHARACTER_CLASS_WEIGHTS[characterClass],
+      0,
+    );
+    let target = this.random() * total;
+    let selectedClass =
+      availableClasses[availableClasses.length - 1];
+    for (const characterClass of availableClasses) {
+      target -= GACHA_CHARACTER_CLASS_WEIGHTS[characterClass];
+      if (target <= 0) {
+        selectedClass = characterClass;
+        break;
+      }
+    }
+    return pickUniform(waysByClass.get(selectedClass)!, this.random);
+  }
+
+  private randomFillerCard(
+    forcedRarity?: "R",
+  ): GachaCard {
+    const rarity = forcedRarity ?? this.rollFillerRarity();
     const group =
       this.cardsByRarity.get(rarity) ??
-      this.cardsByRarity.get("N") ??
       [];
     if (group.length === 0) {
       throw new Error("没有可用的部件卡");
     }
-    const component =
-      group[Math.floor(this.random() * group.length)];
+    const component = this.pickComponent(group, rarity);
     return {
       uid: this.cardUid++,
       symbolId: component.symbolId,
       rarity: component.rarity,
     };
+  }
+
+  private rollFillerRarity(): "N" | "R" {
+    const total =
+      GACHA_RARITY_WEIGHTS.N + GACHA_RARITY_WEIGHTS.R;
+    return this.random() * total <= GACHA_RARITY_WEIGHTS.N
+      ? "N"
+      : "R";
+  }
+
+  private recordDecomposition(way: DrawWay): void {
+    if (!this.drawTrace) {
+      return;
+    }
+    this.drawTrace.decompositions.push({
+      char: way.char,
+      way: [...way.way],
+      rarity: way.maxRarity,
+    });
   }
 
   private cardsForWay(way: number[]): GachaCard[] {

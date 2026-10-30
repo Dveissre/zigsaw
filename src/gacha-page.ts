@@ -15,9 +15,14 @@ import {
   GACHA_RARITIES,
   GachaDrawer,
   type GachaCard,
+  type GachaDrawTrace,
 } from "./game/gacha";
 import { crisBalanceMarkup, crisIconMarkup } from "./ui/cris";
-import { isDebugUnlocked } from "./ui/debug-auth";
+import {
+  isDebugUnlocked,
+  requestDebugAccess,
+  revokeDebugAccess,
+} from "./ui/debug-auth";
 import {
   createGachaTutorialDialog,
   GACHA_TUTORIAL_TRIGGER_MARKUP,
@@ -33,8 +38,23 @@ const appRoot = root;
 const appBaseUrl = new URL("../", document.baseURI).href;
 const cris = new CrisStore();
 const collection = new CollectionStore();
-const debugUnlocked = isDebugUnlocked();
+let debugUnlocked = isDebugUnlocked();
 const tutorialDialog = createGachaTutorialDialog();
+const debugDialog = createGachaDebugDialog();
+
+const GACHA_DEBUG_TRIGGER_MARKUP = `
+  <button
+    class="corner-icon-button gacha-debug-trigger"
+    type="button"
+    data-gacha-debug-view
+    aria-label="查看本次抽选内部状态"
+  >
+    <svg viewBox="0 0 24 24" aria-hidden="true">
+      <path d="m5 7 4.5 5L5 17"></path>
+      <path d="M12.5 17H19"></path>
+    </svg>
+  </button>
+`;
 
 type Phase =
   | "loading"
@@ -62,6 +82,7 @@ let phase: Phase = "loading";
 let feedback = "";
 let submitting = false;
 let drawing = false;
+let drawTrace: GachaDrawTrace | null = null;
 
 function escapeHtml(value: string): string {
   return value
@@ -95,8 +116,10 @@ function costMarkup(): string {
 function shell(content: string): string {
   return `
     <div class="app-shell page-gacha">
+      <button class="advanced-corner" type="button" data-gacha-advanced aria-label="调试入口" aria-pressed="${debugUnlocked}"></button>
       ${crisBalanceMarkup(cris.load(), debugUnlocked)}
       <div class="gacha-corner-actions">
+        ${debugUnlocked ? GACHA_DEBUG_TRIGGER_MARKUP : ""}
         ${GACHA_TUTORIAL_TRIGGER_MARKUP}
         <a class="atlas-home" href="../" aria-label="返回主页">
           <svg viewBox="0 0 24 24" aria-hidden="true">
@@ -210,6 +233,145 @@ function wordClass(char: string): string {
   return data.exOrder.includes(char) ? "is-ex" : "is-external";
 }
 
+function debugTraceMarkup(): string {
+  if (!drawTrace) {
+    return '<div class="gacha-debug-empty">尚未抽选</div>';
+  }
+  return `
+    <div class="gacha-debug-state">
+      <section class="gacha-debug-section">
+        <header>
+          <h3>整字抽取</h3>
+          <span>${drawTrace.decompositions.length}</span>
+        </header>
+        <div class="gacha-debug-ways">
+          ${drawTrace.decompositions
+            .map(
+              (entry) => `
+                <div class="gacha-debug-way">
+                  <strong>${escapeHtml(entry.char)}</strong>
+                  <span class="gacha-debug-arrow" aria-hidden="true"></span>
+                  <div class="gacha-debug-parts">
+                    ${entry.way.map(partCardMarkup).join("")}
+                  </div>
+                  <span class="gacha-debug-rarity">${entry.rarity}</span>
+                </div>
+              `,
+            )
+            .join("")}
+        </div>
+      </section>
+      <section class="gacha-debug-section">
+        <header>
+          <h3>补位装填</h3>
+          <span>${drawTrace.fillerCards.length}</span>
+        </header>
+        <div class="gacha-debug-parts gacha-debug-filler">
+          ${drawTrace.fillerCards
+            .map((card) => partCardMarkup(card.symbolId))
+            .join("")}
+        </div>
+      </section>
+    </div>
+  `;
+}
+
+function createGachaDebugDialog(): HTMLDialogElement {
+  const dialog = document.createElement("dialog");
+  dialog.className = "gacha-debug-dialog";
+  dialog.setAttribute(
+    "aria-labelledby",
+    "gacha-debug-dialog-title",
+  );
+  dialog.innerHTML = `
+    <article class="gacha-debug-panel">
+      <header class="gacha-debug-header">
+        <div>
+          <div class="game-settings-kicker">DEBUG STATE</div>
+          <h2 id="gacha-debug-dialog-title">本次抽选</h2>
+        </div>
+        <button class="char-detail-close game-settings-close" type="button" data-gacha-debug-close aria-label="关闭">
+          <svg viewBox="0 0 24 24" aria-hidden="true">
+            <path d="M4 4 20 20M20 4 4 20"></path>
+          </svg>
+        </button>
+      </header>
+      <div class="gacha-debug-content" data-gacha-debug-content></div>
+    </article>
+  `;
+  dialog.addEventListener("click", (event) => {
+    if (event.target === dialog) {
+      dialog.close();
+    }
+  });
+  dialog
+    .querySelector<HTMLButtonElement>("[data-gacha-debug-close]")
+    ?.addEventListener("click", () => dialog.close());
+  document.body.append(dialog);
+  return dialog;
+}
+
+function openGachaDebugDialog(): void {
+  const content = debugDialog.querySelector<HTMLElement>(
+    "[data-gacha-debug-content]",
+  );
+  if (content) {
+    content.innerHTML = debugTraceMarkup();
+  }
+  if (!debugDialog.open) {
+    debugDialog.showModal();
+  }
+}
+
+function refreshDebugControls(): void {
+  document
+    .querySelectorAll<HTMLButtonElement>("[data-gacha-advanced]")
+    .forEach((button) => {
+      button.setAttribute(
+        "aria-pressed",
+        String(debugUnlocked),
+      );
+    });
+  const balance = appRoot.querySelector<HTMLElement>(".corner-cris");
+  if (balance) {
+    balance.outerHTML = crisBalanceMarkup(
+      cris.load(),
+      debugUnlocked,
+    );
+  }
+  const actions = appRoot.querySelector<HTMLElement>(
+    ".gacha-corner-actions",
+  );
+  const existingTrigger = actions?.querySelector(
+    "[data-gacha-debug-view]",
+  );
+  if (debugUnlocked && actions && !existingTrigger) {
+    actions.insertAdjacentHTML(
+      "afterbegin",
+      GACHA_DEBUG_TRIGGER_MARKUP,
+    );
+  } else if (!debugUnlocked) {
+    existingTrigger?.remove();
+    if (debugDialog.open) {
+      debugDialog.close();
+    }
+  }
+}
+
+async function toggleGachaDebug(): Promise<void> {
+  if (debugUnlocked) {
+    revokeDebugAccess();
+    debugUnlocked = false;
+    refreshDebugControls();
+    return;
+  }
+  if (!(await requestDebugAccess())) {
+    return;
+  }
+  debugUnlocked = true;
+  refreshDebugControls();
+}
+
 function obtainedRowsMarkup(): string {
   if (collectedWords.length === 0) {
     return "";
@@ -296,7 +458,6 @@ function renderHand(): void {
         <button class="primary-action" type="button" data-gacha-submit>提交</button>
         <button class="gacha-finish-button" type="button" data-gacha-finish>结算</button>
       </div>
-      <p class="gacha-feedback" data-gacha-feedback>${escapeHtml(feedback)}</p>
       ${obtainedRowsMarkup()}
     </div>
   `);
@@ -320,6 +481,12 @@ function renderHand(): void {
       void submitWord(input.value);
     }
   });
+  input?.addEventListener("input", () => {
+    input.removeAttribute("aria-invalid");
+    input
+      .closest(".gacha-submit-row")
+      ?.classList.remove("is-wrong");
+  });
 }
 
 function renderSummary(): void {
@@ -331,28 +498,33 @@ function renderSummary(): void {
       left.symbolId - right.symbolId,
   );
   const markedNewSymbols = new Set<number>();
+  const hasObtainedCards = sortedCards.length > 0;
   appRoot.innerHTML = shell(`
     <div class="gacha-summary">
       <h2>抽选结果</h2>
-      <div class="gacha-summary-cards" aria-label="本次抽到的部件卡">
-        ${sortedCards
-          .map((card, index) =>
-            (() => {
-              const isNew =
-                newComponentIds.has(card.symbolId) &&
-                !markedNewSymbols.has(card.symbolId);
-              if (isNew) {
-                markedNewSymbols.add(card.symbolId);
-              }
-              return frontCardMarkup(
-                card,
-                index,
-                false,
-                isNew,
-              );
-            })(),
-          )
-          .join("")}
+      <div class="gacha-summary-cards ${hasObtainedCards ? "" : "is-empty"}" aria-label="本次抽到的部件卡">
+        ${
+          hasObtainedCards
+            ? sortedCards
+                .map((card, index) =>
+                  (() => {
+                    const isNew =
+                      newComponentIds.has(card.symbolId) &&
+                      !markedNewSymbols.has(card.symbolId);
+                    if (isNew) {
+                      markedNewSymbols.add(card.symbolId);
+                    }
+                    return frontCardMarkup(
+                      card,
+                      index,
+                      false,
+                      isNew,
+                    );
+                  })(),
+                )
+                .join("")
+            : '<span class="atlas-component-card is-locked gacha-summary-locked-card" role="img" aria-label="未获得部件"></span>'
+        }
       </div>
       ${
         collectedWords.length
@@ -410,6 +582,7 @@ async function startDraw(): Promise<void> {
     renderIdle();
     return;
   }
+  drawTrace = drawer.lastTrace;
 
   drawing = true;
   const balance = appRoot.querySelector<HTMLElement>(".corner-cris");
@@ -460,14 +633,12 @@ async function submitWord(rawValue: string): Promise<void> {
   }
   const answer = rawValue.trim();
   if (!answer) {
-    feedback = "请输入汉字";
-    renderHand();
+    flashInvalidAnswer();
     return;
   }
   const submission = drawer.findSubmission(answer, cards);
   if (!submission) {
-    feedback = "无法用当前卡片组成这个字";
-    renderHand();
+    flashInvalidAnswer();
     return;
   }
   submitting = true;
@@ -537,6 +708,21 @@ async function submitWord(rawValue: string): Promise<void> {
   }
 }
 
+function flashInvalidAnswer(): void {
+  const input =
+    appRoot.querySelector<HTMLInputElement>("[data-gacha-answer]");
+  const row = input?.closest<HTMLElement>(".gacha-submit-row");
+  if (!input || !row) {
+    return;
+  }
+  row.classList.remove("is-wrong");
+  void row.offsetWidth;
+  row.classList.add("is-wrong");
+  input.setAttribute("aria-invalid", "true");
+  input.focus();
+  input.select();
+}
+
 async function finishDraw(): Promise<void> {
   if (phase !== "playing" || submitting) {
     return;
@@ -584,8 +770,18 @@ document.addEventListener("change", (event) => {
 
 document.addEventListener("click", (event) => {
   const target = event.target;
+  if (!(target instanceof Element)) {
+    return;
+  }
+  if (target.closest("[data-gacha-advanced]")) {
+    void toggleGachaDebug();
+    return;
+  }
+  if (target.closest("[data-gacha-debug-view]")) {
+    openGachaDebugDialog();
+    return;
+  }
   if (
-    !(target instanceof Element) ||
     !target.closest("[data-gacha-tutorial-trigger]") ||
     tutorialDialog.open ||
     document.querySelector("dialog[open]")

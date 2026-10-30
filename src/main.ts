@@ -205,7 +205,7 @@ function shell(
     <div class="app-shell page-${page}">
       ${
         page === "start"
-          ? `<button class="advanced-corner" type="button" aria-label="高级设置" aria-pressed="${advancedSettingsOpen}"></button>`
+          ? `<button class="advanced-corner" type="button" aria-label="调试入口" aria-pressed="${advancedSettingsOpen}"></button>`
           : ""
       }
       ${crisBalanceMarkup(crisTotal, advancedSettingsOpen)}
