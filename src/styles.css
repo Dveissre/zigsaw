@@ -5688,6 +5688,7 @@ input:focus-visible {
 
 @media (max-width: 640px) {
   .app-shell {
+    height: 100dvh;
     padding:
       max(12px, env(safe-area-inset-top))
       max(14px, env(safe-area-inset-right))
