@@ -20,6 +20,7 @@
   --accent-pale: #efe0da;
   --correct: #3f6946;
   --correct-dark: #294c32;
+  --answer-yellow: #8a5a00;
   --ex-purple: #704a86;
   --ex-pale: #eadff2;
   --ex-ink: #31243a;
@@ -1383,10 +1384,11 @@ input:focus-visible {
   position: absolute;
   bottom: 3px;
   left: 50%;
-  color: var(--muted);
+  color: currentColor;
   font-size: clamp(9px, 1.4vw, 12px);
   font-weight: 400;
   line-height: 1;
+  opacity: 0.72;
   transform: translateX(-50%);
   white-space: nowrap;
 }
@@ -1609,6 +1611,10 @@ input:focus-visible {
 
 .answer-stage.is-miss .reveal strong {
   color: var(--accent);
+}
+
+.answer-stage.is-skipped .reveal strong {
+  color: var(--answer-yellow);
 }
 
 .answer-input {
@@ -2989,6 +2995,8 @@ input:focus-visible {
 }
 
 .gacha-part-card {
+  --gacha-dot: var(--accent);
+  position: relative;
   display: grid;
   width: 42px;
   aspect-ratio: 1;
@@ -2996,6 +3004,16 @@ input:focus-visible {
   place-items: center;
   color: var(--ink);
   background: var(--surface);
+}
+
+.gacha-part-card::after {
+  content: "";
+  position: absolute;
+  top: 4px;
+  right: 4px;
+  width: 5px;
+  height: 5px;
+  background: var(--gacha-dot);
 }
 
 .gacha-part-card > .gacha-card-glyph {
@@ -3008,26 +3026,31 @@ input:focus-visible {
 }
 
 .gacha-part-card.rarity-r {
+  --gacha-dot: #5a8462;
   color: #36513b;
   background: var(--level2-pale);
 }
 
 .gacha-part-card.rarity-sr {
+  --gacha-dot: #5c8494;
   color: #315361;
   background: var(--level3-pale);
 }
 
 .gacha-part-card.rarity-ssr {
+  --gacha-dot: #785b87;
   color: var(--ex-ink);
   background: #e7dcf0;
 }
 
 .gacha-part-card.rarity-ur {
+  --gacha-dot: #b8751f;
   color: #4a3517;
   background: #ffe5a8;
 }
 
 .gacha-part-card.rarity-xr {
+  --gacha-dot: #d8bb72;
   color: #f6f0e5;
   background: #171816;
 }

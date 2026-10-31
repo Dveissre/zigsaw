@@ -1225,6 +1225,7 @@ function renderGame(game: GameSession): void {
   const revealed = state.revealing;
   const correct = state.feedback === "correct";
   const wrong = state.feedback === "wrong";
+  const skipped = state.feedback === "skipped";
   const partsFeedback = correct ? "has-correct" : wrong ? "has-wrong" : "";
   const pausedClass = state.paused
     ? "is-paused"
@@ -1247,20 +1248,24 @@ function renderGame(game: GameSession): void {
         : "";
   const answerFeedback = correct
     ? "is-correct"
-    : wrong && revealed
-      ? "is-miss"
-      : wrong
-        ? "is-wrong"
-        : "";
+    : skipped
+      ? "is-skipped"
+      : wrong && revealed
+        ? "is-miss"
+        : wrong
+          ? "is-wrong"
+          : "";
   const feedbackAnnouncement = correct
     ? "正确"
-    : wrong && revealed
-      ? "答案"
-      : wrong
-        ? "重试"
-        : state.paused
-          ? "暂停"
-          : "";
+    : skipped
+      ? "换题答案"
+      : wrong && revealed
+        ? "答案"
+        : wrong
+          ? "重试"
+          : state.paused
+            ? "暂停"
+            : "";
   const skipCount =
     state.settings.mode === "challenge"
       ? String(state.skipsRemaining)

@@ -3,7 +3,7 @@
   "source": "tongyong_hanzi.json + char_sym.json",
   "characterCount": 8105,
   "decompositionCount": 8860,
-  "totalUsageCount": 30577,
+  "totalUsageCount": 30575,
   "componentCount": 374,
   "symbols": [
     {
@@ -15,8 +15,8 @@
     {
       "symbolId": 1,
       "name": "一",
-      "count": 1108,
-      "charCount": 994
+      "count": 1107,
+      "charCount": 993
     },
     {
       "symbolId": 34,
@@ -502,12 +502,6 @@
       "charCount": 92
     },
     {
-      "symbolId": 28,
-      "name": "⺊",
-      "count": 92,
-      "charCount": 91
-    },
-    {
       "symbolId": 145,
       "name": "犭",
       "count": 92,
@@ -518,6 +512,12 @@
       "name": "丆",
       "count": 92,
       "charCount": 87
+    },
+    {
+      "symbolId": 28,
+      "name": "⺊",
+      "count": 91,
+      "charCount": 90
     },
     {
       "symbolId": 99,
@@ -720,21 +720,21 @@
       "charCount": 62
     },
     {
+      "symbolId": 187,
+      "name": "灬",
+      "count": 64,
+      "charCount": 63
+    },
+    {
       "symbolId": 10,
       "name": "㇆",
-      "count": 64,
-      "charCount": 60
+      "count": 63,
+      "charCount": 59
     },
     {
       "symbolId": 69,
       "name": "干",
-      "count": 64,
-      "charCount": 64
-    },
-    {
-      "symbolId": 187,
-      "name": "灬",
-      "count": 64,
+      "count": 63,
       "charCount": 63
     },
     {
@@ -762,12 +762,6 @@
       "charCount": 53
     },
     {
-      "symbolId": 25,
-      "name": "丂",
-      "count": 55,
-      "charCount": 54
-    },
-    {
       "symbolId": 78,
       "name": "尢",
       "count": 55,
@@ -778,6 +772,12 @@
       "name": "豕",
       "count": 55,
       "charCount": 51
+    },
+    {
+      "symbolId": 25,
+      "name": "丂",
+      "count": 54,
+      "charCount": 53
     },
     {
       "symbolId": 410,
@@ -807,8 +807,8 @@
     {
       "symbolId": 97,
       "name": "千",
-      "count": 48,
-      "charCount": 48
+      "count": 49,
+      "charCount": 49
     },
     {
       "symbolId": 144,
@@ -1621,6 +1621,12 @@
       "charCount": 11
     },
     {
+      "symbolId": 67,
+      "name": "了",
+      "count": 11,
+      "charCount": 10
+    },
+    {
       "symbolId": 269,
       "name": "民",
       "count": 11,
@@ -1637,12 +1643,6 @@
       "name": "长",
       "count": 11,
       "charCount": 11
-    },
-    {
-      "symbolId": 67,
-      "name": "了",
-      "count": 10,
-      "charCount": 9
     },
     {
       "symbolId": 267,
@@ -1871,6 +1871,12 @@
       "charCount": 7
     },
     {
+      "symbolId": 26,
+      "name": "与",
+      "count": 6,
+      "charCount": 6
+    },
+    {
       "symbolId": 147,
       "name": "歺",
       "count": 6,
@@ -1936,12 +1942,6 @@
       "name": "㇉",
       "count": 6,
       "charCount": 6
-    },
-    {
-      "symbolId": 26,
-      "name": "与",
-      "count": 5,
-      "charCount": 5
     },
     {
       "symbolId": 141,

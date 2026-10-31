@@ -133,6 +133,10 @@ describe("question part ordering", () => {
 });
 
 describe("question replacement", () => {
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
   const createGame = () =>
     new GameData(
       {
@@ -182,6 +186,7 @@ describe("question replacement", () => {
     );
 
   it("uses one challenge skip without advancing the question", () => {
+    vi.useFakeTimers();
     const session = createSession("challenge");
     const before = session.state.current;
 
@@ -189,6 +194,16 @@ describe("question replacement", () => {
 
     expect(session.state.index).toBe(1);
     expect(session.state.skipsRemaining).toBe(0);
+    expect(session.state.current).toBe(before);
+    expect(session.state.revealing).toBe(true);
+    expect(session.state.feedback).toBe("skipped");
+    expect(session.state.revealAnswer).toBe(before?.char);
+
+    vi.advanceTimersByTime(899);
+    expect(session.state.current).toBe(before);
+
+    vi.advanceTimersByTime(1);
+    expect(session.state.revealing).toBe(false);
     expect(session.state.current?.char).not.toBe(before?.char);
     expect(session.state.current?.symbolIds).toHaveLength(
       before?.symbolIds.length ?? 0,
@@ -197,6 +212,7 @@ describe("question replacement", () => {
   });
 
   it("keeps practice skips unlimited and non-advancing", () => {
+    vi.useFakeTimers();
     const session = createSession("normal");
     const before = session.state.current;
 
@@ -206,6 +222,12 @@ describe("question replacement", () => {
     expect(session.state.skipsRemaining).toBe(
       Number.POSITIVE_INFINITY,
     );
+    expect(session.state.current).toBe(before);
+    expect(session.state.revealing).toBe(true);
+    expect(session.state.revealAnswer).toBe(before?.char);
+
+    vi.advanceTimersByTime(900);
+    expect(session.state.revealing).toBe(false);
     expect(session.state.current?.char).not.toBe(before?.char);
     session.destroy();
   });

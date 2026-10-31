@@ -72,6 +72,7 @@ export interface ChallengeClassProbabilities {
 }
 
 export const MAX_CHALLENGE_SKIPS = 5;
+const SKIP_REVEAL_DELAY_MS = 900;
 
 export function initialChallengeSkips(
   difficulty: ChallengeDifficulty,
@@ -205,6 +206,7 @@ export class GameSession {
   private deadline = 0;
   private timerId: ReturnType<typeof setInterval> | null = null;
   private advanceId: ReturnType<typeof setTimeout> | null = null;
+  private skipReplacement: Question | null = null;
   private currentRecorded = false;
   private questionRunStartedAt: number | null = null;
   private questionElapsedMs = 0;
@@ -276,11 +278,16 @@ export class GameSession {
   }
 
   private nextQuestion(): void {
+    this.state.index += 1;
+    this.showQuestion(this.pickQuestion());
+  }
+
+  private showQuestion(question: Question): void {
     this.clearTimers();
+    this.skipReplacement = null;
     this.questionRunStartedAt = null;
     this.questionElapsedMs = 0;
-    this.state.index += 1;
-    this.state.current = this.pickQuestion();
+    this.state.current = question;
     this.state.remaining = this.state.settings.seconds;
     this.state.paused = false;
     this.state.revealing = false;
@@ -578,18 +585,20 @@ export class GameSession {
     this.clearTimers();
     this.questionRunStartedAt = null;
     this.questionElapsedMs = 0;
-    this.state.current = replacement;
-    this.state.remaining = this.state.settings.seconds;
+    this.skipReplacement = replacement;
     this.state.paused = false;
-    this.state.revealing = false;
+    this.state.revealing = true;
     this.state.pendingSettlement = false;
-    this.state.feedback = "";
+    this.state.feedback = "skipped";
     this.state.draft = "";
-    this.state.revealAnswer = "";
-    this.state.revealMeta = "";
+    this.state.revealAnswer = current.char;
+    this.state.revealMeta = this.metaFor(current.char);
     this.state.advanceLabel = "";
     this.currentRecorded = false;
-    this.startTimer();
+    this.advanceId = setTimeout(() => {
+      this.advanceId = null;
+      this.advance();
+    }, SKIP_REVEAL_DELAY_MS);
     this.emit();
   }
 
@@ -697,6 +706,12 @@ export class GameSession {
     if (this.advanceId) {
       clearTimeout(this.advanceId);
       this.advanceId = null;
+    }
+    if (this.state.feedback === "skipped") {
+      if (this.skipReplacement) {
+        this.showQuestion(this.skipReplacement);
+      }
+      return;
     }
     if (this.state.pendingSettlement) {
       this.finish();

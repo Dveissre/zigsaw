@@ -188,7 +188,7 @@ export function createTutorialDialog(): HTMLDialogElement {
                   <span class="tutorial-atlas-card rarity-n"><span class="tutorial-atlas-rarity">N</span><b>木</b><small>735</small></span>
                   <span class="tutorial-atlas-card rarity-r"><span class="tutorial-atlas-rarity">R</span><b>夕</b><small>86</small></span>
                   <span class="tutorial-atlas-card rarity-sr"><span class="tutorial-atlas-rarity">SR</span><b>衣</b><small>19</small></span>
-                  <span class="tutorial-atlas-card rarity-ssr"><span class="tutorial-atlas-rarity">SSR</span><b>与</b><small>4</small></span>
+                  <span class="tutorial-atlas-card rarity-ssr"><span class="tutorial-atlas-rarity">SSR</span><b>与</b><small>5</small></span>
                   <span class="tutorial-atlas-card is-locked"></span>
                 </div>
               </div>

@@ -316,8 +316,8 @@ describe("static game data", () => {
     expect(atlas.byRarity).toEqual({
       N: 72,
       R: 138,
-      SR: 111,
-      SSR: 33,
+      SR: 112,
+      SSR: 32,
       UR: 40,
       XR: 16,
     });

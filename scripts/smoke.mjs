@@ -268,6 +268,12 @@ try {
     ["木", "夕", "衣", "与"],
   );
   assert.equal(
+    await page
+      .locator(".tutorial-atlas-card.rarity-ssr small")
+      .innerText(),
+    "5",
+  );
+  assert.equal(
     await page.locator(".tutorial-disclaimer").first().innerText(),
     "部件的归类与拆分方式包含大量主观意见，如有错讹请联系作者",
   );
@@ -771,6 +777,27 @@ try {
       (element) => Number.parseFloat(element.style.strokeDashoffset) > 0,
     ),
   );
+  const progressBeforeSkip = await page
+    .locator(".question-progress")
+    .innerText();
+  await page.locator("[data-skip]").click();
+  await page
+    .locator(".answer-stage.is-skipped .reveal strong")
+    .waitFor();
+  assert.equal(
+    await page.locator(".question-progress").innerText(),
+    progressBeforeSkip,
+  );
+  assert.equal(
+    await page
+      .locator(".answer-stage.is-skipped .reveal strong")
+      .evaluate((element) => getComputedStyle(element).color),
+    "rgb(138, 90, 0)",
+  );
+  await page
+    .locator(".answer-stage.is-skipped")
+    .waitFor({ state: "detached" });
+  assert.equal(await page.getByRole("textbox", { name: "答案" }).count(), 1);
   const shownPartOrders = [];
   const givenAnswers = [];
 
