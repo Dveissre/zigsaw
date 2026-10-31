@@ -416,7 +416,7 @@ function renderIdle(): void {
     <div class="gacha-idle">
       <div class="gacha-deck" aria-hidden="true">${scattered}</div>
       <button class="primary-action gacha-draw-button" type="button" data-gacha-start ${balance < GACHA_COST || !drawer ? "disabled" : ""}>
-        ${balance < GACHA_COST ? "<span>Cris 不足</span>" : `<span>抽取十张 · </span>${costMarkup()}`}
+        ${balance < GACHA_COST ? `<span class="gacha-cost">${crisIconMarkup()}<span>不足</span></span>` : `<span>抽取十张 · </span>${costMarkup()}`}
       </button>
       ${feedback ? `<p class="gacha-feedback">${escapeHtml(feedback)}</p>` : ""}
     </div>

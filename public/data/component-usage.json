@@ -185,7 +185,8 @@
       "symbolId": 44,
       "name": "勹",
       "count": 263,
-      "charCount": 253
+      "charCount": 253,
+      "asset": "component_svg/44.svg"
     },
     {
       "symbolId": 109,
@@ -469,7 +470,8 @@
       "symbolId": 14,
       "name": "乛",
       "count": 102,
-      "charCount": 98
+      "charCount": 98,
+      "asset": "component_svg/14.svg"
     },
     {
       "symbolId": 24,

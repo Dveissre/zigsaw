@@ -2,8 +2,10 @@
   "format": "zigsaw-component-assets/1",
   "symbols": {
     "13": { "name": "𠃊", "source": "component_svg/13.svg" },
+    "14": { "name": "乛", "source": "component_svg/14.svg" },
     "32": { "name": "介脚", "source": "component_svg/32.svg" },
     "33": { "name": "𠂆", "source": "component_svg/33.svg" },
+    "44": { "name": "勹", "source": "component_svg/44.svg" },
     "45": { "name": "卬偏", "source": "component_svg/45.svg" },
     "71": { "name": "𰀁", "source": "component_svg/71.svg" },
     "83": { "name": "𰀂", "source": "component_svg/83.svg" },

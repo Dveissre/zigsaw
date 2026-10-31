@@ -58,11 +58,14 @@ npm test
 npm run build
 npm run smoke
 npm run check:viewports
-npm run dev -- --host 127.0.0.1
+npm run dev -- --host 127.0.0.1 --port 5174
 ```
 
-- 开发端口固定为 `127.0.0.1:5173`。
-- 同一端口只保留一个 Vite 进程。
+- 主线 `feature/trial-mode` 固定使用 `127.0.0.1:5173`，在
+  `C:\Projects\Web\zigsaw` 中运行
+  `npm run dev -- --host 127.0.0.1 --port 5173`。
+- Bug 分支固定使用 `127.0.0.1:5174`。
+- 两个分支可以同时打开；每个端口只保留一个 Vite 进程。
 - 若页面突然出现旧版本，先检查监听进程，再改源码。
 - `npm run build` 和 `npm run dev` 的 pre-hook 会重新生成图鉴索引和部件统计。
 
