@@ -5755,8 +5755,8 @@ input:focus-visible {
   }
 
   .parts {
-    min-height: clamp(112px, 18vh, 150px);
-    padding: 26px 0 10px;
+    min-height: clamp(120px, 21vh, 170px);
+    padding: 30px 0 18px;
     --card-gap: 10px;
   }
 
@@ -5766,10 +5766,6 @@ input:focus-visible {
 
   .part {
     font-size: clamp(32px, 10vw, 44px);
-  }
-
-  .answer-stage {
-    min-height: 48px;
   }
 
   .answer-input {
@@ -5876,8 +5872,8 @@ input:focus-visible {
   }
 
   .parts {
-    min-height: 108px;
-    padding-block: 26px 8px;
+    min-height: 120px;
+    padding-block: 26px 16px;
   }
 
   .play-actions button {
