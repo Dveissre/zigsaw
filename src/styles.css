@@ -1365,6 +1365,32 @@ input:focus-visible {
   font-weight: 700;
 }
 
+.part.is-enclosed-frame {
+  position: absolute;
+  inset: 0;
+}
+
+.part.is-enclosed-frame > .part-glyph {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  display: block;
+  line-height: 1;
+  transform: translate(-50%, -58%);
+}
+
+.part-note {
+  position: absolute;
+  bottom: 3px;
+  left: 50%;
+  color: var(--muted);
+  font-size: clamp(9px, 1.4vw, 12px);
+  font-weight: 400;
+  line-height: 1;
+  transform: translateX(-50%);
+  white-space: nowrap;
+}
+
 .component-symbol {
   display: block;
   width: 1em;

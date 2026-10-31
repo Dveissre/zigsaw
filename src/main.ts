@@ -174,23 +174,35 @@ function showShareToast(message: string): void {
   }, 1800);
 }
 
-function renderComponent(component: ComponentDefinition): {
+function renderComponent(
+  component: ComponentDefinition,
+  inPlay = false,
+): {
   html: string;
   long: boolean;
   hasAsset: boolean;
+  isEnclosedFrame: boolean;
 } {
   const label = escapeHtml(component.name);
+  const isEnclosedFrame = inPlay && component.name === "囗";
   if (component.assetUrl) {
+    const content = `<span class="component-symbol" role="img" aria-label="${label}" style="--component-mask:url(&quot;${escapeHtml(component.assetUrl)}&quot;)"></span>`;
     return {
-      html: `<span class="component-symbol" role="img" aria-label="${label}" style="--component-mask:url(&quot;${escapeHtml(component.assetUrl)}&quot;)"></span>`,
+      html: isEnclosedFrame
+        ? `<span class="part-glyph">${content}</span><span class="part-note">（国字框）</span>`
+        : content,
       long: false,
       hasAsset: true,
+      isEnclosedFrame,
     };
   }
   return {
-    html: label,
+    html: isEnclosedFrame
+      ? `<span class="part-glyph">${label}</span><span class="part-note">（国字框）</span>`
+      : label,
     long: [...component.name].length > 1,
     hasAsset: false,
+    isEnclosedFrame,
   };
 }
 
@@ -1191,7 +1203,7 @@ function renderGame(game: GameSession): void {
   const resuming = !state.paused && lastRenderedPaused;
   lastRenderedPaused = state.paused;
   const partNames = state.current.displaySymbolIds.map((symbolId) =>
-    renderComponent(data!.component(symbolId)),
+    renderComponent(data!.component(symbolId), true),
   );
   const partCount = partNames.length;
   const densityClass =
@@ -1205,7 +1217,7 @@ function renderGame(game: GameSession): void {
         `<div class="part-row">${row
           .map(
             (part) =>
-              `<span class="part-card" style="--card-index:${cardIndex};--card-angle:${cardAngles[cardIndex % cardAngles.length]}deg;--card-offset:${cardOffsets[cardIndex++ % cardOffsets.length]}px"><span class="part ${part.long ? "is-long" : ""}">${part.html}</span></span>`,
+              `<span class="part-card" style="--card-index:${cardIndex};--card-angle:${cardAngles[cardIndex % cardAngles.length]}deg;--card-offset:${cardOffsets[cardIndex++ % cardOffsets.length]}px"><span class="part ${part.long ? "is-long" : ""} ${part.isEnclosedFrame ? "is-enclosed-frame" : ""}">${part.html}</span></span>`,
           )
           .join("")}</div>`,
     )
