@@ -275,7 +275,7 @@ describe("static game data", () => {
 
     expect(usage.format).toBe("zigsaw-component-usage/1");
     expect(usage.characterCount).toBe(8105);
-    expect(usage.decompositionCount).toBe(8861);
+    expect(usage.decompositionCount).toBe(8860);
     expect(usage.componentCount).toBe(usage.symbols.length);
     expect(new Set(ids).size).toBe(ids.length);
     expect(usage.totalUsageCount).toBe(
