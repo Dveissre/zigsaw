@@ -1,3 +1,5 @@
+import { crisIconMarkup } from "./cris";
+
 export const TUTORIAL_TRIGGER_MARKUP = `
   <button
     class="corner-icon-button"
@@ -136,6 +138,9 @@ export function createTutorialDialog(): HTMLDialogElement {
                 每个阶段共5题，各阶段所取的通规字表区间会逐步后移。
               </p>
               <p class="tutorial-copy">
+                挑战结算时，将获得 <span class="tutorial-inline-cris tutorial-award-cris">${crisIconMarkup()}</span> 分光水晶，可在写字台使用。
+              </p>
+              <p class="tutorial-copy">
                 到达字表末端后，将进入<strong class="tutorial-ex-name">阶段EX</strong>……会有什么呢？
               </p>
               <p class="tutorial-disclaimer">阶段EX可在设置中关闭</p>
@@ -169,7 +174,7 @@ export function createTutorialDialog(): HTMLDialogElement {
                 适合对全字表进行练习，尽可能多地答对吧！
               </p>
               <p class="tutorial-disclaimer">
-                练习 / 无尽模式无法解锁图鉴
+                练习 / 无尽模式无法解锁图鉴或获得分光水晶
               </p>
             </section>
 
@@ -193,8 +198,12 @@ export function createTutorialDialog(): HTMLDialogElement {
                 </div>
               </div>
               <p class="tutorial-copy">
-                挑战模式中遇到的汉字与部件会自动收录。<br>
-                点击部件卡片可查看关联汉字、完成度与里程碑。<br>
+                挑战模式中遇到的汉字与部件会自动收录。
+              </p>
+              <p class="tutorial-copy">
+                点击部件卡片可查看关联汉字、完成度与里程碑。
+              </p>
+              <p class="tutorial-copy">
                 以更高的收集度为目标吧！
               </p>
             </section>

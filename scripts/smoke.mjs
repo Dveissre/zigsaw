@@ -254,7 +254,7 @@ try {
     "练习 / 无尽模式",
     "有更多可调整设置，换题次数不限。",
     "适合对全字表进行练习，尽可能多地答对吧！",
-    "练习 / 无尽模式无法解锁图鉴",
+    "练习 / 无尽模式无法解锁图鉴或获得分光水晶",
     "挑战模式中遇到的汉字与部件会自动收录。",
     "点击部件卡片可查看关联汉字、完成度与里程碑。",
     "以更高的收集度为目标吧！",
@@ -262,7 +262,44 @@ try {
   ]) {
     assert.ok(tutorialText.includes(text), text);
   }
+  assert.match(
+    (await page.locator(".tutorial-section").nth(1).innerText()).replace(
+      /\s+/g,
+      "",
+    ),
+    /挑战结算时，将获得分光水晶，可在写字台使用。/,
+  );
   assert.equal(await page.locator(".tutorial-atlas-card").count(), 5);
+  assert.equal(
+    await page
+      .locator(".tutorial-section")
+      .nth(3)
+      .locator("p.tutorial-copy")
+      .count(),
+    3,
+  );
+  assert.deepEqual(
+    await page
+      .locator(".tutorial-section")
+      .nth(3)
+      .locator("p.tutorial-copy")
+      .evaluateAll((paragraphs) =>
+        paragraphs
+          .slice(1)
+          .map((paragraph) => getComputedStyle(paragraph).marginTop),
+      ),
+    ["7px", "7px"],
+  );
+  assert.equal(
+    await page
+      .locator(".tutorial-award-cris")
+      .evaluate((element) => getComputedStyle(element).color),
+    "rgb(161, 55, 48)",
+  );
+  assert.equal(
+    await page.locator(".tutorial-award-cris .cris-icon").count(),
+    1,
+  );
   assert.deepEqual(
     await page.locator(".tutorial-atlas-card b").allTextContents(),
     ["木", "夕", "衣", "与"],
@@ -793,6 +830,26 @@ try {
       .locator(".answer-stage.is-skipped .reveal strong")
       .evaluate((element) => getComputedStyle(element).color),
     "rgb(138, 90, 0)",
+  );
+  assert.equal(await page.locator(".parts.has-skipped").count(), 1);
+  await page.waitForTimeout(220);
+  assert.equal(
+    await page
+      .locator(".parts.has-skipped .part-card")
+      .first()
+      .evaluate(
+        (element) => getComputedStyle(element, "::before").backgroundColor,
+      ),
+    "rgb(138, 90, 0)",
+  );
+  assert.ok(
+    (
+      await page
+        .locator(".parts.has-skipped .part")
+        .evaluateAll((parts) =>
+          parts.map((part) => getComputedStyle(part).color),
+        )
+    ).every((color) => color === "rgb(255, 255, 255)"),
   );
   await page
     .locator(".answer-stage.is-skipped")

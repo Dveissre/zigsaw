@@ -1226,7 +1226,13 @@ function renderGame(game: GameSession): void {
   const correct = state.feedback === "correct";
   const wrong = state.feedback === "wrong";
   const skipped = state.feedback === "skipped";
-  const partsFeedback = correct ? "has-correct" : wrong ? "has-wrong" : "";
+  const partsFeedback = correct
+    ? "has-correct"
+    : skipped
+      ? "has-skipped"
+      : wrong
+        ? "has-wrong"
+        : "";
   const pausedClass = state.paused
     ? "is-paused"
     : resuming

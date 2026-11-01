@@ -1462,6 +1462,28 @@ input:focus-visible {
   animation-delay: calc(var(--card-index) * 22ms + 55ms);
 }
 
+.parts.has-skipped .part-card {
+  border-color: var(--answer-yellow);
+  box-shadow: 3px 3px 0 rgba(138, 90, 0, 0.24);
+}
+
+.parts.has-skipped .part-card::after {
+  background: #fff;
+}
+
+.parts.has-skipped .part-card::before {
+  background: var(--answer-yellow);
+  will-change: transform;
+  backface-visibility: hidden;
+  animation: correct-sweep 110ms cubic-bezier(0.22, 0.8, 0.3, 1) forwards;
+  animation-delay: calc(var(--card-index) * 22ms);
+}
+
+.parts.has-skipped .part {
+  animation: correct-ink 70ms linear forwards;
+  animation-delay: calc(var(--card-index) * 22ms + 55ms);
+}
+
 .parts.is-ex.has-correct .part-card {
   border-color: #56386e;
   box-shadow: 3px 3px 0 rgba(86, 56, 110, 0.24);
@@ -1499,6 +1521,23 @@ input:focus-visible {
 }
 
 .parts.is-dense.has-correct .part {
+  animation-delay: calc(var(--card-index) * 10ms + 35ms);
+}
+
+.parts.is-compact.has-skipped .part-card::before {
+  animation-delay: calc(var(--card-index) * 15ms);
+}
+
+.parts.is-compact.has-skipped .part {
+  animation-delay: calc(var(--card-index) * 15ms + 45ms);
+}
+
+.parts.is-dense.has-skipped .part-card::before {
+  animation-duration: 90ms;
+  animation-delay: calc(var(--card-index) * 10ms);
+}
+
+.parts.is-dense.has-skipped .part {
   animation-delay: calc(var(--card-index) * 10ms + 35ms);
 }
 
@@ -6426,6 +6465,8 @@ input:focus-visible {
   .question-enter .part-card,
   .parts.has-correct .part-card::before,
   .parts.has-correct .part,
+  .parts.has-skipped .part-card::before,
+  .parts.has-skipped .part,
   .parts.is-ex.has-correct .part-card,
   .answer-stage.is-wrong,
   .timer-ring.is-urgent .timer-progress,
@@ -6507,6 +6548,14 @@ input:focus-visible {
   }
 
   .parts.has-correct .part {
+    color: #fff;
+  }
+
+  .parts.has-skipped .part-card::before {
+    transform: scaleX(1);
+  }
+
+  .parts.has-skipped .part {
     color: #fff;
   }
 
