@@ -598,20 +598,80 @@ try {
   });
   await gameSettingsTrigger.click();
   await page.locator("[data-game-settings-dialog][open]").waitFor();
+  const supplementarySetting = page.locator(".supplementary-setting");
   assert.equal(
-    await page.getByRole("button", { name: "启用", exact: true }).getAttribute(
-      "aria-pressed",
-    ),
+    await supplementarySetting
+      .locator("[data-include-supplementary='true']")
+      .getAttribute("aria-pressed"),
     "true",
   );
-  await page.getByRole("button", { name: "关闭", exact: true }).click();
   assert.equal(
-    await page.getByRole("button", { name: "关闭", exact: true }).getAttribute(
-      "aria-pressed",
-    ),
+    await supplementarySetting.locator(".game-setting-note").innerText(),
+    "排除后，将不会出现基本多文种平面外汉字",
+  );
+  const supplementaryNoteLayout = await supplementarySetting.evaluate(
+    (row) => {
+      const note = row.querySelector(".game-setting-note");
+      const rowBox = row.getBoundingClientRect();
+      const noteBox = note.getBoundingClientRect();
+      const style = getComputedStyle(note);
+      return {
+        centerOffset:
+          noteBox.left +
+          noteBox.width / 2 -
+          (rowBox.left + rowBox.width / 2),
+        fontSize: style.fontSize,
+        lineHeight: style.lineHeight,
+      };
+    },
+  );
+  assert.ok(Math.abs(supplementaryNoteLayout.centerOffset) <= 1);
+  assert.equal(supplementaryNoteLayout.fontSize, "12px");
+  assert.equal(supplementaryNoteLayout.lineHeight, "18.6px");
+  await supplementarySetting
+    .locator("[data-include-supplementary='false']")
+    .click();
+  assert.equal(
+    await supplementarySetting
+      .locator("[data-include-supplementary='false']")
+      .getAttribute("aria-pressed"),
     "true",
   );
-  await page.getByRole("button", { name: "启用", exact: true }).click();
+  assert.equal(
+    await page
+      .locator(".rare-char-toggle")
+      .getAttribute("data-active-supplementary"),
+    "false",
+  );
+  await supplementarySetting
+    .locator("[data-include-supplementary='true']")
+    .click();
+  assert.equal(
+    await page
+      .locator("[data-ex-enabled='true']")
+      .getAttribute("aria-pressed"),
+    "true",
+  );
+  await page.locator("[data-ex-enabled='false']").click();
+  assert.equal(
+    await page
+      .locator("[data-ex-enabled='false']")
+      .getAttribute("aria-pressed"),
+    "true",
+  );
+  assert.equal(
+    await page
+      .locator("[data-include-supplementary='true']")
+      .getAttribute("aria-pressed"),
+    "true",
+  );
+  assert.equal(
+    await page
+      .locator(".rare-char-toggle")
+      .getAttribute("data-active-supplementary"),
+    "true",
+  );
+  await page.locator("[data-ex-enabled='true']").click();
   await page.locator("[data-game-settings-close]").click();
   await page.evaluate(() =>
     sessionStorage.setItem("zigsaw.debug.unlocked", "1"),
@@ -728,7 +788,7 @@ try {
   assert.equal(await page.getByText("级别", { exact: true }).isVisible(), false);
   await page.getByRole("button", { name: "设置", exact: true }).click();
   assert.equal(
-    await page.getByRole("button", { name: "启用", exact: true }).isVisible(),
+    await page.locator("[data-ex-enabled='true']").isVisible(),
     true,
   );
   await page.locator("[data-game-settings-close]").click();

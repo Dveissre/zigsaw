@@ -264,6 +264,7 @@ export class GameSession {
         level,
         this.state.settings.partsLow,
         this.state.settings.partsHigh,
+        this.state.settings.includeSupplementaryChars,
       )) {
         chars.add(char);
       }
@@ -368,6 +369,8 @@ export class GameSession {
       : this.data.challengeOrder.slice(bounds.start, bounds.end);
     let window = source.filter(
       (char) =>
+        (this.state.settings.includeSupplementaryChars ||
+          this.data.isBasicPlaneCharacter(char)) &&
         this.data.isCharSelectable(char) &&
         (this.data.ways.get(char) ?? []).some(
           (way) => way.length >= minParts,
@@ -380,6 +383,8 @@ export class GameSession {
         : this.data.challengeOrder;
       window = fallback.filter(
         (char) =>
+          (this.state.settings.includeSupplementaryChars ||
+            this.data.isBasicPlaneCharacter(char)) &&
           this.data.isCharSelectable(char) &&
           (this.data.ways.get(char) ?? []).some(
             (way) => way.length >= minParts,

@@ -798,12 +798,14 @@ input:focus-visible {
   background: transparent;
 }
 
-.ex-toggle {
+.ex-toggle,
+.rare-char-toggle {
   grid-template-columns: repeat(2, minmax(74px, 1fr));
   width: min(100%, 220px);
 }
 
-.ex-toggle {
+.ex-toggle,
+.rare-char-toggle {
   --ex-position: 0;
 }
 
@@ -823,7 +825,8 @@ input:focus-visible {
   background: var(--ink);
 }
 
-.ex-toggle button[aria-pressed="true"] {
+.ex-toggle button[aria-pressed="true"],
+.rare-char-toggle button[aria-pressed="true"] {
   background: transparent;
 }
 
@@ -1981,9 +1984,27 @@ input:focus-visible {
   border-bottom: 1px solid var(--line);
 }
 
-.game-setting-row .ex-toggle {
+.game-setting-row .ex-toggle,
+.game-setting-row .rare-char-toggle {
   justify-self: end;
   width: min(100%, 220px);
+}
+
+.supplementary-setting {
+  row-gap: 8px;
+}
+
+.rare-char-toggle .choice-slider {
+  background: var(--ink);
+}
+
+.game-setting-note {
+  grid-column: 1 / -1;
+  margin: 0;
+  color: var(--muted);
+  font-size: 12px;
+  line-height: 1.55;
+  text-align: center;
 }
 
 .game-setting-copy {
@@ -6065,7 +6086,8 @@ input:focus-visible {
     gap: 12px;
   }
 
-  .game-setting-row .ex-toggle {
+  .game-setting-row .ex-toggle,
+  .game-setting-row .rare-char-toggle {
     justify-self: end;
     width: min(100%, 190px);
   }

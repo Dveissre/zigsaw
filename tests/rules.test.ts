@@ -21,6 +21,7 @@ const challenge: GameSettings = {
   stageSize: 500,
   stageShift: 250,
   exEnabled: true,
+  includeSupplementaryChars: true,
   difficulty: "standard",
 };
 
@@ -41,6 +42,12 @@ describe("record keys", () => {
     expect(recordKey(challenge)).toBe(
       "challenge|difficulty=standard|questions=3|size=500|shift=250|seconds=20|ex=1",
     );
+    expect(
+      recordKey({
+        ...challenge,
+        includeSupplementaryChars: false,
+      }),
+    ).toBe(recordKey(challenge));
   });
 });
 
@@ -218,6 +225,70 @@ describe("directional answer compatibility", () => {
           },
         ),
     ).toThrow("答案兼容规则存在循环");
+  });
+});
+
+describe("supplementary character exclusion", () => {
+  const supplementary = "𬭚";
+  const createData = (chars: string[]) =>
+    new GameData(
+      {
+        symbols: { "1": "一", "2": "丨", "3": "丶" },
+        chars: Object.fromEntries(
+          chars.map((char) => [char, [[1, 2, 3]]]),
+        ),
+      },
+      {
+        levels: {
+          一级: chars,
+          二级: [],
+          三级: [],
+        },
+      },
+      null,
+      "https://example.com/",
+    );
+
+  it("filters supplementary characters out of ordinary game pools", () => {
+    const data = createData(["二", supplementary]);
+    const session = new GameSession(
+      data,
+      {
+        ...challenge,
+        mode: "normal",
+        levels: [1],
+        partsLow: 3,
+        partsHigh: 3,
+        includeSupplementaryChars: false,
+      },
+      { load: () => 0, save: () => undefined },
+      () => undefined,
+      () => 0,
+    );
+
+    expect(session.state.current?.char).toBe("二");
+    session.destroy();
+  });
+
+  it("does not fall back to supplementary characters in challenge mode", () => {
+    const data = createData([supplementary]);
+
+    expect(
+      () =>
+        new GameSession(
+          data,
+          {
+            ...challenge,
+            levels: [1],
+            partsLow: 3,
+            partsHigh: 3,
+            includeSupplementaryChars: false,
+          },
+          { load: () => 0, save: () => undefined },
+          () => undefined,
+          () => 0,
+        ),
+    ).toThrow(/没有/);
   });
 });
 

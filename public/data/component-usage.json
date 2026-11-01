@@ -3,7 +3,7 @@
   "source": "tongyong_hanzi.json + char_sym.json",
   "characterCount": 8105,
   "decompositionCount": 9164,
-  "totalUsageCount": 31948,
+  "totalUsageCount": 31947,
   "componentCount": 374,
   "symbols": [
     {
@@ -79,16 +79,16 @@
       "charCount": 377
     },
     {
+      "symbolId": 5,
+      "name": "丶",
+      "count": 459,
+      "charCount": 395
+    },
+    {
       "symbolId": 36,
       "name": "八",
       "count": 459,
       "charCount": 421
-    },
-    {
-      "symbolId": 5,
-      "name": "丶",
-      "count": 455,
-      "charCount": 391
     },
     {
       "symbolId": 177,
@@ -141,8 +141,8 @@
     {
       "symbolId": 4,
       "name": "丿",
-      "count": 328,
-      "charCount": 292
+      "count": 324,
+      "charCount": 288
     },
     {
       "symbolId": 21,
@@ -261,12 +261,6 @@
       "charCount": 166
     },
     {
-      "symbolId": 37,
-      "name": "儿",
-      "count": 186,
-      "charCount": 171
-    },
-    {
       "symbolId": 189,
       "name": "辶",
       "count": 186,
@@ -277,6 +271,12 @@
       "name": "纟",
       "count": 186,
       "charCount": 173
+    },
+    {
+      "symbolId": 37,
+      "name": "儿",
+      "count": 185,
+      "charCount": 170
     },
     {
       "symbolId": 415,
@@ -303,6 +303,12 @@
       "charCount": 146
     },
     {
+      "symbolId": 101,
+      "name": "夂",
+      "count": 167,
+      "charCount": 153
+    },
+    {
       "symbolId": 31,
       "name": "𠂉",
       "count": 166,
@@ -313,12 +319,6 @@
       "name": "忄",
       "count": 166,
       "charCount": 154
-    },
-    {
-      "symbolId": 101,
-      "name": "夂",
-      "count": 165,
-      "charCount": 151
     },
     {
       "symbolId": 230,
@@ -353,8 +353,8 @@
     {
       "symbolId": 166,
       "name": "攵",
-      "count": 150,
-      "charCount": 129
+      "count": 148,
+      "charCount": 127
     },
     {
       "symbolId": 59,
@@ -419,8 +419,8 @@
     {
       "symbolId": 39,
       "name": "乂",
-      "count": 122,
-      "charCount": 109
+      "count": 121,
+      "charCount": 108
     },
     {
       "symbolId": 104,
@@ -1067,6 +1067,12 @@
       "charCount": 25
     },
     {
+      "symbolId": 176,
+      "name": "父",
+      "count": 30,
+      "charCount": 29
+    },
+    {
       "symbolId": 52,
       "name": "コ",
       "count": 29,
@@ -1075,12 +1081,6 @@
     {
       "symbolId": 111,
       "name": "己",
-      "count": 29,
-      "charCount": 28
-    },
-    {
-      "symbolId": 176,
-      "name": "父",
       "count": 29,
       "charCount": 28
     },

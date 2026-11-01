@@ -600,6 +600,7 @@ describe("static game data", () => {
       stageSize: 1500,
       stageShift: 300,
       exEnabled: true,
+      includeSupplementaryChars: true,
       difficulty: "standard" as const,
     };
     const boundary = game.challengeBounds(settings, (24 - 1) * 5 + 1);
@@ -658,6 +659,31 @@ describe("directional answer compatibility", () => {
     expect([...game.accepted([211, 1, 34, 5])]).toContain("汱");
     expect(game.ways.get("汱")).toEqual([[211, 144]]);
     expect(game.ways.get("汰")).toEqual([[211, 77, 5]]);
+  });
+});
+
+describe("supplementary-plane character filtering", () => {
+  it("can exclude characters outside the basic multilingual plane", () => {
+    const symTable = readJson<SymTable>("public/data/char_sym.json");
+    const levelTable = readJson<LevelTable>(
+      "public/data/tongyong_hanzi.json",
+    );
+    const game = new GameData(
+      symTable,
+      levelTable,
+      null,
+      "https://example.com/zigsaw/",
+    );
+    const included = game.candidates(2, 3, 5, true);
+    const excluded = game.candidates(2, 3, 5, false);
+
+    expect(
+      included.some((char) => !game.isBasicPlaneCharacter(char)),
+    ).toBe(true);
+    expect(
+      excluded.every((char) => game.isBasicPlaneCharacter(char)),
+    ).toBe(true);
+    expect(excluded.length).toBeLessThan(included.length);
   });
 });
 

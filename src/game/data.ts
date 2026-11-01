@@ -25,6 +25,7 @@ export interface GameSettings {
   stageSize: number;
   stageShift: number;
   exEnabled: boolean;
+  includeSupplementaryChars: boolean;
   difficulty: ChallengeDifficulty;
 }
 
@@ -200,8 +201,13 @@ export class GameData {
     this.byBag = byBag;
   }
 
-  candidates(level: Level, low: number, high: number): string[] {
-    const key = `${level}|${low}|${high}`;
+  candidates(
+    level: Level,
+    low: number,
+    high: number,
+    includeSupplementaryChars = true,
+  ): string[] {
+    const key = `${level}|${low}|${high}|${includeSupplementaryChars ? 1 : 0}`;
     const cached = this.candidateCache.get(key);
     if (cached) {
       return cached;
@@ -213,6 +219,9 @@ export class GameData {
           return false;
         }
         if (!this.isCharSelectable(char)) {
+          return false;
+        }
+        if (!includeSupplementaryChars && !this.isBasicPlaneCharacter(char)) {
           return false;
         }
         return (this.ways.get(char) ?? []).some(
@@ -253,6 +262,11 @@ export class GameData {
     return !(this.ways.get(char) ?? []).some((way) =>
       way.some((symbolId) => this.unsupportedSymbolIds.has(symbolId)),
     );
+  }
+
+  isBasicPlaneCharacter(char: string): boolean {
+    const codePoint = char.codePointAt(0);
+    return codePoint !== undefined && codePoint <= 0xffff;
   }
 
   accepted(way: number[]): Set<string> {

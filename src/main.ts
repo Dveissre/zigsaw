@@ -53,6 +53,7 @@ const DEFAULT_SETTINGS: GameSettings = {
   stageSize: 1500,
   stageShift: 300,
   exEnabled: true,
+  includeSupplementaryChars: true,
   difficulty: "standard",
 };
 
@@ -254,6 +255,17 @@ function shell(
             </button>
           </header>
           <div class="game-settings-content">
+            <div class="game-setting-row supplementary-setting">
+              <div class="game-setting-copy">
+                <strong>难输入汉字</strong>
+              </div>
+              <div class="segmented rare-char-toggle" role="group" aria-label="难输入汉字" aria-describedby="supplementary-character-note" data-active-supplementary="${lastSettings.includeSupplementaryChars}" style="--ex-position:${lastSettings.includeSupplementaryChars ? 0 : 1}">
+                <span class="choice-slider" aria-hidden="true"></span>
+                <button type="button" data-include-supplementary="true" aria-pressed="${lastSettings.includeSupplementaryChars ? "true" : "false"}" ${settingsLocked ? "disabled" : ""}>启用</button>
+                <button type="button" data-include-supplementary="false" aria-pressed="${lastSettings.includeSupplementaryChars ? "false" : "true"}" ${settingsLocked ? "disabled" : ""}>排除</button>
+              </div>
+              <p class="game-setting-note" id="supplementary-character-note">排除后，将不会出现基本多文种平面外汉字</p>
+            </div>
             <div class="game-setting-row">
               <div class="game-setting-copy">
                 <strong>阶段EX</strong>
@@ -553,6 +565,36 @@ function wireGameSettingsDialog(): void {
         }
       });
     });
+  dialog
+    .querySelectorAll<HTMLButtonElement>("[data-include-supplementary]")
+    .forEach((button) => {
+      button.addEventListener("click", () => {
+        const enabled = button.dataset.includeSupplementary === "true";
+        dialog
+          .querySelectorAll<HTMLButtonElement>(
+            "[data-include-supplementary]",
+          )
+          .forEach((peer) => {
+            peer.setAttribute(
+              "aria-pressed",
+              String(peer === button),
+            );
+          });
+        const toggle =
+          dialog.querySelector<HTMLElement>(".rare-char-toggle");
+        if (toggle) {
+          toggle.dataset.activeSupplementary = String(enabled);
+          toggle.style.setProperty(
+            "--ex-position",
+            enabled ? "0" : "1",
+          );
+        }
+        lastSettings.includeSupplementaryChars = enabled;
+        if (!session) {
+          updateStartRecord();
+        }
+      });
+    });
 }
 
 function clamp(value: number, minimum: number, maximum: number): number {
@@ -787,6 +829,12 @@ function readSettings(): GameSettings {
       document
         .querySelector<HTMLButtonElement>("[data-ex-enabled][aria-pressed='true']")
         ?.dataset.exEnabled === "true",
+    includeSupplementaryChars:
+      document
+        .querySelector<HTMLButtonElement>(
+          "[data-include-supplementary][aria-pressed='true']",
+        )
+        ?.dataset.includeSupplementary !== "false",
     difficulty,
   };
 }
@@ -1021,8 +1069,12 @@ function renderStart(initial: GameSettings = lastSettings): void {
       settings.mode !== "challenge" &&
       settings.levels.every(
         (level) =>
-          data?.candidates(level, settings.partsLow, settings.partsHigh)
-            .length === 0,
+          data?.candidates(
+            level,
+            settings.partsLow,
+            settings.partsHigh,
+            settings.includeSupplementaryChars,
+          ).length === 0,
       )
     ) {
       if (formError) {
