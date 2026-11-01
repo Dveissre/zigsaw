@@ -57,6 +57,11 @@ type ComponentAssetTable = {
   >;
 };
 
+type AnswerCompatibilityTable = {
+  format: string;
+  expansions: Record<string, number[][]>;
+};
+
 type LevelTable = {
   levels: {
     一级: string[];
@@ -93,6 +98,12 @@ export class GameData {
   private readonly componentAssets: Map<number, string>;
   private readonly unsupportedSymbolIds: Set<number>;
   private readonly byBag: Map<string, Set<string>>;
+  private readonly answerExpansions: Map<number, number[][]>;
+  private readonly reverseAnswerExpansions: Array<{
+    symbolId: number;
+    parts: number[];
+  }>;
+  private readonly acceptedCache = new Map<string, Set<string>>();
   private readonly candidateCache = new Map<string, string[]>();
 
   constructor(
@@ -100,6 +111,7 @@ export class GameData {
     levelData: LevelTable,
     assetData: ComponentAssetTable | null = null,
     baseUrl = "",
+    answerCompatibility: AnswerCompatibilityTable | null = null,
   ) {
     this.symbols = new Map(
       Object.entries(symData.symbols).map(([id, name]) => [Number(id), name]),
@@ -113,6 +125,29 @@ export class GameData {
         new URL(asset.source, baseUrl).href,
       ]),
     );
+    if (
+      answerCompatibility &&
+      answerCompatibility.format !== "zh-char-sym-answer-compat/1"
+    ) {
+      throw new Error(
+        `不支持的答案兼容规则格式：${answerCompatibility.format}`,
+      );
+    }
+    this.answerExpansions = new Map(
+      Object.entries(answerCompatibility?.expansions ?? {}).map(
+        ([symbolId, alternatives]) => [
+          Number(symbolId),
+          alternatives.map((alternative) => [...alternative]),
+        ],
+      ),
+    );
+    this.validateAnswerCompatibility();
+    this.reverseAnswerExpansions = [];
+    for (const [symbolId, alternatives] of this.answerExpansions) {
+      for (const parts of alternatives) {
+        this.reverseAnswerExpansions.push({ symbolId, parts });
+      }
+    }
     this.unsupportedSymbolIds = new Set(
       [...this.symbols.entries()]
         .filter(
@@ -221,7 +256,131 @@ export class GameData {
   }
 
   accepted(way: number[]): Set<string> {
-    return this.byBag.get(bagKey(way)) ?? new Set();
+    const key = bagKey(way);
+    const cached = this.acceptedCache.get(key);
+    if (cached) {
+      return cached;
+    }
+
+    const accepted = new Set<string>();
+    const pending = [this.countParts(way)];
+    const visited = new Set<string>();
+    while (pending.length > 0) {
+      const target = pending.pop()!;
+      const targetKey = this.countPartsKey(target);
+      if (visited.has(targetKey)) {
+        continue;
+      }
+      visited.add(targetKey);
+      for (const char of this.byBag.get(this.countsBagKey(target)) ?? []) {
+        accepted.add(char);
+      }
+      for (const expansion of this.reverseAnswerExpansions) {
+        const source = this.consumeSubbag(target, expansion.parts);
+        if (!source) {
+          continue;
+        }
+        source.set(
+          expansion.symbolId,
+          (source.get(expansion.symbolId) ?? 0) + 1,
+        );
+        pending.push(source);
+      }
+    }
+    this.acceptedCache.set(key, accepted);
+    return accepted;
+  }
+
+  private validateAnswerCompatibility(): void {
+    for (const [symbolId, alternatives] of this.answerExpansions) {
+      if (!Number.isSafeInteger(symbolId) || !this.symbols.has(symbolId)) {
+        throw new Error(`答案兼容规则引用了不存在的部件 ${symbolId}`);
+      }
+      if (alternatives.length === 0) {
+        throw new Error(`答案兼容规则 ${symbolId} 没有展开方案`);
+      }
+      for (const alternative of alternatives) {
+        if (alternative.length === 0) {
+          throw new Error(`答案兼容规则 ${symbolId} 包含空拆法`);
+        }
+        for (const part of alternative) {
+          if (!Number.isSafeInteger(part) || !this.symbols.has(part)) {
+            throw new Error(
+              `答案兼容规则 ${symbolId} 引用了不存在的部件 ${part}`,
+            );
+          }
+        }
+      }
+    }
+
+    const visiting = new Set<number>();
+    const visited = new Set<number>();
+    const visit = (symbolId: number): void => {
+      if (visited.has(symbolId)) {
+        return;
+      }
+      if (visiting.has(symbolId)) {
+        throw new Error(`答案兼容规则存在循环：${symbolId}`);
+      }
+      visiting.add(symbolId);
+      for (const alternative of this.answerExpansions.get(symbolId) ?? []) {
+        for (const part of alternative) {
+          if (this.answerExpansions.has(part)) {
+            visit(part);
+          }
+        }
+      }
+      visiting.delete(symbolId);
+      visited.add(symbolId);
+    };
+    for (const symbolId of this.answerExpansions.keys()) {
+      visit(symbolId);
+    }
+  }
+
+  private countParts(way: number[]): Map<number, number> {
+    const counts = new Map<number, number>();
+    for (const symbolId of way) {
+      counts.set(symbolId, (counts.get(symbolId) ?? 0) + 1);
+    }
+    return counts;
+  }
+
+  private countPartsKey(counts: Map<number, number>): string {
+    return [...counts.entries()]
+      .filter(([, count]) => count > 0)
+      .sort(([left], [right]) => left - right)
+      .map(([symbolId, count]) => `${symbolId}:${count}`)
+      .join(",");
+  }
+
+  private countsBagKey(counts: Map<number, number>): string {
+    return [...counts.entries()]
+      .filter(([, count]) => count > 0)
+      .sort(([left], [right]) => left - right)
+      .flatMap(([symbolId, count]) =>
+        Array.from({ length: count }, () => symbolId),
+      )
+      .join(",");
+  }
+
+  private consumeSubbag(
+    source: Map<number, number>,
+    parts: number[],
+  ): Map<number, number> | null {
+    const remainder = new Map(source);
+    for (const part of parts) {
+      const count = remainder.get(part) ?? 0;
+      if (count === 0) {
+        return null;
+      }
+      if (count === 1) {
+        remainder.delete(part);
+      } else {
+        remainder.set(part, count - 1);
+      }
+    }
+    return remainder;
   }
 
   answerMeta(char: string): string {
@@ -275,14 +434,25 @@ async function fetchJson<T>(relativePath: string, baseUrl: string): Promise<T> {
 }
 
 export async function loadGameData(baseUrl: string): Promise<GameData> {
-  const [symData, levelData, assetData] = await Promise.all([
-    fetchJson<SymTable>("data/char_sym.json", baseUrl),
-    fetchJson<LevelTable>("data/tongyong_hanzi.json", baseUrl),
-    fetchJson<ComponentAssetTable>(
-      "data/component-assets.json",
-      baseUrl,
-    ).catch(() => null),
-  ]);
-  return new GameData(symData, levelData, assetData, baseUrl);
+  const [symData, levelData, assetData, answerCompatibility] =
+    await Promise.all([
+      fetchJson<SymTable>("data/char_sym.json", baseUrl),
+      fetchJson<LevelTable>("data/tongyong_hanzi.json", baseUrl),
+      fetchJson<ComponentAssetTable>(
+        "data/component-assets.json",
+        baseUrl,
+      ).catch(() => null),
+      fetchJson<AnswerCompatibilityTable>(
+        "data/char_sym_answer_compat.json",
+        baseUrl,
+      ),
+    ]);
+  return new GameData(
+    symData,
+    levelData,
+    assetData,
+    baseUrl,
+    answerCompatibility,
+  );
 }
 

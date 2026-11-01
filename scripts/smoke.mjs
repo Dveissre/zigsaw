@@ -46,7 +46,7 @@ try {
   const readDisplayedParts = () =>
     page.locator(".part").evaluateAll((parts) =>
       parts.map((part) => {
-        const text = part.textContent?.trim();
+        const text = part.textContent?.trim().replace("（国字框）", "");
         return text || part.querySelector("[role='img']")?.getAttribute("aria-label") || "";
       }),
     );

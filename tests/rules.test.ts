@@ -132,6 +132,95 @@ describe("question part ordering", () => {
   });
 });
 
+describe("directional answer compatibility", () => {
+  const createGame = () =>
+    new GameData(
+      {
+        symbols: {
+          "1": "一",
+          "2": "人",
+          "3": "丨",
+          "4": "大",
+          "5": "丶",
+          "6": "犬",
+          "7": "兼",
+          "8": "氵",
+        },
+        chars: {
+          汱: [[8, 6]],
+          汰: [[8, 4, 5]],
+          丙: [[7]],
+        },
+      },
+      {
+        levels: {
+          一级: ["汱", "汰", "丙"],
+          二级: [],
+          三级: [],
+        },
+      },
+      null,
+      "https://example.com/",
+      {
+        format: "zh-char-sym-answer-compat/1",
+        expansions: {
+          "4": [[1, 2]],
+          "6": [[4, 5]],
+          "7": [
+            [1, 3],
+            [2, 4],
+          ],
+        },
+      },
+    );
+
+  it("only expands candidate answers toward finer question parts", () => {
+    const game = createGame();
+
+    expect([...game.accepted([8, 4, 5])]).toContain("汱");
+    expect([...game.accepted([8, 6])]).not.toContain("汰");
+    expect([...game.accepted([8, 1, 2, 5])]).toContain("汱");
+    expect(game.ways.get("汱")).toEqual([[8, 6]]);
+    expect(game.candidates(1, 2, 2)).toEqual(["汱"]);
+    expect(game.candidates(1, 3, 3)).toEqual(["汰"]);
+  });
+
+  it("tries every compatible expansion alternative", () => {
+    const game = createGame();
+
+    expect([...game.accepted([1, 3])]).toContain("丙");
+    expect([...game.accepted([2, 4])]).toContain("丙");
+  });
+
+  it("rejects cyclic compatibility rules", () => {
+    expect(
+      () =>
+        new GameData(
+          {
+            symbols: { "1": "一", "2": "丨" },
+            chars: { 十: [[2]] },
+          },
+          {
+            levels: {
+              一级: ["十"],
+              二级: [],
+              三级: [],
+            },
+          },
+          null,
+          "https://example.com/",
+          {
+            format: "zh-char-sym-answer-compat/1",
+            expansions: {
+              "1": [[2]],
+              "2": [[1]],
+            },
+          },
+        ),
+    ).toThrow("答案兼容规则存在循环");
+  });
+});
+
 describe("question replacement", () => {
   afterEach(() => {
     vi.useRealTimers();

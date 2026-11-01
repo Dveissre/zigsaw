@@ -24,6 +24,11 @@ type ComponentAssetTable = {
   symbols: Record<string, { name: string; source: string }>;
 };
 
+type AnswerCompatibilityTable = {
+  format: string;
+  expansions: Record<string, number[][]>;
+};
+
 type CharDetailTable = Array<{
   char: string;
   pronunciations: Array<{
@@ -275,7 +280,7 @@ describe("static game data", () => {
 
     expect(usage.format).toBe("zigsaw-component-usage/1");
     expect(usage.characterCount).toBe(8105);
-    expect(usage.decompositionCount).toBe(8860);
+    expect(usage.decompositionCount).toBe(9237);
     expect(usage.componentCount).toBe(usage.symbols.length);
     expect(new Set(ids).size).toBe(ids.length);
     expect(usage.totalUsageCount).toBe(
@@ -294,7 +299,7 @@ describe("static game data", () => {
     expect(usage.symbols[0]).toMatchObject({
       symbolId: 90,
       name: "口",
-      count: 1757,
+      count: 1852,
     });
     expect(
       usage.symbols.find((symbol) => symbol.symbolId === 425)
@@ -314,11 +319,11 @@ describe("static game data", () => {
     expect(atlas.xrCount).toBe(16);
     expect(atlas.characterCount).toBe(8105);
     expect(atlas.byRarity).toEqual({
-      N: 72,
+      N: 74,
       R: 138,
-      SR: 112,
-      SSR: 32,
-      UR: 40,
+      SR: 110,
+      SSR: 33,
+      UR: 39,
       XR: 16,
     });
     const expectedRarity = (count: number) =>
@@ -624,6 +629,35 @@ describe("static game data", () => {
       isEx: false,
     });
     expect(externalCharacterMeta("丒")).toBe("（表外 U+4E12）");
+  });
+});
+
+describe("directional answer compatibility", () => {
+  it("accepts finer compatible answers without reversing the direction", () => {
+    const symTable = readJson<SymTable>("public/data/char_sym.json");
+    const levelTable = readJson<LevelTable>(
+      "public/data/tongyong_hanzi.json",
+    );
+    const assets = readJson<ComponentAssetTable>(
+      "public/data/component-assets.json",
+    );
+    const compatibility = readJson<AnswerCompatibilityTable>(
+      "public/data/char_sym_answer_compat.json",
+    );
+    const game = new GameData(
+      symTable,
+      levelTable,
+      assets,
+      "https://example.com/zigsaw/",
+      compatibility,
+    );
+
+    expect([...game.accepted([211, 77, 5])]).toContain("汱");
+    expect([...game.accepted([211, 144])]).toContain("汱");
+    expect([...game.accepted([211, 144])]).not.toContain("汰");
+    expect([...game.accepted([211, 1, 34, 5])]).toContain("汱");
+    expect(game.ways.get("汱")).toEqual([[211, 144]]);
+    expect(game.ways.get("汰")).toEqual([[211, 77, 5]]);
   });
 });
 

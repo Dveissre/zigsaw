@@ -1,4 +1,7 @@
-# ZIGSAW Bugfix 对话 Handoff
+# ZIGSAW Bugfix 运行约定与记录
+
+总索引见 `docs/handoff/README.md`。复杂的跨分支功能单独记录在
+`docs/handoff/features/`；本文件只保存 Bug 工作流和修复汇总。
 
 本文用于另开一个对话集中处理内测 Bug，让主线对话继续推进“试炼模式”。
 
@@ -9,16 +12,17 @@
 - 两边同时工作时必须使用不同的 Git worktree，不能同时编辑同一个目录。
 - 未经用户明确要求，不提交、不推送。
 
-## 项目快照
+## 项目快照（2026-11-01）
 
 - 项目目录：`C:\Projects\Web\zigsaw`
+- Bug worktree：`C:\Projects\Web\zigsaw-bugs`
 - 技术栈：Vite + TypeScript
 - 部署：GitHub Pages
 - 数据存储：localStorage；没有后端
-- 创建本文时分支：`main`
-- 创建本文时 HEAD：`667f30c Wei component fix`
-- 创建本文时工作区干净，`main` 与 `origin/main` 一致
-- 试炼模式目前只有设计与资料，尚未开始运行时代码实现
+- 当前主线分支：`feature/trial-mode`，位于主 worktree
+- 当前修复分支：`bugfix/internal`，位于 Bug worktree
+- 当时 `main` 与 `origin/main` 位于 `003f9c1 fix: 2 New SVG`
+- 主线 worktree 尚未合入此后的 Bug 修复和答案兼容层
 
 ## 开始 Bug 对话时先做什么
 
@@ -129,6 +133,16 @@ Bug 修复不得要求用户随意清除网站数据，否则可能丢失：
 
 ## 最近完成的修复
 
+### 答案反馈与写字台
+
+- “囗”注记随正确后的主文字变浅，暂停铺黑时一起隐藏。
+- 换题时显示当前题答案，使用深黄色，900ms 后自动换题。
+- 教程图鉴示例中 SSR“与”的计数为 5。
+- 写字台组字记录中的部件卡增加等级色方点；汉字格不加方点。
+- Cris 不足按钮改为“Cris 图标 + 不足”，复用价格按钮的居中对齐。
+- 新增 `14.svg`（乛）和 `44.svg`（勹）并加入组件资源映射。
+- 字表更新后同步刷新图鉴、部件使用和统计测试。
+
 ### Chrome 软键盘
 
 - `index.html` 已启用 `interactive-widget=resizes-content`。
@@ -164,6 +178,13 @@ npm run build
 - 修改了哪些文件
 - 如何验证
 - 是否仍有浏览器或设备特例
+
+记录方式：
+
+- 小型修复直接追加到本文件，不为每个修复新建文档。
+- 涉及新数据格式、跨模块协议或后续分支必须知道的功能，新增
+  `docs/handoff/features/<name>.md`，并在 `README.md` 登记。
+- 每次完成实质性修改后更新 `README.md` 的“最近交接”。
 
 ## 推荐严重级别
 
