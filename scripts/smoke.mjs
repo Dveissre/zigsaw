@@ -1447,7 +1447,10 @@ try {
   );
   const copiedShareLines = copiedShareText.split("\n");
   assert.equal(copiedShareLines.length, 6);
-  assert.equal(copiedShareLines[0], "ZIGSAW - 挑战模式");
+  assert.equal(
+    copiedShareLines[0],
+    "◈ ZIGSAW - 挑战 - 普通",
+  );
   assert.equal(copiedShareLines[1], "🌱 3 题﹫阶段 2");
   assert.match(
     copiedShareLines[2],

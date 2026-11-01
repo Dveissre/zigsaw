@@ -37,11 +37,28 @@ describe("challenge sharing", () => {
     expect(challengeTimeEmoji(25)).toBe("⏳");
   });
 
+  it("includes the selected difficulty in the share heading", () => {
+    const text = buildChallengeShareText({
+      correctCount: 96,
+      stage: "20",
+      isEx: false,
+      difficulty: "expert",
+      averageQuestionSeconds: 10.5,
+      history: [{ ok: true, isEx: false, level: 2 }],
+    });
+    const lines = text.split("\n");
+
+    expect(lines[0]).toBe("◈ ZIGSAW - 挑战 - 专家");
+    expect(lines[1]).toBe("🏔️ 96 题﹫阶段 20");
+    expect(lines[2]).toBe("💫 平均用时 10.5s");
+  });
+
   it("shows every result for runs up to twenty questions", () => {
     const text = buildChallengeShareText({
       correctCount: 3,
       stage: "2",
       isEx: false,
+      difficulty: "beginner",
       averageQuestionSeconds: 4.26,
       history: [
         { ok: true, isEx: false, level: 1 },
@@ -53,7 +70,7 @@ describe("challenge sharing", () => {
 
     expect(text).toBe(
       [
-        "ZIGSAW - 挑战模式",
+        "◈ ZIGSAW - 挑战 - 入门",
         "🌱 3 题﹫阶段 2",
         "⚡ 平均用时 4.3s",
         "⬜🟩🟦🟥",
@@ -85,6 +102,7 @@ describe("challenge sharing", () => {
       correctCount: 20,
       stage: "EX",
       isEx: true,
+      difficulty: "expert",
       averageQuestionSeconds: 12,
       history,
     });
@@ -92,6 +110,7 @@ describe("challenge sharing", () => {
     expect(text.split("\n")[3]).toBe(
       `▫️◽${"⬜".repeat(15)}${"🟥".repeat(5)}`,
     );
+    expect(text).toContain("◈ ZIGSAW - 挑战 - 专家");
     expect(text).toContain("🌌 20 题﹫阶段 EX");
     expect(text).toContain("💫 平均用时 12.0s");
   });

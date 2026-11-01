@@ -280,7 +280,7 @@ describe("static game data", () => {
 
     expect(usage.format).toBe("zigsaw-component-usage/1");
     expect(usage.characterCount).toBe(8105);
-    expect(usage.decompositionCount).toBe(9237);
+    expect(usage.decompositionCount).toBe(9164);
     expect(usage.componentCount).toBe(usage.symbols.length);
     expect(new Set(ids).size).toBe(ids.length);
     expect(usage.totalUsageCount).toBe(
@@ -299,7 +299,7 @@ describe("static game data", () => {
     expect(usage.symbols[0]).toMatchObject({
       symbolId: 90,
       name: "口",
-      count: 1852,
+      count: 1840,
     });
     expect(
       usage.symbols.find((symbol) => symbol.symbolId === 425)
@@ -319,8 +319,8 @@ describe("static game data", () => {
     expect(atlas.xrCount).toBe(16);
     expect(atlas.characterCount).toBe(8105);
     expect(atlas.byRarity).toEqual({
-      N: 74,
-      R: 138,
+      N: 73,
+      R: 139,
       SR: 110,
       SSR: 33,
       UR: 39,

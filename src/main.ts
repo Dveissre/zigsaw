@@ -1414,6 +1414,7 @@ function renderResults(game: GameSession): void {
     correctCount: state.correctCount,
     stage: shareStage,
     isEx: finalBounds?.isEx ?? false,
+    difficulty: state.settings.difficulty,
     averageQuestionSeconds:
       result.averageQuestionSeconds,
     history: state.history.map((item) => ({

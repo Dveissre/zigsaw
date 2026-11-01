@@ -1,4 +1,4 @@
-import type { Level } from "./data";
+import type { ChallengeDifficulty, Level } from "./data";
 
 const SHARE_URL = "https://dveissre.github.io/zigsaw/";
 
@@ -12,9 +12,16 @@ export interface ChallengeShareOptions {
   correctCount: number;
   stage: string;
   isEx: boolean;
+  difficulty: ChallengeDifficulty;
   averageQuestionSeconds: number;
   history: ShareHistoryItem[];
 }
+
+const DIFFICULTY_LABELS: Record<ChallengeDifficulty, string> = {
+  beginner: "入门",
+  standard: "普通",
+  expert: "专家",
+};
 
 export function challengeStageEmoji(
   stage: number,
@@ -67,6 +74,7 @@ export function buildChallengeShareText({
   correctCount,
   stage,
   isEx,
+  difficulty,
   averageQuestionSeconds,
   history,
 }: ChallengeShareOptions): string {
@@ -81,7 +89,7 @@ export function buildChallengeShareText({
   const overflow = symbols.length > 20 ? "▫️◽" : "";
 
   return [
-    "ZIGSAW - 挑战模式",
+    `◈ ZIGSAW - 挑战 - ${DIFFICULTY_LABELS[difficulty]}`,
     `${stageEmoji} ${correctCount} 题﹫阶段 ${stage}`,
     `${challengeTimeEmoji(averageQuestionSeconds)} 平均用时 ${Math.max(
       0,
