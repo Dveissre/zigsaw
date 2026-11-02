@@ -42,8 +42,8 @@ if (!rootElement) {
 
 const root: HTMLDivElement = rootElement;
 const experimentalPlay = root.hasAttribute("data-experimental-play");
-const appBaseUrl = experimentalPlay
-  ? new URL("../", document.baseURI).href
+const appBaseUrl = root.dataset.appBase
+  ? new URL(root.dataset.appBase, document.baseURI).href
   : document.baseURI;
 const atlasHref = experimentalPlay
   ? new URL("atlas/", appBaseUrl).href

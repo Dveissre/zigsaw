@@ -323,8 +323,8 @@ describe("static game data", () => {
       R: 139,
       SR: 110,
       SSR: 33,
-      UR: 39,
-      XR: 16,
+      UR: 40,
+      XR: 15,
     });
     const expectedRarity = (count: number) =>
       count >= 100

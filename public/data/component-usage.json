@@ -3,7 +3,7 @@
   "source": "tongyong_hanzi.json + char_sym.json",
   "characterCount": 8105,
   "decompositionCount": 9163,
-  "totalUsageCount": 31943,
+  "totalUsageCount": 31942,
   "componentCount": 374,
   "symbols": [
     {
@@ -15,14 +15,14 @@
     {
       "symbolId": 1,
       "name": "一",
-      "count": 1228,
-      "charCount": 1088
+      "count": 1227,
+      "charCount": 1087
     },
     {
       "symbolId": 34,
       "name": "人",
-      "count": 923,
-      "charCount": 740
+      "count": 920,
+      "charCount": 737
     },
     {
       "symbolId": 140,
@@ -75,8 +75,8 @@
     {
       "symbolId": 17,
       "name": "十",
-      "count": 481,
-      "charCount": 377
+      "count": 482,
+      "charCount": 378
     },
     {
       "symbolId": 36,
@@ -371,8 +371,8 @@
     {
       "symbolId": 16,
       "name": "二",
-      "count": 139,
-      "charCount": 137
+      "count": 138,
+      "charCount": 136
     },
     {
       "symbolId": 60,
@@ -419,8 +419,8 @@
     {
       "symbolId": 39,
       "name": "乂",
-      "count": 121,
-      "charCount": 108
+      "count": 124,
+      "charCount": 111
     },
     {
       "symbolId": 104,
@@ -506,8 +506,8 @@
     {
       "symbolId": 99,
       "name": "彡",
-      "count": 95,
-      "charCount": 84
+      "count": 96,
+      "charCount": 85
     },
     {
       "symbolId": 411,
@@ -530,8 +530,8 @@
     {
       "symbolId": 28,
       "name": "⺊",
-      "count": 92,
-      "charCount": 90
+      "count": 91,
+      "charCount": 89
     },
     {
       "symbolId": 173,
