@@ -211,9 +211,7 @@ try {
     deviceScaleFactor: 1,
   });
   const compactPage = await compactContext.newPage();
-  await compactPage.goto(new URL("test/", targetUrl).href, {
-    waitUntil: "networkidle",
-  });
+  await compactPage.goto(targetUrl, { waitUntil: "networkidle" });
   await compactPage.locator(".start-button:not([disabled])").waitFor();
   await compactPage
     .getByRole("button", { name: "练习", exact: true })

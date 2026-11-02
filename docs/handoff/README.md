@@ -49,6 +49,6 @@ git log --name-status -1 -- docs/handoff
 ## 当前状态（2026-11-02）
 
 - `main`、`origin/main` 和 `feature/trial-mode` 已同步到 `b774aad`。
-- 根页面保持 `main` 原交互；本轮实验功能位于 `/test/`，仍在
-  `bugfix/internal` 工作区，尚未提交。
+- 本轮暂停、极矮视口和多行部件调整已同步到正式根页面 `/`；`/test/`
+  保留为同一版本的备用测试入口，仍在 `bugfix/internal` 工作区，尚未提交。
 - 未提交或合并任务仍以 `git status`、`git diff` 的实际结果为准。

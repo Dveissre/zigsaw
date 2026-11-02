@@ -850,10 +850,16 @@ try {
   await tutorialTrigger.click();
   await page.locator("#tutorial-dialog[open]").waitFor();
   await page.locator(".parts.is-paused").waitFor();
-  const pausedTutorialTimer = await page.locator("[data-timer]").innerText();
+  assert.equal(
+    await page.locator(".timer-toggle-icon.is-play").count(),
+    1,
+  );
+  const pausedTutorialTimer = await page
+    .locator("[data-timer-ring]")
+    .getAttribute("aria-label");
   await page.waitForTimeout(1100);
   assert.equal(
-    await page.locator("[data-timer]").innerText(),
+    await page.locator("[data-timer-ring]").getAttribute("aria-label"),
     pausedTutorialTimer,
   );
   await page.keyboard.press("Escape");
@@ -861,6 +867,10 @@ try {
     .locator("#tutorial-dialog")
     .waitFor({ state: "hidden" });
   await page.locator(".parts.is-resuming").waitFor();
+  assert.equal(
+    await page.locator(".timer-toggle-icon.is-pause").count(),
+    1,
+  );
   assert.equal(await page.getByText("级别", { exact: true }).count(), 0);
   assert.equal(
     await page.getByRole("textbox", { name: "答案" }).evaluate(
@@ -974,12 +984,7 @@ try {
     assert.equal(await page.locator(".reveal strong").innerText(), answer);
     assert.equal(await page.locator(".parts.has-correct").count(), 1);
     assert.equal(await page.locator(".play-surface.question-enter").count(), 0);
-    assert.deepEqual(
-      (await page.locator(".play-actions button").allTextContents()).map((text) =>
-        text.trim(),
-      ),
-      ["暂停", "弃权", "重开", "换题∞"],
-    );
+    assert.equal(await page.locator(".play-actions button").count(), 0);
     if (question < 3) {
       assert.equal(await page.locator("[data-advance]").count(), 0);
     }
@@ -1406,41 +1411,99 @@ try {
       .count(),
     0,
   );
-  const stableActionsBefore = await page.evaluate(() =>
-    [...document.querySelectorAll(".play-actions button")]
-      .filter((button) => {
-        const text = button.textContent?.trim() ?? "";
-        return text === "重开" || text.startsWith("换题");
-      })
-      .map((button) => ({
-        text: button.textContent?.trim(),
-        left: button.getBoundingClientRect().left,
-      })),
+  assert.deepEqual(
+    (await page.locator(".play-actions button").allTextContents()).map(
+      (text) => text.trim(),
+    ),
+    ["暂停", "弃权", "换题1"],
   );
-  await page.getByRole("button", { name: "暂停" }).click();
+  const activeActionWidth = await page
+    .locator(".play-actions")
+    .evaluate((element) => element.getBoundingClientRect().width);
+  const timerBeforePause = Number.parseInt(
+    (await page
+      .locator("[data-timer-ring]")
+      .getAttribute("aria-label"))?.match(/(\d+) 秒/)?.[1] ?? "",
+    10,
+  );
+  await page.locator("[data-timer-ring]").click();
   await page.locator(".parts.is-paused").waitFor();
+  const timerAfterPause = Number.parseInt(
+    (await page
+      .locator("[data-timer-ring]")
+      .getAttribute("aria-label"))?.match(/(\d+) 秒/)?.[1] ?? "",
+    10,
+  );
+  assert.equal(timerAfterPause, Math.ceil(timerBeforePause / 2));
+  assert.equal(await page.locator(".timer-ring.is-penalty-cut").count(), 1);
+  await page.waitForTimeout(80);
+  assert.deepEqual(
+    await page.evaluate(() => ({
+      track: getComputedStyle(
+        document.querySelector(".timer-track"),
+      ).stroke,
+      progress: getComputedStyle(
+        document.querySelector("[data-timer-progress]"),
+      ).stroke,
+      icon: getComputedStyle(
+        document.querySelector(".timer-toggle-icon"),
+      ).color,
+    })),
+    {
+      track: "rgb(207, 129, 120)",
+      progress: "rgb(130, 41, 37)",
+      icon: "rgb(32, 35, 31)",
+    },
+  );
+  await page.waitForTimeout(360);
+  assert.deepEqual(
+    await page.evaluate(() => ({
+      track: getComputedStyle(
+        document.querySelector(".timer-track"),
+      ).stroke,
+      progress: getComputedStyle(
+        document.querySelector("[data-timer-progress]"),
+      ).stroke,
+    })),
+    {
+      track: "rgb(201, 199, 190)",
+      progress: "rgb(32, 35, 31)",
+    },
+  );
   await page.waitForFunction(
     () => getComputedStyle(document.querySelector(".part")).opacity === "0",
   );
+  assert.deepEqual(
+    (await page.locator(".play-actions button").allTextContents()).map(
+      (text) => text.trim(),
+    ),
+    ["继续", "弃权", "换题1"],
+  );
+  assert.equal(await page.locator("[data-skip]").isEnabled(), true);
+  await page.locator("[data-pause]").click();
+  await page.locator(".parts.is-resuming").waitFor();
+  await page.waitForFunction(
+    () => getComputedStyle(document.querySelector(".part")).opacity === "1",
+  );
+  await page.locator("[data-pause]").click();
+  await page.locator(".parts.is-paused").waitFor();
   await page.getByRole("button", { name: "弃权" }).click();
   await page.locator(".parts.is-resuming").waitFor();
   await page.waitForFunction(
     () => getComputedStyle(document.querySelector(".part")).opacity === "1",
   );
-  assert.equal(await page.getByRole("button", { name: "暂停" }).count(), 0);
-  assert.equal(await page.getByRole("button", { name: "弃权" }).count(), 0);
-  const stableActionsAfter = await page.evaluate(() =>
-    [...document.querySelectorAll(".play-actions button")]
-      .filter((button) => {
-        const text = button.textContent?.trim() ?? "";
-        return text === "重开" || text.startsWith("换题");
-      })
-      .map((button) => ({
-        text: button.textContent?.trim(),
-        left: button.getBoundingClientRect().left,
-      })),
+  assert.equal(await page.locator("[data-pause]").count(), 0);
+  assert.equal(await page.locator("[data-surrender]").count(), 0);
+  assert.deepEqual(
+    (await page.locator(".play-actions button").allTextContents()).map(
+      (text) => text.trim(),
+    ),
+    ["结算"],
   );
-  assert.deepEqual(stableActionsAfter, stableActionsBefore);
+  const settlementActionWidth = await page
+    .locator(".play-actions")
+    .evaluate((element) => element.getBoundingClientRect().width);
+  assert.ok(Math.abs(settlementActionWidth - activeActionWidth) <= 1);
   await page.getByRole("button", { name: "结算" }).click();
   await page.locator(".result-screen").waitFor();
   assert.equal(
@@ -1590,10 +1653,14 @@ try {
   );
   await page.locator(".parts.is-tense").waitFor();
   await page.getByRole("button", { name: "结算" }).waitFor({ timeout: 7000 });
-  assert.equal(await page.locator("[data-timer]").innerText(), "0");
+  assert.match(
+    (await page.locator("[data-timer-ring]").getAttribute("aria-label")) ??
+      "",
+    /剩余 0 秒/,
+  );
   assert.equal(await page.getByRole("button", { name: "下一题" }).count(), 0);
-  assert.equal(await page.getByRole("button", { name: "暂停" }).count(), 0);
-  assert.equal(await page.getByRole("button", { name: "弃权" }).count(), 0);
+  assert.equal(await page.locator("[data-pause]").count(), 0);
+  assert.equal(await page.locator("[data-surrender]").count(), 0);
   await page.getByRole("button", { name: "结算" }).click();
   await page.locator(".result-screen").waitFor();
   assert.match(await page.locator(".result-header").innerText(), /无尽结束/);

@@ -325,6 +325,12 @@ input:focus-visible {
   }
 }
 
+@media (min-width: 821px) {
+  .page-play.is-test-version .timer-ring {
+    width: 55px;
+  }
+}
+
 .page-result .wordmark::after {
   margin-top: 8px;
 }
@@ -1285,8 +1291,8 @@ input:focus-visible {
 .timer-toggle-icon {
   position: relative;
   display: block;
-  width: 24px;
-  height: 24px;
+  width: 44%;
+  aspect-ratio: 1;
   color: currentColor;
 }
 
@@ -1294,30 +1300,29 @@ input:focus-visible {
 .timer-toggle-icon.is-pause::after {
   content: "";
   position: absolute;
-  top: 3px;
-  width: 5px;
-  height: 18px;
+  top: 10%;
+  width: 20%;
+  height: 80%;
   background: currentColor;
 }
 
 .timer-toggle-icon.is-pause::before {
-  left: 5px;
+  left: 22%;
 }
 
 .timer-toggle-icon.is-pause::after {
-  right: 5px;
+  right: 22%;
 }
 
 .timer-toggle-icon.is-play::before {
   content: "";
   position: absolute;
-  top: 2px;
-  left: 6px;
-  width: 0;
-  height: 0;
-  border-top: 10px solid transparent;
-  border-bottom: 10px solid transparent;
-  border-left: 16px solid currentColor;
+  top: 8%;
+  left: 18%;
+  width: 72%;
+  height: 84%;
+  background: currentColor;
+  clip-path: polygon(0 0, 100% 50%, 0 100%);
 }
 
 .timer-ring.is-urgent .timer-progress {
@@ -1351,7 +1356,13 @@ input:focus-visible {
 }
 
 .timer-ring.is-penalty-cut .timer-progress {
-  animation: timer-penalty-cut 260ms cubic-bezier(0.2, 0.8, 0.2, 1) both;
+  animation:
+    timer-penalty-cut 260ms cubic-bezier(0.2, 0.8, 0.2, 1) both,
+    timer-progress-penalty-color 380ms ease-out;
+}
+
+.timer-ring.is-penalty-cut .timer-track {
+  animation: timer-track-penalty-color 380ms ease-out;
 }
 
 @keyframes timer-penalty-cut {
@@ -1361,6 +1372,28 @@ input:focus-visible {
 
   to {
     stroke-dashoffset: var(--timer-penalty-to-offset);
+  }
+}
+
+@keyframes timer-track-penalty-color {
+  0%,
+  60% {
+    stroke: #cf8178;
+  }
+
+  100% {
+    stroke: var(--line);
+  }
+}
+
+@keyframes timer-progress-penalty-color {
+  0%,
+  60% {
+    stroke: #822925;
+  }
+
+  100% {
+    stroke: var(--ink);
   }
 }
 
@@ -1816,7 +1849,7 @@ input:focus-visible {
 
 .play-actions.is-single-action {
   grid-template-columns: minmax(0, 1fr);
-  width: min(100%, 150px);
+  width: min(100%, 320px);
 }
 
 .play-actions.is-single-action .primary-action {
@@ -6749,6 +6782,7 @@ input:focus-visible {
   .answer-stage.is-wrong,
   .timer-ring.is-urgent .timer-progress,
   .timer-ring.is-penalty-cut .timer-progress,
+  .timer-ring.is-penalty-cut .timer-track,
   .progress-stack.is-stage-enter::before,
   .progress-stack.is-stage-enter .question-progress,
   .progress-stack.is-stage-enter .stage-rank,
