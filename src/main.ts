@@ -1303,6 +1303,7 @@ function renderGame(game: GameSession): void {
   const partCount = partNames.length;
   const densityClass =
     partCount >= 12 ? "is-dense" : partCount >= 8 ? "is-compact" : "";
+  const crowdedClass = partCount >= 5 ? "is-five-plus" : "";
   const cardAngles = [-0.8, 0.9, -0.35, 1.15, -1.05, 0.45];
   const cardOffsets = [1, 4, 0, 5, 2, 3];
   let cardIndex = 0;
@@ -1405,7 +1406,7 @@ function renderGame(game: GameSession): void {
           }
         </header>
 
-        <div class="parts ${densityClass} ${partsFeedback} ${pausedClass} ${exClass}" aria-label="部件">
+        <div class="parts ${densityClass} ${crowdedClass} ${partsFeedback} ${pausedClass} ${exClass}" aria-label="部件">
           ${partsMarkup}
         </div>
 

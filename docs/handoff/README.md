@@ -36,7 +36,7 @@ git log --name-status -1 -- docs/handoff
 
 | 日期 | 类型 | 内容 | 文档 |
 | --- | --- | --- | --- |
-| 2026-11-02 | feature | `/test/` 隔离测试页：圆环暂停控制、暂停半时、状态操作区和矮视口布局 | [pause-controls.md](features/pause-controls.md) |
+| 2026-11-02 | feature | `/test/` 隔离测试页：暂停控制、暂停半时、极矮视口和多行部件布局 | [pause-controls.md](features/pause-controls.md) |
 | 2026-11-02 | bugfix | 矮视口/键盘弹出时压缩游戏布局并避免输入框自动居中滚动 | [bugfix.md](bugfix.md) |
 | 2026-11-01 | bugfix | 设置增加“难输入汉字”排除选项；修复与阶段EX的切换冲突；同步最新字表 | [bugfix.md](bugfix.md) |
 | 2026-11-01 | bugfix | 挑战分享增加难度；同步最新字表和生成统计 | [bugfix.md](bugfix.md) |
