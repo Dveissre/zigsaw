@@ -315,15 +315,15 @@ describe("static game data", () => {
     expect(atlas.format).toBe("zigsaw-component-atlas/3");
     expect(atlas.sourceHash).toHaveLength(16);
     expect(atlas.componentCount).toBe(363);
-    expect(atlas.exclusiveCount).toBe(31);
-    expect(atlas.xrCount).toBe(16);
+    expect(atlas.exclusiveCount).toBe(32);
+    expect(atlas.xrCount).toBe(15);
     expect(atlas.characterCount).toBe(8105);
     expect(atlas.byRarity).toEqual({
       N: 73,
       R: 139,
       SR: 110,
-      SSR: 33,
-      UR: 40,
+      SSR: 34,
+      UR: 39,
       XR: 15,
     });
     const expectedRarity = (count: number) =>

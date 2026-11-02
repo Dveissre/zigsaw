@@ -2235,7 +2235,8 @@
       "symbolId": 284,
       "name": "𢦑",
       "count": 1,
-      "charCount": 1
+      "charCount": 1,
+      "asset": "component_svg/284.svg"
     },
     {
       "symbolId": 296,
@@ -2253,7 +2254,8 @@
       "symbolId": 304,
       "name": "𠂭",
       "count": 1,
-      "charCount": 1
+      "charCount": 1,
+      "asset": "component_svg/304.svg"
     },
     {
       "symbolId": 318,
@@ -2297,7 +2299,8 @@
       "symbolId": 383,
       "name": "𦰩",
       "count": 1,
-      "charCount": 1
+      "charCount": 1,
+      "asset": "component_svg/383.svg"
     }
   ]
 }
