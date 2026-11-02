@@ -36,6 +36,8 @@ git log --name-status -1 -- docs/handoff
 
 | 日期 | 类型 | 内容 | 文档 |
 | --- | --- | --- | --- |
+| 2026-11-02 | feature | 调整图鉴完成度里程碑；整理部件目录与关联字分类 | [atlas-classification.md](features/atlas-classification.md) |
+| 2026-11-02 | feature | 图鉴部件可达性、EX 属性与稀有度分类规则 | [atlas-classification.md](features/atlas-classification.md) |
 | 2026-11-02 | feature | `/test/` 隔离测试页：暂停控制、暂停半时、极矮视口和多行部件布局 | [pause-controls.md](features/pause-controls.md) |
 | 2026-11-02 | bugfix | 矮视口/键盘弹出时压缩游戏布局并避免输入框自动居中滚动 | [bugfix.md](bugfix.md) |
 | 2026-11-01 | bugfix | 设置增加“难输入汉字”排除选项；修复与阶段EX的切换冲突；同步最新字表 | [bugfix.md](bugfix.md) |

@@ -127,4 +127,5 @@ describe("component collection", () => {
       }),
     ).toBe(40);
   });
+
 });

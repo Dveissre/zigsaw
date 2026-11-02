@@ -41,6 +41,7 @@ export interface ComponentDefinition {
   symbolId: number;
   name: string;
   assetUrl?: string;
+  renderable: boolean;
 }
 
 type SymTable = {
@@ -95,8 +96,7 @@ export class GameData {
   readonly challengeOrder: string[];
   readonly challengeRank: Map<string, number>;
   readonly exOrder: string[];
-  private readonly symbols: Map<number, string>;
-  private readonly componentAssets: Map<number, string>;
+  private readonly components: Map<number, ComponentDefinition>;
   private readonly unsupportedSymbolIds: Set<number>;
   private readonly byBag: Map<string, Set<string>>;
   private readonly answerExpansions: Map<number, number[][]>;
@@ -114,17 +114,35 @@ export class GameData {
     baseUrl = "",
     answerCompatibility: AnswerCompatibilityTable | null = null,
   ) {
-    this.symbols = new Map(
-      Object.entries(symData.symbols).map(([id, name]) => [Number(id), name]),
-    );
     this.ways = new Map(
       Object.entries(symData.chars).map(([char, ways]) => [char, ways]),
     );
-    this.componentAssets = new Map(
+    const componentAssets = new Map(
       Object.entries(assetData?.symbols ?? {}).map(([symbolId, asset]) => [
         Number(symbolId),
         new URL(asset.source, baseUrl).href,
       ]),
+    );
+    this.components = new Map(
+      Object.entries(symData.symbols).map(([id, name]): [
+        number,
+        ComponentDefinition,
+      ] => {
+        const symbolId = Number(id);
+        const assetUrl = componentAssets.get(symbolId);
+        return [
+          symbolId,
+          {
+            symbolId,
+            name,
+            ...(assetUrl ? { assetUrl } : {}),
+            renderable:
+              name !== "?" &&
+              name !== "？" &&
+              ([...name].length === 1 || Boolean(assetUrl)),
+          },
+        ];
+      }),
     );
     if (
       answerCompatibility &&
@@ -150,12 +168,11 @@ export class GameData {
       }
     }
     this.unsupportedSymbolIds = new Set(
-      [...this.symbols.entries()]
+      [...this.components.values()]
         .filter(
-          ([symbolId, name]) =>
-            [...name].length >= 2 && !this.componentAssets.has(symbolId),
+          (component) => !component.renderable,
         )
-        .map(([symbolId]) => symbolId),
+        .map((component) => component.symbolId),
     );
 
     const levelOf = new Map<string, Level>();
@@ -234,7 +251,7 @@ export class GameData {
   }
 
   names(way: number[]): string[] {
-    return way.map((symbolId) => this.symbols.get(symbolId) ?? "?");
+    return way.map((symbolId) => this.component(symbolId).name);
   }
 
   shortestDecomposition(char: string): number[] | null {
@@ -251,11 +268,13 @@ export class GameData {
   }
 
   component(symbolId: number): ComponentDefinition {
-    return {
-      symbolId,
-      name: this.symbols.get(symbolId) ?? "?",
-      assetUrl: this.componentAssets.get(symbolId),
-    };
+    return (
+      this.components.get(symbolId) ?? {
+        symbolId,
+        name: "?",
+        renderable: false,
+      }
+    );
   }
 
   isCharSelectable(char: string): boolean {
@@ -307,7 +326,7 @@ export class GameData {
 
   private validateAnswerCompatibility(): void {
     for (const [symbolId, alternatives] of this.answerExpansions) {
-      if (!Number.isSafeInteger(symbolId) || !this.symbols.has(symbolId)) {
+      if (!Number.isSafeInteger(symbolId) || !this.components.has(symbolId)) {
         throw new Error(`答案兼容规则引用了不存在的部件 ${symbolId}`);
       }
       if (alternatives.length === 0) {
@@ -318,7 +337,7 @@ export class GameData {
           throw new Error(`答案兼容规则 ${symbolId} 包含空拆法`);
         }
         for (const part of alternative) {
-          if (!Number.isSafeInteger(part) || !this.symbols.has(part)) {
+          if (!Number.isSafeInteger(part) || !this.components.has(part)) {
             throw new Error(
               `答案兼容规则 ${symbolId} 引用了不存在的部件 ${part}`,
             );

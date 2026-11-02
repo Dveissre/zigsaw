@@ -213,6 +213,7 @@ describe("static game data", () => {
     expect(supersededFiles).toEqual([
       "121.svg",
       "159.svg",
+      "182.svg",
       "198.svg",
       "240.svg",
       "266.svg",
@@ -315,16 +316,26 @@ describe("static game data", () => {
     expect(atlas.format).toBe("zigsaw-component-atlas/3");
     expect(atlas.sourceHash).toHaveLength(16);
     expect(atlas.componentCount).toBe(363);
-    expect(atlas.exclusiveCount).toBe(32);
+    expect(atlas.exclusiveCount).toBe(35);
     expect(atlas.xrCount).toBe(15);
     expect(atlas.characterCount).toBe(8105);
     expect(atlas.byRarity).toEqual({
       N: 73,
-      R: 139,
+      R: 140,
       SR: 110,
-      SSR: 34,
-      UR: 39,
+      SSR: 35,
+      UR: 40,
       XR: 15,
+    });
+    expect(
+      atlas.components.find((component) => component.symbolId === 265),
+    ).toMatchObject({
+      name: "肅心",
+      rarity: "SSR",
+      count: 22,
+      exCharCount: 22,
+      isExclusive: true,
+      asset: "component_svg/265.svg",
     });
     const expectedRarity = (count: number) =>
       count >= 100
@@ -367,7 +378,7 @@ describe("static game data", () => {
         component.chars,
       ]),
     );
-    expect(charactersByComponent.size).toBe(410);
+    expect(charactersByComponent.size).toBe(413);
     expect(
       atlas.components.every((component) => {
           const chars =
@@ -404,7 +415,7 @@ describe("static game data", () => {
           const expectedMilestones =
             component.rarity === "SSR"
               ? [
-                  progressionChars <= 1
+                  progressionChars <= 2
                     ? 100
                     : Math.round(
                         ((progressionChars - 1) /
@@ -413,18 +424,20 @@ describe("static game data", () => {
                       ),
                 ]
               : component.rarity === "SR"
-                ? [50, 80]
+                ? [30, 60]
                 : component.rarity === "XR"
                   ? []
                   : component.rarity === "UR"
                     ? [100]
-                    : null;
+                    : [15, 30, 60].slice(
+                        -Math.min(
+                          3,
+                          Math.max(1, progressionChars),
+                        ),
+                      );
           return (
-            (expectedMilestones
-              ? JSON.stringify(component.milestones) ===
-                JSON.stringify(expectedMilestones)
-              : component.milestones.length ===
-                Math.min(3, progressionChars)) &&
+            JSON.stringify(component.milestones) ===
+              JSON.stringify(expectedMilestones) &&
             component.charCount === chars.length &&
             component.progressCharCount ===
               (component.rarity === "XR"

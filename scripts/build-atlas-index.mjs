@@ -28,9 +28,9 @@ const levelKeys = ["一级", "二级", "三级"];
 const levelValues = [1, 2, 3];
 const rarityOrder = ["N", "R", "SR", "SSR", "UR", "XR"];
 const milestoneThresholds = {
-  N: [25, 50, 70],
-  R: [40, 60, 80],
-  SR: [50, 80],
+  N: [15, 30, 60],
+  R: [15, 30, 60],
+  SR: [30, 60],
   SSR: [],
   UR: [100],
   XR: [],
@@ -38,7 +38,7 @@ const milestoneThresholds = {
 
 function milestonesFor(rarity, characterCount) {
   if (rarity === "SSR") {
-    return characterCount <= 1
+    return characterCount <= 2
       ? [100]
       : [Math.round(((characterCount - 1) / characterCount) * 100)];
   }
@@ -68,7 +68,7 @@ function rarityFor(count) {
   return "UR";
 }
 
-const unsupported = new Set(
+const unrenderableComponentIds = new Set(
   Object.entries(sym.symbols)
     .filter(
       ([symbolId, name]) =>
@@ -77,9 +77,9 @@ const unsupported = new Set(
     )
     .map(([symbolId]) => Number(symbolId)),
 );
-const isSelectable = (char) =>
+const isCharacterSelectable = (char) =>
   !(sym.chars[char] ?? []).some((way) =>
-    way.some((symbolId) => unsupported.has(symbolId)),
+    way.some((symbolId) => unrenderableComponentIds.has(symbolId)),
   );
 const isRenderableSymbol = (symbolId) => {
   const name = sym.symbols[String(symbolId)];
@@ -91,14 +91,6 @@ const isRenderableSymbol = (symbolId) => {
         String(symbolId) in assetData.symbols),
   );
 };
-const isDrawableCharacter = (char) =>
-  (sym.chars[char] ?? []).some(
-    (way) =>
-      way.length >= 2 &&
-      way.length <= 10 &&
-      way.every(isRenderableSymbol),
-  );
-
 const orderedCharacters = [];
 const characterMeta = new Map();
 const completeCharacterMeta = new Map();
@@ -112,7 +104,7 @@ levelKeys.forEach((levelKey, index) => {
         rank: completeCharacterRank,
       });
     }
-    if (characterMeta.has(char) || !isSelectable(char)) {
+    if (characterMeta.has(char) || !isCharacterSelectable(char)) {
       continue;
     }
     orderedCharacters.push(char);
@@ -188,11 +180,27 @@ const exCharacters = new Set(
       !levelCharacters.has(char) &&
       codePoint >= 0x4e00 &&
       codePoint <= 0x9fff &&
-      isSelectable(char) &&
+      isCharacterSelectable(char) &&
       (sym.chars[char] ?? []).some((way) => way.length >= 3)
     );
   }),
 );
+
+const relationKindByCharacter = new Map();
+for (const [char, ways] of Object.entries(sym.chars)) {
+  let kind = "unreachable";
+  if (
+    isCharacterSelectable(char) &&
+    levelCharacters.has(char) &&
+    ways.some((way) => way.length >= 2)
+  ) {
+    kind = "regular";
+  } else if (exCharacters.has(char)) {
+    kind = "ex";
+  }
+  relationKindByCharacter.set(char, kind);
+}
+
 const relationsBySymbol = new Map();
 for (const [char, ways] of Object.entries(sym.chars)) {
   for (const way of ways) {
@@ -200,19 +208,17 @@ for (const [char, ways] of Object.entries(sym.chars)) {
       const isSelfRelation =
         way.length === 1 &&
         sym.symbols[String(symbolId)] === char;
-      if (
-        !isDrawableCharacter(char) &&
-        !isSelectable(char) &&
-        !isSelfRelation
-      ) {
-        continue;
-      }
+      const relationKind = isSelfRelation
+        ? "self"
+        : relationKindByCharacter.get(char);
       const entries = relationsBySymbol.get(symbolId) ?? [];
       entries.push({
         char,
         wayLength: way.length,
         isLevelCharacter: levelCharacters.has(char),
         isExCharacter: exCharacters.has(char),
+        isRegularCharacter: relationKind === "regular",
+        relationKind,
       });
       relationsBySymbol.set(symbolId, entries);
     }
@@ -262,15 +268,13 @@ function buildExclusiveComponents() {
   for (const [key, name] of Object.entries(sym.symbols)) {
     const symbolId = Number(key);
     const related = relationsBySymbol.get(symbolId) ?? [];
+    const asset = assetData.symbols[key];
     if (
       existingIds.has(key) ||
-      [...name].length !== 1 ||
-      name === "?" ||
-      name === "？" ||
+      !isRenderableSymbol(symbolId) ||
       related.length === 0 ||
       related.some(
-        (entry) =>
-          entry.isLevelCharacter && entry.wayLength >= 2,
+        (entry) => entry.isRegularCharacter,
       )
     ) {
       continue;
@@ -333,7 +337,6 @@ function buildExclusiveComponents() {
     const progressCharCount = isExclusive
       ? chars.filter((character) => character.isEx).length
       : 0;
-    const asset = assetData.symbols[key];
     exclusive.push({
       symbolId,
       name,
@@ -354,6 +357,7 @@ function buildExclusiveComponents() {
       ...(asset ? { asset: asset.source } : {}),
     });
   }
+
   return exclusive;
 }
 
