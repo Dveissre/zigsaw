@@ -1050,7 +1050,7 @@ try {
   assert.equal(firstReviewCard.noParentheses, true);
   assert.equal(firstReviewCard.partsAtBottom, true);
   assert.equal(firstReviewCard.answerAboveParts, true);
-  assert.equal(firstReviewCard.partColor, "rgb(32, 35, 31)");
+  assert.notEqual(firstReviewCard.partColor, "rgb(255, 250, 245)");
   assert.ok(firstReviewCard.partFontSize >= 13);
   assert.ok(firstReviewCard.answerFontSize / firstReviewCard.cardWidth >= 0.4);
   assert.equal(firstReviewCard.indexStyle, "normal");

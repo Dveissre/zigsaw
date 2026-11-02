@@ -6588,8 +6588,12 @@ input:focus-visible {
     padding-top: 0;
   }
 
+  .page-play.is-test-version .play-surface {
+    height: 100%;
+  }
+
   .page-play.is-test-version .play-hud {
-    min-height: 56px;
+    min-height: 58px;
     gap: 10px;
     padding-bottom: 6px;
   }
@@ -6603,36 +6607,37 @@ input:focus-visible {
   }
 
   .page-play.is-test-version .parts {
-    min-height: 82px;
-    padding: 6px 0 4px;
-    --card-gap: 7px;
+    flex: 1 1 auto;
+    min-height: 104px;
+    padding: 10px 0 8px;
+    --card-gap: 9px;
   }
 
   .page-play.is-test-version .part-card {
-    width: clamp(46px, 14vw, 56px);
-    box-shadow: 2px 2px 0 #d9d5ca;
+    width: clamp(54px, 17vw, 64px);
+    box-shadow: 3px 3px 0 #d9d5ca;
   }
 
   .page-play.is-test-version .part {
-    font-size: clamp(26px, 9vw, 36px);
+    font-size: clamp(30px, 10vw, 40px);
   }
 
   .page-play.is-test-version .part.is-long {
-    font-size: clamp(18px, 5.5vw, 23px);
+    font-size: clamp(20px, 6vw, 25px);
   }
 
   .page-play.is-test-version .answer-stage {
-    min-height: 52px;
+    min-height: 58px;
   }
 
   .page-play.is-test-version .answer-input {
-    width: 132px;
-    height: 38px;
-    font-size: 22px;
+    width: 142px;
+    height: 42px;
+    font-size: 24px;
   }
 
   .page-play.is-test-version .submit-button {
-    min-width: 66px;
+    min-width: 72px;
     padding-inline: 10px;
   }
 
@@ -6641,13 +6646,13 @@ input:focus-visible {
   }
 
   .page-play.is-test-version .play-actions {
-    margin-top: 5px;
-    padding-top: 7px;
+    margin-top: 8px;
+    padding-top: 9px;
   }
 
   .page-play.is-test-version .play-actions button {
-    min-height: 32px;
-    padding-block: 3px;
+    min-height: 36px;
+    padding-block: 5px;
   }
 }
 
