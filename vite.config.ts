@@ -7,6 +7,8 @@ export default defineConfig({
     rollupOptions: {
       input: {
         main: resolve(process.cwd(), "index.html"),
+        test: resolve(process.cwd(), "test/index.html"),
+        testRedirect: resolve(process.cwd(), "test.html"),
         atlas: resolve(process.cwd(), "atlas/index.html"),
         gacha: resolve(process.cwd(), "gacha/index.html"),
       },

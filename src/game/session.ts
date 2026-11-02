@@ -200,6 +200,7 @@ export class GameSession {
   private readonly onChange: SessionListener;
   private readonly random: () => number;
   private readonly crisLedger: CrisLedger | null;
+  private readonly experimentalPlay: boolean;
   private pool: string[] = [];
   private usedBags = new Set<string>();
   private usedChars = new Set<string>();
@@ -222,12 +223,14 @@ export class GameSession {
     onChange: SessionListener,
     random: () => number = Math.random,
     crisLedger: CrisLedger | null = null,
+    experimentalPlay = false,
   ) {
     this.data = data;
     this.records = records;
     this.onChange = onChange;
     this.random = random;
     this.crisLedger = crisLedger;
+    this.experimentalPlay = experimentalPlay;
     this.state = {
       phase: "playing",
       settings: structuredClone(settings),
@@ -561,7 +564,7 @@ export class GameSession {
     if (
       this.state.phase !== "playing" ||
       this.state.revealing ||
-      this.state.paused ||
+      (this.state.paused && !this.experimentalPlay) ||
       !this.state.current
     ) {
       return;
@@ -670,7 +673,10 @@ export class GameSession {
 
     if (!this.state.paused) {
       const now = performance.now();
-      this.state.remaining = this.remainingSeconds();
+      const remaining = this.remainingSeconds();
+      this.state.remaining = this.experimentalPlay
+        ? Math.max(0, Math.ceil(remaining / 2))
+        : remaining;
       if (this.questionRunStartedAt !== null) {
         this.questionElapsedMs += now - this.questionRunStartedAt;
         this.questionRunStartedAt = null;
@@ -699,8 +705,8 @@ export class GameSession {
     this.recordCurrent(false, this.state.draft);
     const practice = this.state.settings.mode === "normal";
     this.revealCurrent(
-      practice ? "继续" : "结算",
-      !practice,
+      this.experimentalPlay || !practice ? "结算" : "继续",
+      this.experimentalPlay || !practice,
     );
   }
 

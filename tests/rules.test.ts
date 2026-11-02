@@ -324,6 +324,7 @@ describe("question replacement", () => {
     );
   const createSession = (
     mode: "challenge" | "normal",
+    experimentalPlay = false,
   ): GameSession =>
     new GameSession(
       createGame(),
@@ -343,6 +344,8 @@ describe("question replacement", () => {
       { load: () => 0, save: () => undefined },
       () => undefined,
       () => 0,
+      null,
+      experimentalPlay,
     );
 
   it("uses one challenge skip without advancing the question", () => {
@@ -392,7 +395,7 @@ describe("question replacement", () => {
     session.destroy();
   });
 
-  it("continues after surrender in practice mode", () => {
+  it("continues after surrender in the default game", () => {
     const session = createSession("normal");
 
     session.surrender();
@@ -402,6 +405,36 @@ describe("question replacement", () => {
     session.advance();
     expect(session.state.index).toBe(2);
     expect(session.state.phase).toBe("playing");
+    session.destroy();
+  });
+
+  it("settles after surrender in the test game", () => {
+    const session = createSession("normal", true);
+
+    session.surrender();
+
+    expect(session.state.advanceLabel).toBe("结算");
+    expect(session.state.pendingSettlement).toBe(true);
+    session.advance();
+    expect(session.state.phase).toBe("results");
+    session.destroy();
+  });
+
+  it("can replace a question while paused and resumes play", () => {
+    vi.useFakeTimers();
+    const session = createSession("normal", true);
+    const before = session.state.current;
+
+    session.togglePause();
+    expect(session.state.paused).toBe(true);
+    session.skipQuestion();
+
+    expect(session.state.paused).toBe(false);
+    expect(session.state.revealing).toBe(true);
+    expect(session.state.feedback).toBe("skipped");
+    vi.advanceTimersByTime(900);
+    expect(session.state.revealing).toBe(false);
+    expect(session.state.current?.char).not.toBe(before?.char);
     session.destroy();
   });
 });
@@ -512,6 +545,54 @@ describe("question timing", () => {
       2,
       1,
     );
+    session.destroy();
+  });
+
+  it("halves the remaining time on every pause", () => {
+    vi.useFakeTimers();
+    const game = new GameData(
+      {
+        symbols: { "1": "一", "2": "丨" },
+        chars: { 二: [[1, 2]] },
+      },
+      {
+        levels: {
+          一级: ["二"],
+          二级: [],
+          三级: [],
+        },
+      },
+      null,
+      "https://example.com/",
+    );
+    const session = new GameSession(
+      game,
+      {
+        ...challenge,
+        mode: "normal",
+        levels: [1],
+        partsLow: 2,
+        partsHigh: 2,
+        count: 3,
+        seconds: 20,
+      },
+      { load: () => 0, save: () => undefined },
+      () => undefined,
+      () => 0,
+      null,
+      true,
+    );
+
+    vi.advanceTimersByTime(4000);
+    session.togglePause();
+    expect(session.state.remaining).toBe(8);
+    vi.advanceTimersByTime(5000);
+    expect(session.state.remaining).toBe(8);
+
+    session.togglePause();
+    vi.advanceTimersByTime(2000);
+    session.togglePause();
+    expect(session.state.remaining).toBe(3);
     session.destroy();
   });
 });

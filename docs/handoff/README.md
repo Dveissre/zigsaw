@@ -36,6 +36,8 @@ git log --name-status -1 -- docs/handoff
 
 | 日期 | 类型 | 内容 | 文档 |
 | --- | --- | --- | --- |
+| 2026-11-02 | feature | `/test/` 隔离测试页：圆环暂停控制、暂停半时、状态操作区和矮视口布局 | [pause-controls.md](features/pause-controls.md) |
+| 2026-11-02 | bugfix | 矮视口/键盘弹出时压缩游戏布局并避免输入框自动居中滚动 | [bugfix.md](bugfix.md) |
 | 2026-11-01 | bugfix | 设置增加“难输入汉字”排除选项；修复与阶段EX的切换冲突；同步最新字表 | [bugfix.md](bugfix.md) |
 | 2026-11-01 | bugfix | 挑战分享增加难度；同步最新字表和生成统计 | [bugfix.md](bugfix.md) |
 | 2026-11-01 | bugfix | 教程图鉴段距、挑战结算说明、练习限制文案、换题黄色铺卡 | [bugfix.md](bugfix.md) |
@@ -44,9 +46,9 @@ git log --name-status -1 -- docs/handoff
 | 2026-11-01 | bugfix | 囗注记、换题揭示、教程计数、写字台方点、Cris 不足按钮、新增 SVG | [bugfix.md](bugfix.md) |
 | 2026-11-01 | feature | 汉字释义浮窗的静态分片和按需加载方案 | [char-detail.md](features/char-detail.md) |
 
-## 当前状态（2026-11-01）
+## 当前状态（2026-11-02）
 
-- 答案兼容层已在 `bugfix/internal` 工作区实现并通过测试，尚未由用户提交。
-- `main` 当前尚未包含本轮答案兼容层和最新字表生成结果。
-- 主线 `feature/trial-mode` 目前仍在 `55eb499`，合入 `main` 前需要自行同步。
+- `main`、`origin/main` 和 `feature/trial-mode` 已同步到 `b774aad`。
+- 根页面保持 `main` 原交互；本轮实验功能位于 `/test/`，仍在
+  `bugfix/internal` 工作区，尚未提交。
 - 未提交或合并任务仍以 `git status`、`git diff` 的实际结果为准。

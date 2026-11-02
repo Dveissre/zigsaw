@@ -41,6 +41,16 @@ if (!rootElement) {
 }
 
 const root: HTMLDivElement = rootElement;
+const experimentalPlay = root.hasAttribute("data-experimental-play");
+const appBaseUrl = experimentalPlay
+  ? new URL("../", document.baseURI).href
+  : document.baseURI;
+const atlasHref = experimentalPlay
+  ? new URL("atlas/", appBaseUrl).href
+  : "./atlas/";
+const gachaHref = experimentalPlay
+  ? new URL("gacha/", appBaseUrl).href
+  : "./gacha/";
 
 const DEFAULT_SETTINGS: GameSettings = {
   levels: [1],
@@ -64,6 +74,7 @@ let lastSettings: GameSettings = structuredClone(DEFAULT_SETTINGS);
 let composing = false;
 let lastQuestionKey = "";
 let lastRenderedPaused = false;
+let lastTimerFraction = 1;
 let advancedSettingsOpen = isDebugUnlocked();
 let startingGame = false;
 let startLayoutObserver: ResizeObserver | null = null;
@@ -102,7 +113,7 @@ const DIFFICULTY_NOTES: Record<
 const records = new LocalRecordStore();
 const cris = new CrisStore();
 const collection = new CollectionStore();
-const charDetails = new CharDetailStore(document.baseURI);
+const charDetails = new CharDetailStore(appBaseUrl);
 const tutorialDialog = createTutorialDialog();
 let resumeAfterTutorial = false;
 
@@ -215,7 +226,7 @@ function shell(
     Boolean(session && session.state.phase === "playing");
   const crisTotal = cris.load();
   return `
-    <div class="app-shell page-${page}">
+    <div class="app-shell page-${page} ${experimentalPlay ? "is-test-version" : ""}">
       ${
         page === "start"
           ? `<button class="advanced-corner" type="button" aria-label="调试入口" aria-pressed="${advancedSettingsOpen}"></button>`
@@ -224,7 +235,10 @@ function shell(
       ${crisBalanceMarkup(crisTotal, advancedSettingsOpen)}
       <div class="corner-actions">
         ${TUTORIAL_TRIGGER_MARKUP}
-        ${ATLAS_TRIGGER_MARKUP}
+        ${ATLAS_TRIGGER_MARKUP.replace(
+          'href="./atlas/"',
+          `href="${escapeHtml(atlasHref)}"`,
+        )}
         <button class="corner-icon-button" type="button" data-game-settings-trigger aria-controls="game-settings-dialog" aria-label="设置">
           <svg class="settings-icon" viewBox="0 0 24 24" aria-hidden="true">
             <path d="M12.2 2h-.4a2 2 0 0 0-2 2v.2a2 2 0 0 1-1 1.7l-.4.3a2 2 0 0 1-2 0l-.2-.1a2 2 0 0 0-2.7.7l-.2.4a2 2 0 0 0 .7 2.7l.2.1a2 2 0 0 1 1 1.7v.5a2 2 0 0 1-1 1.7l-.2.1a2 2 0 0 0-.7 2.7l.2.4a2 2 0 0 0 2.7.7l.2-.1a2 2 0 0 1 2 0l.4.3a2 2 0 0 1 1 1.7v.2a2 2 0 0 0 2 2h.4a2 2 0 0 0 2-2v-.2a2 2 0 0 1 1-1.7l.4-.3a2 2 0 0 1 2 0l.2.1a2 2 0 0 0 2.7-.7l.2-.4a2 2 0 0 0-.7-2.7l-.2-.1a2 2 0 0 1-1-1.7v-.5a2 2 0 0 1 1-1.7l.2-.1a2 2 0 0 0 .7-2.7l-.2-.4a2 2 0 0 0-2.7-.7l-.2.1a2 2 0 0 1-2 0l-.4-.3a2 2 0 0 1-1-1.7V4a2 2 0 0 0-2-2Z"></path>
@@ -237,7 +251,7 @@ function shell(
       </header>
       ${
         page === "start"
-          ? `<a class="home-decoration" href="./gacha/" data-gacha-entry aria-label="进入写字台"><span class="gacha-decoration-label" aria-hidden="true">进入写字台</span>${CHALLENGE_CARD_DECOR_MARKUP}</a>`
+          ? `<a class="home-decoration" href="${escapeHtml(gachaHref)}" data-gacha-entry aria-label="进入写字台"><span class="gacha-decoration-label" aria-hidden="true">进入写字台</span>${CHALLENGE_CARD_DECOR_MARKUP}</a>`
           : ""
       }
       ${content}
@@ -1111,7 +1125,7 @@ function updateTimer(state: GameState): void {
     "[data-timer-progress]",
   );
   const partsPanel = document.querySelector<HTMLElement>(".parts");
-  if (!timerRing || !timerValue || !timerProgress) {
+  if (!timerRing || !timerProgress || (!experimentalPlay && !timerValue)) {
     return;
   }
 
@@ -1120,18 +1134,43 @@ function updateTimer(state: GameState): void {
     Math.min(1, state.remaining / state.settings.seconds),
   );
   const circumference = 2 * Math.PI * 32;
-  timerValue.textContent = String(state.remaining);
+  if (timerValue) {
+    timerValue.textContent = String(state.remaining);
+  }
   timerProgress.style.strokeDasharray = `${circumference} ${circumference}`;
+  const previousFraction = lastTimerFraction;
   timerProgress.style.strokeDashoffset = String(
     circumference * (1 - fraction),
   );
+  if (experimentalPlay) {
+    timerRing.classList.toggle(
+      "is-penalty-cut",
+      state.paused && previousFraction > fraction + 0.001,
+    );
+    timerProgress.style.setProperty(
+      "--timer-penalty-from-offset",
+      String(circumference * (1 - previousFraction)),
+    );
+    timerProgress.style.setProperty(
+      "--timer-penalty-to-offset",
+      String(circumference * (1 - fraction)),
+    );
+  }
+  lastTimerFraction = fraction;
   timerRing.classList.toggle("is-urgent", state.remaining <= 5 && !state.paused);
   timerRing.classList.toggle("is-paused", state.paused);
   timerRing.classList.toggle("is-correct", state.feedback === "correct");
   timerRing.setAttribute(
     "aria-label",
-    state.paused ? `暂停，剩余 ${state.remaining} 秒` : `剩余 ${state.remaining} 秒`,
+    experimentalPlay
+      ? `${state.paused ? "继续" : "暂停"}，剩余 ${state.remaining} 秒`
+      : state.paused
+        ? `暂停，剩余 ${state.remaining} 秒`
+        : `剩余 ${state.remaining} 秒`,
   );
+  if (experimentalPlay) {
+    timerRing.setAttribute("aria-pressed", String(state.paused));
+  }
 
   if (partsPanel) {
     const tense = !state.paused && !state.revealing && state.remaining <= 5;
@@ -1201,7 +1240,11 @@ function wireAnswerInput(game: GameSession): void {
     event.preventDefault();
     game.submit();
   });
-  input.focus();
+  if (experimentalPlay) {
+    input.focus({ preventScroll: true });
+  } else {
+    input.focus();
+  }
   if (game.state.feedback === "wrong") {
     input.select();
   } else {
@@ -1330,7 +1373,7 @@ function renderGame(game: GameSession): void {
       : "∞";
   const skipDisabled =
     revealed ||
-    state.paused ||
+    (!experimentalPlay && state.paused) ||
     (state.settings.mode === "challenge" &&
       state.skipsRemaining <= 0);
 
@@ -1343,13 +1386,23 @@ function renderGame(game: GameSession): void {
             ${progress.sub ? `<span class="stage-rank">${escapeHtml(progress.sub)}</span>` : ""}
             <span class="stage-up"><span>${stagePrompt}</span></span>
           </div>
-          <div class="timer-ring" data-timer-ring role="timer">
-            <svg viewBox="0 0 80 80" aria-hidden="true">
-              <circle class="timer-track" cx="40" cy="40" r="32"></circle>
-              <circle class="timer-progress" data-timer-progress cx="40" cy="40" r="32"></circle>
-            </svg>
-            <span class="timer-readout"><strong data-timer>${state.remaining}</strong></span>
-          </div>
+          ${
+            experimentalPlay
+              ? `<button class="timer-ring" type="button" data-timer-ring aria-label="${state.paused ? "继续" : "暂停"}，剩余 ${state.remaining} 秒" aria-pressed="${state.paused}" ${revealed ? "disabled" : ""}>
+                  <svg viewBox="0 0 80 80" aria-hidden="true">
+                    <circle class="timer-track" cx="40" cy="40" r="32"></circle>
+                    <circle class="timer-progress" data-timer-progress cx="40" cy="40" r="32"></circle>
+                  </svg>
+                  <span class="timer-toggle-icon ${state.paused ? "is-play" : "is-pause"}" aria-hidden="true"></span>
+                </button>`
+              : `<div class="timer-ring" data-timer-ring role="timer">
+                  <svg viewBox="0 0 80 80" aria-hidden="true">
+                    <circle class="timer-track" cx="40" cy="40" r="32"></circle>
+                    <circle class="timer-progress" data-timer-progress cx="40" cy="40" r="32"></circle>
+                  </svg>
+                  <span class="timer-readout"><strong data-timer>${state.remaining}</strong></span>
+                </div>`
+          }
         </header>
 
         <div class="parts ${densityClass} ${partsFeedback} ${pausedClass} ${exClass}" aria-label="部件">
@@ -1388,20 +1441,29 @@ function renderGame(game: GameSession): void {
           <span class="sr-only">${escapeHtml(feedbackAnnouncement)}</span>
         </div>
 
-        <div class="play-actions">
-          ${revealed && state.advanceLabel ? `<button class="primary-action" type="button" data-advance>${escapeHtml(state.advanceLabel)}</button>` : ""}
-          ${
-            revealed && state.advanceLabel
-              ? `
-                <button type="button" data-restart>重开</button>
-                <button class="skip-action" type="button" data-skip disabled><span>换题</span><span class="skip-count">${skipCount}</span></button>
-              `
+        <div class="play-actions ${experimentalPlay ? revealed ? "is-single-action" : "is-three-actions" : ""}">
+          ${experimentalPlay
+            ? revealed
+              ? state.advanceLabel
+                ? `<button class="primary-action" type="button" data-advance>${escapeHtml(state.advanceLabel)}</button>`
+                : ""
               : `
-                <button type="button" data-pause ${revealed ? "disabled" : ""}>${state.paused ? "继续" : "暂停"}</button>
-                <button type="button" data-surrender ${revealed ? "disabled" : ""}>弃权</button>
-                <button type="button" data-restart>重开</button>
-                <button class="skip-action" type="button" data-skip ${skipDisabled ? "disabled" : ""}><span>换题</span><span class="skip-count">${skipCount}</span></button>
-              `
+                  <button type="button" data-pause>${state.paused ? "继续" : "暂停"}</button>
+                  <button type="button" data-surrender>弃权</button>
+                  <button class="skip-action" type="button" data-skip ${skipDisabled ? "disabled" : ""}><span>换题</span><span class="skip-count">${skipCount}</span></button>
+                `
+            : revealed && state.advanceLabel
+              ? `
+                  <button class="primary-action" type="button" data-advance>${escapeHtml(state.advanceLabel)}</button>
+                  <button type="button" data-restart>重开</button>
+                  <button class="skip-action" type="button" data-skip disabled><span>换题</span><span class="skip-count">${skipCount}</span></button>
+                `
+              : `
+                  <button type="button" data-pause ${revealed ? "disabled" : ""}>${state.paused ? "继续" : "暂停"}</button>
+                  <button type="button" data-surrender ${revealed ? "disabled" : ""}>弃权</button>
+                  <button type="button" data-restart>重开</button>
+                  <button class="skip-action" type="button" data-skip ${skipDisabled ? "disabled" : ""}><span>换题</span><span class="skip-count">${skipCount}</span></button>
+                `
           }
         </div>
       </section>
@@ -1417,6 +1479,11 @@ function renderGame(game: GameSession): void {
   document.querySelector<HTMLButtonElement>("[data-pause]")?.addEventListener("click", () => {
     game.togglePause();
   });
+  if (experimentalPlay) {
+    document.querySelector<HTMLButtonElement>("[data-timer-ring]")?.addEventListener("click", () => {
+      game.togglePause();
+    });
+  }
   document.querySelector<HTMLButtonElement>("[data-surrender]")?.addEventListener("click", () => {
     game.surrender();
   });
@@ -1692,6 +1759,7 @@ function startGame(settings: GameSettings): void {
   startLayoutObserver = null;
   lastQuestionKey = "";
   lastRenderedPaused = false;
+  lastTimerFraction = 1;
   lastSettings = structuredClone(settings);
   session = new GameSession(
     data,
@@ -1714,13 +1782,14 @@ function startGame(settings: GameSettings): void {
     },
     Math.random,
     cris,
+    experimentalPlay,
   );
   renderGame(session);
 }
 
 renderStart(DEFAULT_SETTINGS);
 
-void loadGameData(document.baseURI)
+void loadGameData(appBaseUrl)
   .then((loadedData) => {
     data = loadedData;
     collection.reconcile(

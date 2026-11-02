@@ -1235,6 +1235,15 @@ input:focus-visible {
   place-items: center;
 }
 
+.page-play.is-test-version .timer-ring {
+  padding: 0;
+  border: 0;
+  color: var(--ink);
+  background: transparent;
+  border-radius: 0;
+  cursor: pointer;
+}
+
 .timer-ring svg {
   position: absolute;
   inset: 0;
@@ -1250,16 +1259,6 @@ input:focus-visible {
   stroke-width: 5;
 }
 
-.timer-track {
-  stroke: var(--line);
-}
-
-.timer-progress {
-  stroke: var(--ink);
-  stroke-linecap: butt;
-  transition: stroke-dashoffset 1s linear;
-}
-
 .timer-readout {
   display: flex;
   align-items: baseline;
@@ -1273,6 +1272,54 @@ input:focus-visible {
   line-height: 1;
 }
 
+.timer-track {
+  stroke: var(--line);
+}
+
+.timer-progress {
+  stroke: var(--ink);
+  stroke-linecap: butt;
+  transition: stroke-dashoffset 1s linear;
+}
+
+.timer-toggle-icon {
+  position: relative;
+  display: block;
+  width: 24px;
+  height: 24px;
+  color: currentColor;
+}
+
+.timer-toggle-icon.is-pause::before,
+.timer-toggle-icon.is-pause::after {
+  content: "";
+  position: absolute;
+  top: 3px;
+  width: 5px;
+  height: 18px;
+  background: currentColor;
+}
+
+.timer-toggle-icon.is-pause::before {
+  left: 5px;
+}
+
+.timer-toggle-icon.is-pause::after {
+  right: 5px;
+}
+
+.timer-toggle-icon.is-play::before {
+  content: "";
+  position: absolute;
+  top: 2px;
+  left: 6px;
+  width: 0;
+  height: 0;
+  border-top: 10px solid transparent;
+  border-bottom: 10px solid transparent;
+  border-left: 16px solid currentColor;
+}
+
 .timer-ring.is-urgent .timer-progress {
   color: var(--accent);
   stroke: var(--accent);
@@ -1280,6 +1327,10 @@ input:focus-visible {
 }
 
 .timer-ring.is-urgent .timer-readout {
+  color: var(--accent);
+}
+
+.timer-ring.is-urgent {
   color: var(--accent);
 }
 
@@ -1293,6 +1344,24 @@ input:focus-visible {
 
 .timer-ring.is-correct .timer-readout {
   color: var(--correct);
+}
+
+.timer-ring.is-correct {
+  color: var(--correct);
+}
+
+.timer-ring.is-penalty-cut .timer-progress {
+  animation: timer-penalty-cut 260ms cubic-bezier(0.2, 0.8, 0.2, 1) both;
+}
+
+@keyframes timer-penalty-cut {
+  from {
+    stroke-dashoffset: var(--timer-penalty-from-offset);
+  }
+
+  to {
+    stroke-dashoffset: var(--timer-penalty-to-offset);
+  }
 }
 
 .parts {
@@ -1738,6 +1807,24 @@ input:focus-visible {
   margin: 28px auto 0;
   padding-top: 15px;
   border-top: 1px solid var(--line);
+}
+
+.play-actions.is-three-actions {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  width: min(100%, 320px);
+}
+
+.play-actions.is-single-action {
+  grid-template-columns: minmax(0, 1fr);
+  width: min(100%, 150px);
+}
+
+.play-actions.is-single-action .primary-action {
+  grid-column: auto;
+}
+
+.play-actions.is-single-action:empty {
+  visibility: hidden;
 }
 
 .play-actions .primary-action {
@@ -6472,6 +6559,98 @@ input:focus-visible {
   }
 }
 
+@media (max-width: 640px) and (max-height: 560px) {
+  .page-play.is-test-version.app-shell {
+    padding-top: max(8px, env(safe-area-inset-top));
+    padding-bottom: max(8px, env(safe-area-inset-bottom));
+  }
+
+  .page-play.is-test-version .corner-actions,
+  .page-play.is-test-version .corner-cris {
+    display: none;
+  }
+
+  .page-play.is-test-version .masthead {
+    padding: 3px 0 2px;
+  }
+
+  .page-play.is-test-version .wordmark {
+    font-size: 28px;
+  }
+
+  .page-play.is-test-version .wordmark::after {
+    width: 22px;
+    height: 2px;
+    margin-top: 3px;
+  }
+
+  .page-play.is-test-version .play-screen {
+    padding-top: 0;
+  }
+
+  .page-play.is-test-version .play-hud {
+    min-height: 56px;
+    gap: 10px;
+    padding-bottom: 6px;
+  }
+
+  .page-play.is-test-version .timer-ring {
+    width: 52px;
+  }
+
+  .page-play.is-test-version .timer-readout strong {
+    font-size: 22px;
+  }
+
+  .page-play.is-test-version .parts {
+    min-height: 82px;
+    padding: 6px 0 4px;
+    --card-gap: 7px;
+  }
+
+  .page-play.is-test-version .part-card {
+    width: clamp(46px, 14vw, 56px);
+    box-shadow: 2px 2px 0 #d9d5ca;
+  }
+
+  .page-play.is-test-version .part {
+    font-size: clamp(26px, 9vw, 36px);
+  }
+
+  .page-play.is-test-version .part.is-long {
+    font-size: clamp(18px, 5.5vw, 23px);
+  }
+
+  .page-play.is-test-version .answer-stage {
+    min-height: 52px;
+  }
+
+  .page-play.is-test-version .answer-input {
+    width: 132px;
+    height: 38px;
+    font-size: 22px;
+  }
+
+  .page-play.is-test-version .submit-button {
+    min-width: 66px;
+    padding-inline: 10px;
+  }
+
+  .page-play.is-test-version .feedback {
+    min-height: 8px;
+  }
+
+  .page-play.is-test-version .play-actions {
+    margin-top: 5px;
+    padding-top: 7px;
+  }
+
+  .page-play.is-test-version .play-actions button {
+    min-height: 32px;
+    padding-block: 3px;
+  }
+}
+
 @media (prefers-reduced-motion: reduce) {
   *,
   *::before,
@@ -6492,6 +6671,7 @@ input:focus-visible {
   .parts.is-ex.has-correct .part-card,
   .answer-stage.is-wrong,
   .timer-ring.is-urgent .timer-progress,
+  .timer-ring.is-penalty-cut .timer-progress,
   .progress-stack.is-stage-enter::before,
   .progress-stack.is-stage-enter .question-progress,
   .progress-stack.is-stage-enter .stage-rank,

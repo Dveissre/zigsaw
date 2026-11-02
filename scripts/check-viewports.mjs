@@ -205,6 +205,64 @@ try {
 
     await context.close();
   }
+
+  const compactContext = await browser.newContext({
+    viewport: { width: 390, height: 430 },
+    deviceScaleFactor: 1,
+  });
+  const compactPage = await compactContext.newPage();
+  await compactPage.goto(new URL("test/", targetUrl).href, {
+    waitUntil: "networkidle",
+  });
+  await compactPage.locator(".start-button:not([disabled])").waitFor();
+  await compactPage
+    .getByRole("button", { name: "练习", exact: true })
+    .click();
+  await compactPage
+    .getByRole("button", { name: "开始", exact: true })
+    .click();
+  await compactPage.locator(".play-screen").waitFor();
+  await compactPage.waitForTimeout(500);
+  await compactPage.getByRole("textbox", { name: "答案" }).focus();
+  const compactGame = await compactPage.evaluate(() => {
+    const box = (selector) =>
+      document.querySelector(selector)?.getBoundingClientRect() ?? null;
+    const hud = box(".play-hud");
+    const parts = box(".parts");
+    const answer = box(".answer-stage");
+    const actions = box(".play-actions");
+    return {
+      viewportHeight: innerHeight,
+      scrollY,
+      hudTop: hud?.top ?? -1,
+      partsBottom: parts?.bottom ?? Infinity,
+      answerBottom: answer?.bottom ?? Infinity,
+      actionsBottom: actions?.bottom ?? Infinity,
+      mastheadVisible:
+        getComputedStyle(document.querySelector(".masthead")).display !==
+        "none",
+      testVersion: Boolean(
+        document.querySelector(".page-play.is-test-version"),
+      ),
+      inputFocused:
+        document.activeElement ===
+        document.querySelector("[data-answer]"),
+    };
+  });
+  const compactOk =
+    compactGame.scrollY === 0 &&
+    compactGame.hudTop >= 0 &&
+    compactGame.partsBottom <= compactGame.viewportHeight &&
+    compactGame.answerBottom <= compactGame.viewportHeight &&
+    compactGame.actionsBottom <= compactGame.viewportHeight &&
+    compactGame.mastheadVisible &&
+    compactGame.testVersion &&
+    compactGame.inputFocused;
+  failed ||= !compactOk;
+  console.log(
+    `mobile-keyboard 390x430 hud=${compactGame.hudTop} parts-bottom=${compactGame.partsBottom} answer-bottom=${compactGame.answerBottom} actions-bottom=${compactGame.actionsBottom} status=${compactOk ? "OK" : "FAIL"}`,
+  );
+  await compactContext.close();
 } finally {
   await browser.close();
 }

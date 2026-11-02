@@ -73,7 +73,7 @@ public/data/char_sym_answer_compat.json
 ## 验证结果
 
 ```text
-npm test                 52/52
+npm test                 54/54
 npm run build            通过
 npm run smoke            通过
 npm run check:viewports  六个视口通过
