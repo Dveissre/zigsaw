@@ -844,6 +844,30 @@ input:focus-visible {
   background: var(--ink);
 }
 
+.mode-switch button:disabled {
+  color: color-mix(in srgb, var(--muted) 58%, transparent);
+  background:
+    repeating-linear-gradient(
+      -45deg,
+      transparent 0 5px,
+      color-mix(in srgb, var(--line) 42%, transparent)
+        5px 6px
+    );
+  cursor: default;
+  opacity: 0.72;
+}
+
+.mode-switch button:disabled:hover {
+  color: color-mix(in srgb, var(--muted) 58%, transparent);
+  background:
+    repeating-linear-gradient(
+      -45deg,
+      transparent 0 5px,
+      color-mix(in srgb, var(--line) 42%, transparent)
+        5px 6px
+    );
+}
+
 .mode-switch button[aria-pressed="true"] {
   background: transparent;
 }

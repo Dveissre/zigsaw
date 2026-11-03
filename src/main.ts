@@ -108,6 +108,9 @@ let shareToastTimer: number | null = null;
 const MODE_ORDER: Mode[] = trialTestPage
   ? ["challenge", "trial", "normal"]
   : ["challenge", "normal"];
+const visibleModeCount = trialTestPage
+  ? MODE_ORDER.length
+  : MODE_ORDER.length + 1;
 const DIFFICULTY_ORDER: ChallengeDifficulty[] = [
   "beginner",
   "standard",
@@ -1038,11 +1041,12 @@ function renderStart(initial: GameSettings = lastSettings): void {
         <div class="settings-stack">
           <section class="setting-block">
             <div class="setting-label">模式</div>
-            <div class="segmented mode-switch" role="group" aria-label="模式" data-active-mode="${initialMode}" style="--mode-count:${MODE_ORDER.length};--mode-position:${MODE_ORDER.indexOf(initialMode)}">
+            <div class="segmented mode-switch" role="group" aria-label="模式" data-active-mode="${initialMode}" style="--mode-count:${visibleModeCount};--mode-position:${MODE_ORDER.indexOf(initialMode)}">
               <span class="mode-slider" aria-hidden="true"></span>
               <button type="button" data-mode="challenge" aria-pressed="${pressed("challenge")}">挑战</button>
               ${trialTestPage ? `<button type="button" data-mode="trial" aria-pressed="${pressed("trial")}">试炼</button>` : ""}
               <button type="button" data-mode="normal" aria-pressed="${pressed("normal")}">练习</button>
+              ${trialTestPage ? "" : `<button type="button" disabled aria-label="敬请期待，尚未开放">敬请期待</button>`}
             </div>
           </section>
 
