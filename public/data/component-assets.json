@@ -2,6 +2,7 @@
   "format": "zigsaw-component-assets/1",
   "symbols": {
     "11": { "name": "𠃑", "source": "component_svg/11.svg" },
+    "12": { "name": "㇈", "source": "component_svg/12.svg" },
     "13": { "name": "𠃊", "source": "component_svg/13.svg" },
     "14": { "name": "乛", "source": "component_svg/14.svg" },
     "32": { "name": "介脚", "source": "component_svg/32.svg" },
@@ -47,6 +48,7 @@
     "330": { "name": "𣶒", "source": "component_svg/330.svg" },
     "332": { "name": "鳥冠", "source": "component_svg/332.svg" },
     "338": { "name": "鼠脚", "source": "component_svg/338N.svg" },
+    "342": { "name": "叀", "source": "component_svg/342.svg" },
     "347": { "name": "憂冠", "source": "component_svg/347N.svg" },
     "355": { "name": "無冠", "source": "component_svg/355N.svg" },
     "383": { "name": "𦰩", "source": "component_svg/383.svg" },
