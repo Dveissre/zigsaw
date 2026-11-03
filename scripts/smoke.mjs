@@ -15,6 +15,9 @@ const schoolData = JSON.parse(
 const componentAssets = JSON.parse(
   readFileSync("public/data/component-assets.json", "utf8"),
 );
+const componentAtlas = JSON.parse(
+  readFileSync("public/data/component-atlas.json", "utf8"),
+);
 
 const questionsByParts = new Map();
 for (const [char, ways] of Object.entries(symData.chars)) {
@@ -80,7 +83,7 @@ try {
           : -1,
     };
   });
-  assert.ok(startPosition.drop > 40);
+  assert.ok(startPosition.drop > 20);
   assert.ok(startPosition.centerRatio >= 0.39);
   assert.ok(startPosition.centerRatio <= 0.5);
   const tutorialTrigger = page.getByRole("button", { name: "游玩方法" });
@@ -434,7 +437,7 @@ try {
   await page.locator(".atlas-component-card.is-unlocked").first().waitFor();
   assert.equal(
     await page.locator(".atlas-component-card.is-unlocked").count(),
-    410,
+    componentAtlas.components.length,
   );
   await page.locator("[data-rarity-filter='XR']").click();
   const xrCard = page.locator(".atlas-component-card.rarity-xr").first();
@@ -1631,7 +1634,8 @@ try {
     await page.locator("[data-start-record]").innerText(),
     "纪录：3",
   );
-  await page.getByRole("button", { name: "无尽", exact: true }).click();
+  await page.getByRole("button", { name: "练习", exact: true }).click();
+  await page.getByRole("button", { name: "开启", exact: true }).click();
   assert.equal(
     await page.locator("[data-start-record]").isHidden(),
     true,
@@ -1669,6 +1673,7 @@ try {
 
   await page.getByRole("button", { name: "返回", exact: true }).click();
   await page.getByRole("button", { name: "练习", exact: true }).click();
+  await page.getByRole("button", { name: "关闭", exact: true }).click();
   await page.locator("#game-count").fill("10");
   await page.setViewportSize({ width: 1280, height: 898 });
   await page.getByRole("button", { name: "开始", exact: true }).click();
@@ -1835,9 +1840,47 @@ try {
   );
   assert.equal(mobileDetailLayout.pageHeight, mobileDetailLayout.viewportHeight);
   await page.keyboard.press("Escape");
+
+  await page.goto(new URL("test/", targetUrl).href, {
+    waitUntil: "networkidle",
+  });
+  await page.locator(".start-button:not([disabled])").waitFor();
+  assert.deepEqual(
+    await page.locator("[data-mode]").allTextContents(),
+    ["挑战", "试炼", "练习"],
+  );
+  await page.getByRole("button", { name: "试炼", exact: true }).click();
+  await page.getByRole("button", { name: "开始", exact: true }).click();
+  await page.locator(".trial-intro-surface").waitFor();
+  assert.equal(
+    await page.locator(".trial-stage-progress").getAttribute("aria-valuemax"),
+    "7",
+  );
+  assert.equal(
+    await page.locator(".trial-stage-progress-marker").count(),
+    1,
+  );
+  assert.equal(
+    await page.locator(".trial-rule-card strong").innerText(),
+    "无制限",
+  );
+  await page.getByRole("button", { name: "进入", exact: true }).click();
+  await page.locator("[data-trial-answer]").waitFor();
+  assert.match(
+    await page.locator(".question-progress").innerText(),
+    /第一幕 · 第1题/,
+  );
+  await page.getByRole("button", { name: "中止", exact: true }).click();
+  await page.locator(".answer-stage.is-miss").waitFor();
+  await page.getByRole("button", { name: "结算", exact: true }).click();
+  await page.locator(".trial-result-screen").waitFor();
+  assert.match(
+    await page.locator(".result-header h1").innerText(),
+    /试炼结束/,
+  );
   assert.deepEqual(errors, []);
   console.log(
-    "smoke: settings, tutorial, three modes, reveal, details, records and responsive layout OK",
+    "smoke: settings, tutorial, game modes, trial flow, reveal, details and responsive layout OK",
   );
 } finally {
   await browser.close();

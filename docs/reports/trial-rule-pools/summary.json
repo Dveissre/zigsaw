@@ -1,0 +1,162 @@
+{
+  "format": "zigsaw-trial-rule-pool-analysis/1",
+  "sources": [
+    "public/data/char_sym.json",
+    "public/data/char_sym_answer_compat.json",
+    "public/data/tongyong_hanzi.json",
+    "public/data/component-assets.json",
+    "public/data/component-atlas.json"
+  ],
+  "scope": {
+    "levels": [
+      "一级",
+      "二级"
+    ],
+    "includeSupplementaryCharacters": true,
+    "selectableCharacterRule": "任一拆法包含不可渲染部件时排除整字"
+  },
+  "sourceHash": "ffefd8912a278bd597dddbdb260b6406dff829d0ee26146b3bca54653e679a20",
+  "answerCompatibilityHash": "20d005c816e10688867cf588cc2a5e81a070aacf9e7705fb88fe701bdfb478f5",
+  "eligible": {
+    "characters": 6500,
+    "decompositionWays": 7129
+  },
+  "inspissation": [
+    {
+      "部件数": 2,
+      "可出题汉字数": 1425,
+      "一级字数": 943,
+      "二级字数": 482,
+      "拆法数": 1435
+    },
+    {
+      "部件数": 3,
+      "可出题汉字数": 2499,
+      "一级字数": 1351,
+      "二级字数": 1148,
+      "拆法数": 2568
+    },
+    {
+      "部件数": 4,
+      "可出题汉字数": 1770,
+      "一级字数": 827,
+      "二级字数": 943,
+      "拆法数": 1855
+    },
+    {
+      "部件数": 5,
+      "可出题汉字数": 859,
+      "一级字数": 357,
+      "二级字数": 502,
+      "拆法数": 899
+    },
+    {
+      "部件数": 6,
+      "可出题汉字数": 269,
+      "一级字数": 103,
+      "二级字数": 166,
+      "拆法数": 279
+    },
+    {
+      "部件数": 7,
+      "可出题汉字数": 69,
+      "一级字数": 20,
+      "二级字数": 49,
+      "拆法数": 70
+    },
+    {
+      "部件数": 8,
+      "可出题汉字数": 18,
+      "一级字数": 3,
+      "二级字数": 15,
+      "拆法数": 18
+    }
+  ],
+  "gestalt": {
+    "totalPairsObserved": 10332,
+    "pairsWithAtMostThreeAnswers": 6931,
+    "byAnswerCount": {
+      "1": 4571,
+      "2": 1501,
+      "3": 859
+    },
+    "compatibilityExample": {
+      "components": "一 + 斤",
+      "answerCount": 10,
+      "answers": [
+        "坼(二级)",
+        "圻(二级)",
+        "蕲(二级)",
+        "堑(二级)",
+        "晰(一级)",
+        "皙(二级)",
+        "昕(二级)",
+        "新(一级)",
+        "薪(一级)",
+        "暂(一级)"
+      ]
+    }
+  },
+  "outland": {
+    "water": {
+      "name": "绝九瀛",
+      "members": [
+        "水",
+        "氵",
+        "冫",
+        "雨"
+      ],
+      "baseComponents": 172,
+      "resultCharacters": 248,
+      "compositionVariants": 251
+    },
+    "herb": {
+      "name": "开榛薮",
+      "members": [
+        "艹",
+        "屮",
+        "木",
+        "禾"
+      ],
+      "baseComponents": 229,
+      "resultCharacters": 528,
+      "compositionVariants": 539
+    },
+    "mount": {
+      "name": "越嵩峦",
+      "members": [
+        "土",
+        "石",
+        "山"
+      ],
+      "baseComponents": 178,
+      "resultCharacters": 383,
+      "compositionVariants": 388
+    },
+    "people": {
+      "name": "脱尘网",
+      "members": [
+        "人",
+        "亻",
+        "彳"
+      ],
+      "baseComponents": 160,
+      "resultCharacters": 221,
+      "compositionVariants": 222
+    },
+    "speech": {
+      "name": "断声讯",
+      "members": [
+        "口",
+        "讠",
+        "耳"
+      ],
+      "baseComponents": 181,
+      "resultCharacters": 351,
+      "compositionVariants": 354
+    }
+  },
+  "atlas": {
+    "nRarityComponents": 73
+  }
+}

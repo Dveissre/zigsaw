@@ -1,5 +1,5 @@
 export type Level = 1 | 2 | 3;
-export type Mode = "normal" | "endless" | "challenge";
+export type Mode = "normal" | "endless" | "challenge" | "trial";
 export type ChallengeDifficulty =
   | "beginner"
   | "standard"

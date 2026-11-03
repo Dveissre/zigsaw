@@ -17,6 +17,7 @@
     "build:component-font": "node scripts/build-component-font.mjs",
     "build:details": "node scripts/build-char-detail-shards.mjs",
     "build:school": "node scripts/build-school-index.mjs",
+    "analyze:trial-rule-pools": "node scripts/analyze-trial-rule-pools.mjs",
     "preview": "vite preview",
     "test": "vitest run",
     "test:watch": "vitest",

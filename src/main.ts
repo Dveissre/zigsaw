@@ -16,6 +16,22 @@ import { CharDetailStore } from "./game/details";
 import { LocalRecordStore, recordKey } from "./game/records";
 import { GameSession, type GameState } from "./game/session";
 import { buildChallengeShareText } from "./game/share";
+import {
+  TRIAL_BOSS_SECONDS,
+  TRIAL_NORMAL_SECONDS,
+  TRIAL_QUESTIONS_PER_STAGE,
+  TRIAL_STAGE_COUNT,
+  TrialSession,
+  type TrialCardSource,
+  type TrialHistoryItem,
+  type TrialState,
+} from "./game/trial";
+import {
+  loadTrialRules,
+  trialRuleForStage,
+  type TrialRuleDefinition,
+  type TrialRulesData,
+} from "./game/trial-rules";
 import { ATLAS_TRIGGER_MARKUP } from "./ui/atlas";
 import { CharDetailView } from "./ui/char-detail";
 import {
@@ -42,6 +58,7 @@ if (!rootElement) {
 
 const root: HTMLDivElement = rootElement;
 const experimentalPlay = root.hasAttribute("data-experimental-play");
+const trialTestPage = root.hasAttribute("data-trial-test");
 const appBaseUrl = root.dataset.appBase
   ? new URL(root.dataset.appBase, document.baseURI).href
   : document.baseURI;
@@ -68,12 +85,19 @@ const DEFAULT_SETTINGS: GameSettings = {
 };
 
 let data: GameData | null = null;
+let trialRules: TrialRulesData | null = null;
 let startupError = "";
 let session: GameSession | null = null;
+let trialSession: TrialSession | null = null;
 let lastSettings: GameSettings = structuredClone(DEFAULT_SETTINGS);
 let composing = false;
 let lastQuestionKey = "";
+let lastTrialQuestionKey = "";
+let lastTrialBossKey = "";
+let animatedTrialConsumedCardIds = new Set<number>();
+let animatedTrialObscuredCardIds = new Set<number>();
 let lastRenderedPaused = false;
+let lastTrialPaused = false;
 let lastTimerFraction = 1;
 let advancedSettingsOpen = isDebugUnlocked();
 let startingGame = false;
@@ -81,7 +105,9 @@ let startLayoutObserver: ResizeObserver | null = null;
 let pageTransitionActive = false;
 let shareToastTimer: number | null = null;
 
-const MODE_ORDER: Mode[] = ["challenge", "normal", "endless"];
+const MODE_ORDER: Mode[] = trialTestPage
+  ? ["challenge", "trial", "normal"]
+  : ["challenge", "normal"];
 const DIFFICULTY_ORDER: ChallengeDifficulty[] = [
   "beginner",
   "standard",
@@ -227,11 +253,7 @@ function shell(
   const crisTotal = cris.load();
   return `
     <div class="app-shell page-${page} ${experimentalPlay ? "is-test-version" : ""}">
-      ${
-        page === "start"
-          ? `<button class="advanced-corner" type="button" aria-label="调试入口" aria-pressed="${advancedSettingsOpen}"></button>`
-          : ""
-      }
+      <button class="advanced-corner" type="button" aria-label="调试入口" aria-pressed="${advancedSettingsOpen}"></button>
       ${crisBalanceMarkup(crisTotal, advancedSettingsOpen)}
       <div class="corner-actions">
         ${TUTORIAL_TRIGGER_MARKUP}
@@ -449,13 +471,22 @@ function openInfoDialog(dialog: HTMLDialogElement): void {
   }
 
   resumeAfterTutorial = Boolean(
-    session &&
+    (session &&
       session.state.phase === "playing" &&
       !session.state.paused &&
-      !session.state.revealing,
+      !session.state.revealing) ||
+      (trialSession &&
+        (trialSession.state.phase === "playing" ||
+          trialSession.state.phase === "boss") &&
+        !trialSession.state.paused &&
+        !trialSession.state.revealing),
   );
   if (resumeAfterTutorial) {
-    session?.togglePause();
+    if (session) {
+      session.togglePause();
+    } else {
+      trialSession?.togglePause();
+    }
   }
   const currentDialog = dialog.isConnected
     ? dialog
@@ -527,6 +558,17 @@ function finishInfoDialog(): void {
     !session.state.revealing
   ) {
     session.togglePause();
+    return;
+  }
+  if (
+    shouldResume &&
+    trialSession &&
+    (trialSession.state.phase === "playing" ||
+      trialSession.state.phase === "boss") &&
+    trialSession.state.paused &&
+    !trialSession.state.revealing
+  ) {
+    trialSession.togglePause();
   }
 }
 
@@ -611,6 +653,83 @@ function wireGameSettingsDialog(): void {
     });
 }
 
+document.addEventListener("click", (event) => {
+  const target = event.target;
+  if (
+    !(target instanceof Element) ||
+    !target.closest(".advanced-corner")
+  ) {
+    return;
+  }
+  void (async () => {
+    let resumeAfterDebugAccess: (() => void) | null = null;
+    if (!advancedSettingsOpen) {
+      if (
+        session?.state.phase === "playing" &&
+        !session.state.paused &&
+        !session.state.revealing
+      ) {
+        session.togglePause();
+        resumeAfterDebugAccess = () => session?.togglePause();
+      } else if (
+        trialSession &&
+        (trialSession.state.phase === "playing" ||
+          trialSession.state.phase === "boss") &&
+        !trialSession.state.paused &&
+        !trialSession.state.revealing
+      ) {
+        trialSession.togglePause();
+        resumeAfterDebugAccess = () =>
+          trialSession?.togglePause();
+      }
+      if (!(await requestDebugAccess())) {
+        resumeAfterDebugAccess?.();
+        return;
+      }
+      advancedSettingsOpen = true;
+    } else {
+      advancedSettingsOpen = false;
+      revokeDebugAccess();
+    }
+
+    document
+      .querySelector<HTMLButtonElement>(".advanced-corner")
+      ?.setAttribute(
+        "aria-pressed",
+        String(advancedSettingsOpen),
+      );
+    refreshCrisBalance();
+
+    if (resumeAfterDebugAccess) {
+      resumeAfterDebugAccess();
+      return;
+    }
+
+    const form =
+      document.querySelector<HTMLFormElement>(
+        "[data-settings-form]",
+      );
+    if (form) {
+      syncAdvancedSettings();
+      form.dataset.advancedOpen = String(
+        advancedSettingsOpen,
+      );
+      setupStartLayout();
+    }
+
+    if (trialSession?.state.phase === "stage-intro") {
+      if (
+        !advancedSettingsOpen &&
+        trialSession.state.forcedRuleId
+      ) {
+        trialSession.setRuleOverride(null);
+      } else {
+        renderTrialStageIntro(trialSession);
+      }
+    }
+  })();
+});
+
 function clamp(value: number, minimum: number, maximum: number): number {
   return Math.min(maximum, Math.max(minimum, value));
 }
@@ -672,6 +791,14 @@ function selectedMode(): Mode {
   );
 }
 
+function practiceEndlessEnabled(): boolean {
+  return (
+    document.querySelector<HTMLButtonElement>(
+      "[data-practice-endless][aria-pressed='true']",
+    )?.dataset.practiceEndless === "true"
+  );
+}
+
 function selectedDifficulty(): ChallengeDifficulty {
   return (
     (document.querySelector<HTMLButtonElement>(
@@ -726,20 +853,31 @@ function updateModeFields(direction = 0): void {
   document
     .querySelectorAll<HTMLElement>("[data-mode-field='selection']")
     .forEach((element) => {
-      element.hidden = mode === "challenge";
+      element.hidden = mode === "challenge" || mode === "trial";
     });
 
   const countField = document.querySelector<HTMLElement>(
     "[data-mode-field='count']",
   );
   if (countField) {
-    countField.hidden = mode !== "normal";
+    countField.hidden =
+      mode !== "normal" || practiceEndlessEnabled();
   }
 
   document
     .querySelectorAll<HTMLElement>("[data-mode-field='challenge']")
     .forEach((element) => {
       element.hidden = mode !== "challenge";
+    });
+  document
+    .querySelectorAll<HTMLElement>("[data-mode-field='practice']")
+    .forEach((element) => {
+      element.hidden = mode !== "normal";
+    });
+  document
+    .querySelectorAll<HTMLElement>("[data-mode-field='trial']")
+    .forEach((element) => {
+      element.hidden = mode !== "trial";
     });
 
   const segmented = document.querySelector<HTMLElement>(".mode-switch");
@@ -775,7 +913,7 @@ function syncAdvancedSettings(): void {
       element.hidden =
         !advancedSettingsOpen ||
         (element.hasAttribute("data-time-setting") &&
-          mode === "challenge");
+          (mode === "challenge" || mode === "trial"));
     });
 }
 
@@ -822,17 +960,23 @@ function readSettings(): GameSettings {
     return clamp(Number(input?.value) || fallback, minimum, maximum);
   };
   const mode = selectedMode();
+  const runtimeMode: Mode =
+    mode === "normal" && practiceEndlessEnabled()
+      ? "endless"
+      : mode;
   const difficulty = selectedDifficulty();
 
   return {
-    levels,
+    levels: runtimeMode === "trial" ? [1, 2] : levels,
     partsLow: lowStop,
     partsHigh: highStop === 5 ? 18 : highStop,
-    mode,
+    mode: runtimeMode,
     count: numberValue("#game-count", 10, 3, 50),
     seconds:
       mode === "challenge"
         ? CHALLENGE_DIFFICULTY_SECONDS[difficulty]
+        : runtimeMode === "trial"
+          ? TRIAL_NORMAL_SECONDS
         : Math.round(
             numberValue("#game-seconds", 40, 5, 180) / 5,
           ) * 5,
@@ -858,14 +1002,28 @@ function renderStart(initial: GameSettings = lastSettings): void {
   startLayoutObserver = null;
   startingGame = false;
   session?.destroy();
+  trialSession?.destroy();
   session = null;
+  trialSession = null;
   lastQuestionKey = "";
+  lastTrialQuestionKey = "";
+  lastTrialBossKey = "";
+  animatedTrialConsumedCardIds = new Set();
+  animatedTrialObscuredCardIds = new Set();
   lastRenderedPaused = false;
+  lastTrialPaused = false;
 
   const lowStop = initial.partsLow >= 5 ? 5 : clamp(initial.partsLow, 2, 4);
   const highStop = initial.partsHigh >= 5 ? 5 : clamp(initial.partsHigh, 2, 4);
+  const initialMode: Mode =
+    initial.mode === "endless"
+      ? "normal"
+      : initial.mode === "trial" && !trialTestPage
+        ? "challenge"
+        : initial.mode;
+  const practiceEndless = initial.mode === "endless";
   const checked = (level: Level) => initial.levels.includes(level) ? "checked" : "";
-  const pressed = (mode: Mode) => initial.mode === mode ? "true" : "false";
+  const pressed = (mode: Mode) => initialMode === mode ? "true" : "false";
   const advancedHidden = advancedSettingsOpen ? "" : "hidden";
   const difficultyNotes =
     DIFFICULTY_NOTES[initial.difficulty];
@@ -876,19 +1034,36 @@ function renderStart(initial: GameSettings = lastSettings): void {
 
   root.innerHTML = shell(`
     <main class="start-screen">
-      <form class="settings-form" data-settings-form data-active-mode="${initial.mode}" data-advanced-open="${advancedSettingsOpen}" novalidate>
+      <form class="settings-form" data-settings-form data-active-mode="${initialMode}" data-advanced-open="${advancedSettingsOpen}" novalidate>
         <div class="settings-stack">
           <section class="setting-block">
             <div class="setting-label">模式</div>
-            <div class="segmented mode-switch" role="group" aria-label="模式" data-active-mode="${initial.mode}" style="--mode-position:${MODE_ORDER.indexOf(initial.mode)}">
+            <div class="segmented mode-switch" role="group" aria-label="模式" data-active-mode="${initialMode}" style="--mode-count:${MODE_ORDER.length};--mode-position:${MODE_ORDER.indexOf(initialMode)}">
               <span class="mode-slider" aria-hidden="true"></span>
               <button type="button" data-mode="challenge" aria-pressed="${pressed("challenge")}">挑战</button>
+              ${trialTestPage ? `<button type="button" data-mode="trial" aria-pressed="${pressed("trial")}">试炼</button>` : ""}
               <button type="button" data-mode="normal" aria-pressed="${pressed("normal")}">练习</button>
-              <button type="button" data-mode="endless" aria-pressed="${pressed("endless")}">无尽</button>
             </div>
           </section>
 
           <div class="mode-fields">
+          <section class="setting-block trial-entry-setting" data-mode-field="trial" hidden>
+            <div class="setting-label">试炼</div>
+            <div class="trial-entry-summary">
+              <strong>7 幕</strong>
+              <span>每幕 8 个道中关卡 + 1 个守幕关卡</span>
+            </div>
+          </section>
+
+          <section class="setting-block" data-mode-field="practice" hidden>
+            <div class="setting-label">无尽</div>
+            <div class="segmented practice-endless-toggle" role="group" aria-label="无尽模式" style="--practice-position:${practiceEndless ? 1 : 0}">
+              <span class="choice-slider" aria-hidden="true"></span>
+              <button type="button" data-practice-endless="false" aria-pressed="${practiceEndless ? "false" : "true"}">关闭</button>
+              <button type="button" data-practice-endless="true" aria-pressed="${practiceEndless ? "true" : "false"}">开启</button>
+            </div>
+          </section>
+
           <section class="setting-block" data-mode-field="selection">
             <div class="setting-label">级别</div>
             <div class="inline-options">
@@ -986,7 +1161,7 @@ function renderStart(initial: GameSettings = lastSettings): void {
 
         <div class="start-row">
           <button class="start-button" type="submit" ${data ? "" : "disabled"}>开始</button>
-          <span class="start-record" data-start-record ${initial.mode === "challenge" ? "" : "hidden"}>纪录：${challengeRecord}</span>
+          <span class="start-record" data-start-record ${initialMode === "challenge" ? "" : "hidden"}>纪录：${challengeRecord}</span>
           <span class="form-error" data-form-error role="alert">${escapeHtml(startupError)}</span>
         </div>
       </form>
@@ -1011,26 +1186,6 @@ function renderStart(initial: GameSettings = lastSettings): void {
   wireGameSettingsDialog();
   setupStartLayout();
 
-  const advancedCorner = document.querySelector<HTMLButtonElement>(".advanced-corner");
-  advancedCorner?.addEventListener("click", async () => {
-    if (advancedSettingsOpen) {
-      advancedSettingsOpen = false;
-      revokeDebugAccess();
-    } else {
-      if (!(await requestDebugAccess())) {
-        return;
-      }
-      advancedSettingsOpen = true;
-    }
-    advancedCorner.setAttribute("aria-pressed", String(advancedSettingsOpen));
-    syncAdvancedSettings();
-    if (form) {
-      form.dataset.advancedOpen = String(advancedSettingsOpen);
-    }
-    refreshCrisBalance();
-    setupStartLayout();
-  });
-
   document
     .querySelectorAll<HTMLButtonElement>("[data-difficulty]")
     .forEach((button) => {
@@ -1054,6 +1209,35 @@ function renderStart(initial: GameSettings = lastSettings): void {
       });
     });
 
+  document
+    .querySelectorAll<HTMLButtonElement>("[data-practice-endless]")
+    .forEach((button) => {
+      button.addEventListener("click", () => {
+        document
+          .querySelectorAll<HTMLButtonElement>(
+            "[data-practice-endless]",
+          )
+          .forEach((peer) => {
+            peer.setAttribute(
+              "aria-pressed",
+              String(peer === button),
+            );
+          });
+        const toggle = document.querySelector<HTMLElement>(
+          ".practice-endless-toggle",
+        );
+        if (toggle) {
+          toggle.style.setProperty(
+            "--practice-position",
+            button.dataset.practiceEndless === "true"
+              ? "1"
+              : "0",
+          );
+        }
+        updateModeFields();
+      });
+    });
+
   document.querySelectorAll<HTMLButtonElement>("[data-mode]").forEach((button) => {
     button.addEventListener("click", () => {
       const previousMode = selectedMode();
@@ -1073,7 +1257,11 @@ function renderStart(initial: GameSettings = lastSettings): void {
     const formError = document.querySelector<HTMLElement>("[data-form-error]");
     const settings = readSettings();
 
-    if (settings.mode !== "challenge" && settings.levels.length === 0) {
+    if (
+      settings.mode !== "challenge" &&
+      settings.mode !== "trial" &&
+      settings.levels.length === 0
+    ) {
       if (formError) {
         formError.textContent = "级别";
       }
@@ -1081,6 +1269,7 @@ function renderStart(initial: GameSettings = lastSettings): void {
     }
     if (
       settings.mode !== "challenge" &&
+      settings.mode !== "trial" &&
       settings.levels.every(
         (level) =>
           data?.candidates(
@@ -1500,6 +1689,953 @@ function renderGame(game: GameSession): void {
   wireGameSettingsDialog();
 }
 
+function trialStageName(stage: number): string {
+  const names = [
+    "第一幕",
+    "第二幕",
+    "第三幕",
+    "第四幕",
+    "第五幕",
+    "第六幕",
+    "第七幕",
+  ];
+  return names[stage - 1] ?? `第${stage}幕`;
+}
+
+function trialCharacterMeta(char: string): string {
+  const codePoint = char.codePointAt(0) ?? 0;
+  return (
+    data?.answerMeta(char) ||
+    `表外 U+${codePoint
+      .toString(16)
+      .toUpperCase()
+      .padStart(4, "0")}`
+  );
+}
+
+function trialRuleMarkup(rule: TrialRuleDefinition): string {
+  const iconUrl = new URL(
+    `assets/trial-rules/${rule.icon}`,
+    appBaseUrl,
+  ).href;
+  const stars = Array.from(
+    { length: rule.stars },
+    () =>
+      `<span class="trial-rule-star" aria-hidden="true">
+        <svg viewBox="0 0 24 24">
+          <path d="M12 1.5c.7 6.2 4.3 9.8 10.5 10.5-6.2.7-9.8 4.3-10.5 10.5C11.3 16.3 7.7 12.7 1.5 12 7.7 11.3 11.3 7.7 12 1.5Z"></path>
+        </svg>
+      </span>`,
+  ).join("");
+  return `
+    <section class="trial-rule-card">
+      <div class="trial-rule-emblem">
+        <span class="trial-rule-icon" aria-hidden="true">
+          <img src="${escapeHtml(iconUrl)}" alt="">
+        </span>
+        ${stars ? `<div class="trial-rule-stars" aria-label="${rule.stars}星制限">${stars}</div>` : ""}
+      </div>
+      <div class="trial-rule-copy">
+        <div class="trial-rule-title">
+          <strong>${escapeHtml(rule.name)}</strong>
+          <span>${escapeHtml(rule.english)}</span>
+        </div>
+        <p>${escapeHtml(rule.description.public)}</p>
+      </div>
+    </section>
+  `;
+}
+
+interface TrialPartCardModel {
+  uid: number;
+  symbolId: number;
+  source?: TrialCardSource;
+  consumed?: boolean;
+  animateConsumed?: boolean;
+  obscured?: boolean;
+  animateObscured?: boolean;
+}
+
+function trialPartCardsMarkup(
+  cards: TrialPartCardModel[],
+): string {
+  const parts = cards.map((card) => ({
+    ...renderComponent(data!.component(card.symbolId), true),
+    ...card,
+  }));
+  const cardAngles = [-0.8, 0.9, -0.35, 1.15, -1.05, 0.45];
+  const cardOffsets = [1, 4, 0, 5, 2, 3];
+  let cardIndex = 0;
+  return splitPartsIntoRows(parts)
+    .map(
+      (row) =>
+        `<div class="part-row">${row
+          .map(
+            (part) =>
+              `<span class="part-card ${part.consumed ? "is-consumed" : ""} ${part.animateConsumed ? "is-consumed-new" : ""} ${part.obscured ? "is-obscured" : ""} ${part.animateObscured ? "is-obscuring" : ""}" data-card-uid="${part.uid}" data-card-source="${part.source ?? "answer"}" ${part.obscured ? 'aria-label="已遮挡部件" aria-disabled="true"' : `data-symbol-id="${part.symbolId}"`} ${part.consumed ? 'aria-hidden="true"' : ""} style="--card-index:${cardIndex};--card-angle:${cardAngles[cardIndex % cardAngles.length]}deg;--card-offset:${cardOffsets[cardIndex++ % cardOffsets.length]}px">${
+                part.obscured && !part.animateObscured
+                  ? ""
+                  : `<span class="part ${part.long ? "is-long" : ""} ${part.isEnclosedFrame ? "is-enclosed-frame" : ""}">${part.html}</span>`
+              }</span>`,
+          )
+          .join("")}</div>`,
+    )
+    .join("");
+}
+
+function updateTrialTimer(state: TrialState): void {
+  const timerRing =
+    document.querySelector<HTMLElement>("[data-trial-timer]");
+  const timerProgress = document.querySelector<SVGCircleElement>(
+    "[data-trial-timer-progress]",
+  );
+  const partsPanel =
+    document.querySelector<HTMLElement>(".parts");
+  if (!timerRing || !timerProgress) {
+    return;
+  }
+  const limit =
+    state.timeLimit ||
+    (state.phase === "boss"
+      ? TRIAL_BOSS_SECONDS
+      : TRIAL_NORMAL_SECONDS);
+  const fraction = Math.max(
+    0,
+    Math.min(1, state.remaining / limit),
+  );
+  const circumference = 2 * Math.PI * 32;
+  const previousFraction = lastTimerFraction;
+  const timeBonus =
+    trialRules?.rules[state.ruleId]?.timing
+      .correctBonusSeconds ?? 0;
+  const timeRestored =
+    state.feedback === "correct" &&
+    timeBonus > 0 &&
+    fraction > previousFraction + 0.001;
+  timerProgress.style.strokeDasharray =
+    `${circumference} ${circumference}`;
+  timerProgress.style.strokeDashoffset = String(
+    circumference * (1 - fraction),
+  );
+  timerRing.classList.toggle(
+    "is-penalty-cut",
+    state.paused && previousFraction > fraction + 0.001,
+  );
+  timerRing.classList.toggle(
+    "is-time-restored",
+    timeRestored,
+  );
+  timerProgress.style.setProperty(
+    "--timer-penalty-from-offset",
+    String(circumference * (1 - previousFraction)),
+  );
+  timerProgress.style.setProperty(
+    "--timer-penalty-to-offset",
+    String(circumference * (1 - fraction)),
+  );
+  timerProgress.style.setProperty(
+    "--timer-restore-from-offset",
+    String(circumference * (1 - previousFraction)),
+  );
+  timerProgress.style.setProperty(
+    "--timer-restore-to-offset",
+    String(circumference * (1 - fraction)),
+  );
+  lastTimerFraction = fraction;
+  timerRing.classList.toggle(
+    "is-urgent",
+    state.remaining <= 5 && !state.paused,
+  );
+  timerRing.classList.toggle("is-paused", state.paused);
+  timerRing.classList.toggle(
+    "is-correct",
+    state.feedback === "correct",
+  );
+  timerRing.setAttribute(
+    "aria-label",
+    `${state.paused ? "继续" : "暂停"}，剩余 ${state.remaining} 秒`,
+  );
+  timerRing.setAttribute(
+    "aria-pressed",
+    String(state.paused),
+  );
+  if (partsPanel) {
+    const tense =
+      !state.paused &&
+      !state.revealing &&
+      state.remaining <= 5;
+    partsPanel.classList.toggle("is-tense", tense);
+    if (tense) {
+      const intensity = Math.max(
+        0,
+        Math.min(1, (6 - state.remaining) / 5),
+      );
+      const red = Math.round(251 + (244 - 251) * intensity);
+      const green = Math.round(250 + (226 - 250) * intensity);
+      const blue = Math.round(246 + (219 - 246) * intensity);
+      partsPanel.style.setProperty(
+        "--card-tense-fill",
+        `rgb(${red} ${green} ${blue})`,
+      );
+    } else {
+      partsPanel.style.removeProperty("--card-tense-fill");
+    }
+  }
+}
+
+function updateTrialObscuration(state: TrialState): void {
+  const cards =
+    state.phase === "boss"
+      ? (state.boss?.initialCards ?? [])
+      : (state.current?.displayCards ?? []);
+  for (const card of cards) {
+    if (!card.obscured) {
+      continue;
+    }
+    const element =
+      document.querySelector<HTMLElement>(
+        `[data-card-uid="${card.uid}"]`,
+      );
+    if (
+      !element ||
+      element.classList.contains("is-obscured")
+    ) {
+      continue;
+    }
+    element.classList.add(
+      "is-obscured",
+      "is-obscuring",
+    );
+    element.setAttribute(
+      "aria-label",
+      "已遮挡部件",
+    );
+    element.setAttribute("aria-disabled", "true");
+    element.removeAttribute("data-symbol-id");
+    animatedTrialObscuredCardIds.add(card.uid);
+    window.setTimeout(() => {
+      if (!element.isConnected) {
+        return;
+      }
+      element.classList.remove("is-obscuring");
+      element.querySelector(".part")?.remove();
+    }, 200);
+  }
+}
+
+function wireTrialAnswerInput(trial: TrialSession): void {
+  const input =
+    document.querySelector<HTMLInputElement>("[data-trial-answer]");
+  if (!input) {
+    return;
+  }
+  input.addEventListener("compositionstart", () => {
+    composing = true;
+  });
+  input.addEventListener("compositionend", () => {
+    composing = false;
+    trial.setDraft(input.value);
+  });
+  input.addEventListener("input", () => {
+    trial.setDraft(input.value);
+    document
+      .querySelector(".answer-stage")
+      ?.classList.remove("is-wrong");
+    document
+      .querySelector(".parts")
+      ?.classList.remove("has-wrong");
+  });
+  input.addEventListener("keydown", (event) => {
+    if (event.key === "Enter" && !event.isComposing) {
+      event.preventDefault();
+      trial.submit();
+    }
+  });
+  input.focus({ preventScroll: true });
+  input.setSelectionRange(
+    input.value.length,
+    input.value.length,
+  );
+}
+
+function trialDebugRuleSelectorMarkup(
+  trial: TrialSession,
+): string {
+  if (!advancedSettingsOpen || !trialRules) {
+    return "";
+  }
+  const defaultRule = trialRuleForStage(
+    trialRules,
+    trial.state.stage,
+  );
+  const options = Object.values(trialRules.rules)
+    .map(
+      (rule) => `
+        <option value="${escapeHtml(rule.id)}" ${
+          trial.state.forcedRuleId === rule.id
+            ? "selected"
+            : ""
+        }>
+          ${escapeHtml(rule.name)} · ${rule.stars}★
+        </option>
+      `,
+    )
+    .join("");
+  return `
+    <section class="trial-debug-rule" aria-labelledby="trial-debug-rule-title">
+      <div class="trial-debug-rule-heading">
+        <span>DEBUG</span>
+        <strong id="trial-debug-rule-title">强制制限</strong>
+      </div>
+      <label class="trial-debug-rule-control">
+        <span>当前选择</span>
+        <select data-trial-rule-override>
+          <option value="" ${
+            trial.state.forcedRuleId === null
+              ? "selected"
+              : ""
+          }>
+            按幕次 · ${escapeHtml(defaultRule.name)}
+          </option>
+          ${options}
+        </select>
+      </label>
+      <p>仅覆盖当前幕；进入下一幕后恢复默认规则。</p>
+    </section>
+  `;
+}
+
+function renderTrialStageIntro(trial: TrialSession): void {
+  const state = trial.state;
+  const rule =
+    trialRules?.rules[state.ruleId] ??
+    trialRuleForStage(trialRules, state.stage);
+  const previousStagePosition =
+    (((state.stage - 1) / TRIAL_STAGE_COUNT) * 100).toFixed(3);
+  const stagePosition = (
+    (state.stage / TRIAL_STAGE_COUNT) *
+    100
+  ).toFixed(3);
+  const debugRuleSelector =
+    trialDebugRuleSelectorMarkup(trial);
+  root.innerHTML = shell(
+    `
+      <main class="trial-intro-screen">
+        <section class="trial-intro-surface ${debugRuleSelector ? "has-debug-rule" : ""}">
+          <div class="trial-stage-progress" role="progressbar" aria-label="试炼进度" aria-valuemin="1" aria-valuemax="${TRIAL_STAGE_COUNT}" aria-valuenow="${state.stage}" style="--stage-from:${previousStagePosition}%;--stage-to:${stagePosition}%">
+            <span class="trial-stage-progress-fill" aria-hidden="true"></span>
+            <span class="trial-stage-progress-marker" aria-hidden="true"></span>
+          </div>
+          <div class="trial-stage-heading">
+            <svg class="trial-stage-chevron" viewBox="0 0 24 24" aria-hidden="true">
+              <path d="m15 3-9 9 9 9"></path>
+            </svg>
+            <h1>${trialStageName(state.stage)}</h1>
+            <svg class="trial-stage-chevron" viewBox="0 0 24 24" aria-hidden="true">
+              <path d="m9 3 9 9-9 9"></path>
+            </svg>
+          </div>
+          ${trialRuleMarkup(rule)}
+          ${debugRuleSelector}
+          <button class="primary-action trial-start-stage" type="button" data-trial-begin>
+            进入
+          </button>
+        </section>
+      </main>
+    `,
+    "play",
+  );
+  document
+    .querySelector<HTMLButtonElement>("[data-trial-begin]")
+    ?.addEventListener("click", () => {
+      withPageTransition(() => trial.beginStage());
+    });
+  document
+    .querySelector<HTMLSelectElement>(
+      "[data-trial-rule-override]",
+    )
+    ?.addEventListener("change", (event) => {
+      const select = event.currentTarget as HTMLSelectElement;
+      trial.setRuleOverride(select.value || null);
+    });
+  wireGameSettingsDialog();
+}
+
+function renderTrialGame(trial: TrialSession): void {
+  const state = trial.state;
+  const isBoss = state.phase === "boss";
+  const consumedCardIds = new Set(
+    state.boss?.consumedCardIds ?? [],
+  );
+  const bossKey = isBoss
+    ? `${state.stage}|${(state.boss?.initialCards ?? [])
+        .map((card) => `${card.uid}:${card.symbolId}`)
+        .join(",")}`
+    : "";
+  const questionKey = isBoss
+    ? `${state.stage}|boss|${state.boss?.initialCards
+        .map((card) => `${card.uid}:${card.symbolId}`)
+        .join(",")}`
+    : `${state.stage}|${state.questionInStage}|${state.current?.char}|${(state.current?.displayCards ?? [])
+        .map((card) => `${card.uid}:${card.symbolId}`)
+        .join(",")}`;
+  const bossEntering = isBoss && bossKey !== lastTrialBossKey;
+  const questionEnter =
+    questionKey !== lastTrialQuestionKey;
+  if (isBoss) {
+    lastTrialBossKey = bossKey;
+  } else {
+    lastTrialBossKey = "";
+    animatedTrialConsumedCardIds.clear();
+  }
+  if (questionEnter) {
+    animatedTrialObscuredCardIds.clear();
+  }
+  if (bossEntering) {
+    animatedTrialConsumedCardIds.clear();
+  }
+  const newlyConsumedCardIds = [...consumedCardIds].filter(
+    (uid) => !animatedTrialConsumedCardIds.has(uid),
+  );
+  animatedTrialConsumedCardIds = new Set(consumedCardIds);
+  const obscuredCardIds = new Set(
+    (isBoss
+      ? (state.boss?.initialCards ?? [])
+      : (state.current?.displayCards ?? [])
+    )
+      .filter((card) => card.obscured)
+      .map((card) => card.uid),
+  );
+  const newlyObscuredCardIds = [...obscuredCardIds].filter(
+    (uid) => !animatedTrialObscuredCardIds.has(uid),
+  );
+  animatedTrialObscuredCardIds = new Set(obscuredCardIds);
+  const cardModels: TrialPartCardModel[] = isBoss
+    ? (state.boss?.initialCards ?? []).map((card) => ({
+        uid: card.uid,
+        symbolId: card.symbolId,
+        source: card.source,
+        consumed:
+          !state.revealing &&
+          consumedCardIds.has(card.uid),
+        animateConsumed:
+          !state.revealing &&
+          newlyConsumedCardIds.includes(card.uid),
+        obscured: !state.revealing && card.obscured,
+        animateObscured:
+          !state.revealing &&
+          newlyObscuredCardIds.includes(card.uid),
+      }))
+    : (state.current?.displayCards ?? []).map((card) => ({
+        uid: card.uid,
+        symbolId: card.symbolId,
+        source: card.source,
+        obscured: !state.revealing && card.obscured,
+        animateObscured:
+          !state.revealing &&
+          newlyObscuredCardIds.includes(card.uid),
+      }));
+  lastTrialQuestionKey = questionKey;
+  const densityClass =
+    !isBoss && cardModels.length >= 12
+      ? "is-dense"
+      : !isBoss && cardModels.length >= 8
+        ? "is-compact"
+        : "";
+  const crowdedClass =
+    !isBoss && cardModels.length >= 5
+      ? "is-five-plus"
+      : "";
+  const correct = state.feedback === "correct";
+  const wrong = state.feedback === "wrong";
+  const partsFeedback = correct
+    ? "has-correct"
+    : wrong
+      ? "has-wrong"
+      : "";
+  const pendingSubmissions = (
+    state.boss?.pendingSubmissions ?? []
+  ).map((submission) => ({
+    ...submission,
+    cards: (state.boss?.initialCards ?? []).filter((card) =>
+      submission.cardIds.includes(card.uid),
+    ),
+  }));
+  const resuming = !state.paused && lastTrialPaused;
+  lastTrialPaused = state.paused;
+  root.innerHTML = shell(
+    `
+      <main class="play-screen trial-play-screen">
+        <section class="play-surface ${questionEnter ? "question-enter" : ""}">
+          <header class="play-hud">
+            <div class="progress-stack ${isBoss ? `is-trial-boss ${bossEntering ? "is-trial-boss-enter" : ""}` : ""}">
+              <span class="question-progress">${
+                isBoss
+                  ? `${trialStageName(state.stage)} · 守幕关卡`
+                  : `${trialStageName(state.stage)} · 道中关卡 ${state.questionInStage}`
+              }</span>
+              <small class="trial-mode-caption">${isBoss ? "ACTKEEPER" : "试炼模式"}</small>
+            </div>
+            <button class="timer-ring" type="button" data-trial-timer aria-label="${state.paused ? "继续" : "暂停"}，剩余 ${state.remaining} 秒" aria-pressed="${state.paused}" ${state.revealing ? "disabled" : ""}>
+              <svg viewBox="0 0 80 80" aria-hidden="true">
+                <circle class="timer-track" cx="40" cy="40" r="32"></circle>
+                <circle class="timer-progress" data-trial-timer-progress cx="40" cy="40" r="32"></circle>
+              </svg>
+              <span class="timer-toggle-icon ${state.paused ? "is-play" : "is-pause"}" aria-hidden="true"></span>
+            </button>
+          </header>
+
+          <div class="parts ${densityClass} ${crowdedClass} ${partsFeedback} ${state.paused ? "is-paused" : resuming ? "is-resuming" : ""} ${isBoss ? "trial-boss-parts" : ""}" aria-label="部件">
+            ${
+              isBoss
+                ? `<span class="trial-boss-attempts" aria-label="已组成 ${state.boss?.submissionCount ?? 0} 个字，共 ${state.boss?.expectedAnswers.length ?? 2} 个">
+                    <b>${state.boss?.submissionCount ?? 0}</b>
+                    <i aria-hidden="true"></i>
+                    <b>${state.boss?.expectedAnswers.length ?? 2}</b>
+                  </span>`
+                : ""
+            }
+            ${trialPartCardsMarkup(cardModels)}
+          </div>
+
+          <div class="answer-stage ${correct ? "is-correct" : wrong && state.revealing ? "is-miss" : wrong ? "is-wrong" : ""}">
+            ${
+              state.revealing
+                ? isBoss
+                  ? `<div class="reveal trial-reveal is-boss" aria-live="polite">
+                      <div class="trial-boss-reveal-chars">
+                        ${[...state.revealAnswer]
+                          .map(
+                            (char) =>
+                              `<span><strong>${escapeHtml(char)}</strong><small>${escapeHtml(
+                                trialCharacterMeta(char),
+                              )}</small></span>`,
+                          )
+                          .join("")}
+                      </div>
+                    </div>`
+                  : `<div class="reveal trial-reveal" aria-live="polite">
+                      <strong>${escapeHtml(state.revealAnswer)}</strong>
+                      <small>${escapeHtml(state.revealMeta)}</small>
+                    </div>`
+                : `<div class="answer-row">
+                    <input
+                      data-trial-answer
+                      class="answer-input"
+                      type="text"
+                      value="${escapeHtml(state.draft)}"
+                      autocomplete="off"
+                      autocapitalize="off"
+                      spellcheck="false"
+                      aria-label="${isBoss ? "守幕关卡答案" : "答案"}"
+                      ${state.paused ? "disabled" : ""}
+                    >
+                    <button class="submit-button" type="button" data-trial-submit ${state.paused ? "disabled" : ""}>提交</button>
+                  </div>`
+            }
+          </div>
+
+          ${
+            isBoss &&
+            pendingSubmissions.length > 0 &&
+            !state.revealing
+              ? `<div class="trial-boss-records" aria-live="polite">
+                  ${pendingSubmissions
+                    .map(
+                      (submission, index) =>
+                        `<div class="trial-boss-record">
+                          <div class="trial-boss-record-parts" aria-label="已使用部件">
+                            ${submission.cards
+                              .map(
+                                (card) =>
+                                  `<span class="trial-boss-used-part">${renderComponent(data!.component(card.symbolId), true).html}</span>`,
+                              )
+                              .join("")}
+                          </div>
+                          <span class="trial-boss-record-divider" aria-hidden="true"></span>
+                          <strong class="trial-boss-record-char">${escapeHtml(submission.answer)}</strong>
+                          <button class="trial-boss-undo" type="button" data-trial-undo="${index}" aria-label="撤回${escapeHtml(submission.answer)}">
+                            <svg viewBox="0 0 24 24" aria-hidden="true">
+                              <path d="M8 7H4v-4"></path>
+                              <path d="M4.6 7.2A8 8 0 1 1 4 15"></path>
+                            </svg>
+                          </button>
+                        </div>`,
+                    )
+                    .join("")}
+                </div>`
+              : ""
+          }
+
+          <div class="feedback" aria-live="polite">
+            <span class="sr-only">${correct ? "正确" : wrong ? "重试" : state.paused ? "暂停" : ""}</span>
+          </div>
+
+          ${
+            state.revealing
+              ? wrong
+                ? `<div class="trial-actions is-single">
+                    <button class="primary-action" type="button" data-trial-settle>结算</button>
+                  </div>`
+                : ""
+              : `<div class="trial-actions">
+                  <button type="button" data-trial-pause>${state.paused ? "继续" : "暂停"}</button>
+                  <button class="trial-abort-button" type="button" data-trial-surrender>中止</button>
+                </div>`
+          }
+        </section>
+      </main>
+    `,
+    "play",
+  );
+
+  updateTrialTimer(state);
+  wireTrialAnswerInput(trial);
+  document
+    .querySelector<HTMLButtonElement>("[data-trial-submit]")
+    ?.addEventListener("click", () => trial.submit());
+  document
+    .querySelector<HTMLButtonElement>("[data-trial-pause]")
+    ?.addEventListener("click", () => trial.togglePause());
+  document
+    .querySelector<HTMLButtonElement>("[data-trial-timer]")
+    ?.addEventListener("click", () => trial.togglePause());
+  document
+    .querySelector<HTMLButtonElement>("[data-trial-surrender]")
+    ?.addEventListener("click", () => trial.surrender());
+  document
+    .querySelector<HTMLButtonElement>("[data-trial-settle]")
+    ?.addEventListener("click", () => {
+      withPageTransition(() => trial.settleAfterMiss());
+    });
+  document
+    .querySelectorAll<HTMLButtonElement>("[data-trial-undo]")
+    .forEach((button) => {
+      button.addEventListener("click", () => {
+        trial.undoBossAnswer(
+          Number(button.dataset.trialUndo),
+        );
+      });
+    });
+  wireGameSettingsDialog();
+}
+
+function trialReviewCardMarkup(
+  item: TrialHistoryItem,
+  index: number,
+  slot: number,
+  detailIndex = 0,
+): string {
+  const detail = item.answerDetails[detailIndex];
+  const char = detail?.char ?? item.answer;
+  const answerWay = detail?.answerWay ?? item.answerWay;
+  const displayCards = detail?.displayCards ?? item.displayCards;
+  const displaySymbolIds = displayCards.map(
+    (card) => card.symbolId,
+  );
+  const displayParts = data!.names(displaySymbolIds);
+  const level = data!.levels.get(char);
+  const themeClass = !item.ok
+    ? "is-error"
+    : item.kind === "boss"
+      ? "is-boss-correct"
+    : level === 3
+      ? "is-level-3"
+      : level === 2
+        ? "is-level-2"
+        : "";
+  const hasWidePart = displaySymbolIds.some((symbolId) => {
+    const component = data!.component(symbolId);
+    return !component.assetUrl && [...component.name].length > 1;
+  });
+  const showIndex = item.kind !== "boss" || detailIndex === 0;
+  return `
+    <li class="review-card trial-review-card ${themeClass}" style="--review-index:${index}" data-review-char="${escapeHtml(char)}" role="button" tabindex="0" aria-label="查看「${escapeHtml(char)}」的释义">
+      ${showIndex ? `<span class="review-index" aria-hidden="true">${String(slot).padStart(2, "0")}</span>` : ""}
+      <span class="review-result ${item.ok ? "is-correct" : "is-wrong"}" aria-label="${item.ok ? "正确" : "错误"}"></span>
+      <div class="review-answer"><span>${escapeHtml(char)}</span></div>
+      <div class="review-meta">${escapeHtml((detail?.meta ?? item.meta).replace(/[（）]/g, ""))}</div>
+      <div class="review-parts ${displayParts.length >= 5 ? "is-many" : ""} ${hasWidePart ? "is-wide" : ""}" aria-label="答案部件 ${escapeHtml(answerWay.map((symbolId) => data!.component(symbolId).name).join(" "))}">
+        ${displaySymbolIds
+          .map(
+            (symbolId) =>
+              `<span class="review-part">${renderComponent(data!.component(symbolId)).html}</span>`,
+          )
+          .join("")}
+      </div>
+    </li>
+  `;
+}
+
+function renderTrialResults(trial: TrialSession): void {
+  const state = trial.state;
+  const result = state.result;
+  if (!result) {
+    return;
+  }
+  const byStage = new Map<number, TrialHistoryItem[]>();
+  for (const item of state.history) {
+    const group = byStage.get(item.stage) ?? [];
+    group.push(item);
+    byStage.set(item.stage, group);
+  }
+  let reviewIndex = 0;
+  const stageSections = [...byStage.entries()]
+    .map(([stage, items]) => {
+      let stageCardIndex = 0;
+      const rule =
+        (items[0]
+          ? trialRules?.rules[items[0].ruleId]
+          : null) ??
+        trialRuleForStage(trialRules, stage);
+      return `
+        <section class="trial-result-stage">
+          <header>
+            <h2>${trialStageName(stage)}</h2>
+            <small>${items.filter((item) => item.ok).length} / ${TRIAL_QUESTIONS_PER_STAGE + 1}</small>
+          </header>
+          ${trialRuleMarkup(rule)}
+          <ol class="review-list trial-review-list">
+            ${items
+              .flatMap((item) => {
+                const detailCount = Math.max(
+                  1,
+                  item.answerDetails.length,
+                );
+                return Array.from(
+                  { length: detailCount },
+                  (_, detailIndex) => {
+                    stageCardIndex += 1;
+                    return trialReviewCardMarkup(
+                      item,
+                      reviewIndex++,
+                      stageCardIndex,
+                      detailIndex,
+                    );
+                  },
+                );
+              })
+              .join("")}
+          </ol>
+        </section>
+      `;
+    })
+    .join("");
+  root.innerHTML = shell(
+    `
+      <main class="result-screen trial-result-screen">
+        <section class="result-surface trial-result-surface">
+          <header class="result-header">
+            <h1>${escapeHtml(result.title)}</h1>
+            <div class="result-score">${trialStageName(result.reachedStage)} · ${result.correctCount}题 · 平均${result.averageQuestionSeconds.toFixed(1)}s</div>
+            <div class="trial-result-cris">${crisIconMarkup()}<span>奖励待定</span></div>
+          </header>
+          <div class="trial-result-scroll">${stageSections}</div>
+          <div class="result-actions">
+            <button class="primary-action" type="button" data-trial-again>再次试炼</button>
+            <button type="button" data-trial-exit>返回</button>
+          </div>
+        </section>
+      </main>
+      <dialog class="char-detail-dialog" aria-labelledby="char-detail-title">
+        <article class="char-detail-panel">
+          <header class="char-detail-header">
+            <button class="char-detail-close" type="button" data-detail-close aria-label="关闭">
+              <svg viewBox="0 0 24 24" aria-hidden="true">
+                <path d="M4 4 20 20M20 4 4 20"></path>
+              </svg>
+            </button>
+            <div class="char-detail-identity">
+              <h2 id="char-detail-title" data-detail-char></h2>
+              <div class="char-detail-meta" data-detail-meta></div>
+            </div>
+            <dl class="char-detail-facts">
+              <div><dt>读音</dt><dd data-detail-readings>载入中</dd></div>
+              <div><dt>Unicode</dt><dd data-detail-unicode></dd></div>
+              <div data-detail-school-row hidden><dt>教材</dt><dd data-detail-school></dd></div>
+              <div><dt>拆分</dt><dd data-detail-split></dd></div>
+            </dl>
+          </header>
+          <div class="char-detail-content" data-detail-content></div>
+          <footer class="char-detail-footer">内容来自网络，仅供参考</footer>
+        </article>
+      </dialog>
+    `,
+    "result",
+  );
+  const detailDialog =
+    document.querySelector<HTMLDialogElement>(".char-detail-dialog");
+  const detailView =
+    detailDialog &&
+    new CharDetailView(detailDialog, charDetails, (char) => {
+      const way = data?.shortestDecomposition(char);
+      const source = data;
+      if (!way || !source) {
+        return "";
+      }
+      return way
+        .map(
+          (symbolId) =>
+            `<span class="char-detail-split-part">${renderComponent(source.component(symbolId)).html}</span>`,
+        )
+        .join("");
+    });
+  const trialReview = document.querySelector<HTMLElement>(
+    ".trial-result-scroll",
+  );
+  const openTrialReview = (target: EventTarget | null): void => {
+    const card =
+      target instanceof Element
+        ? target.closest<HTMLElement>("[data-review-char]")
+        : null;
+    const char = card?.dataset.reviewChar;
+    if (!char || !detailView) {
+      return;
+    }
+    detailView.open(
+      char,
+      trialCharacterMeta(char),
+    );
+  };
+  trialReview?.addEventListener("click", (event) => {
+    openTrialReview(event.target);
+  });
+  trialReview?.addEventListener("keydown", (event) => {
+    if (event.key !== "Enter" && event.key !== " ") {
+      return;
+    }
+    const target = event.target;
+    if (
+      target instanceof Element &&
+      target.closest("[data-review-char]")
+    ) {
+      event.preventDefault();
+      openTrialReview(target);
+    }
+  });
+  if (trialReview) {
+    const reducedMotion = window.matchMedia(
+      "(prefers-reduced-motion: reduce)",
+    ).matches;
+    for (const card of trialReview.querySelectorAll<HTMLElement>(
+      ".trial-review-card",
+    )) {
+      card.addEventListener(
+        "animationstart",
+        (event) => {
+          if (event.animationName !== "review-card-in") {
+            return;
+          }
+          requestAnimationFrame(() => {
+            const containerTop =
+              trialReview.getBoundingClientRect().top;
+            const cardBottom =
+              card.getBoundingClientRect().bottom -
+              containerTop +
+              trialReview.scrollTop;
+            const visibleBottom =
+              trialReview.scrollTop + trialReview.clientHeight;
+            if (cardBottom > visibleBottom) {
+              trialReview.scrollTo({
+                top: Math.min(
+                  trialReview.scrollHeight -
+                    trialReview.clientHeight,
+                  cardBottom - trialReview.clientHeight + 1,
+                ),
+                behavior: reducedMotion ? "auto" : "smooth",
+              });
+            }
+          });
+        },
+        { once: true },
+      );
+    }
+  }
+  document
+    .querySelector<HTMLButtonElement>("[data-trial-again]")
+    ?.addEventListener("click", () => {
+      withPageTransition(() => startTrial(lastSettings));
+    });
+  document
+    .querySelector<HTMLButtonElement>("[data-trial-exit]")
+    ?.addEventListener("click", () => {
+      withPageTransition(() => renderStart(lastSettings));
+    });
+  wireGameSettingsDialog();
+}
+
+function renderTrial(trial: TrialSession): void {
+  if (trial.state.phase === "stage-intro") {
+    renderTrialStageIntro(trial);
+  } else if (trial.state.phase === "results") {
+    renderTrialResults(trial);
+  } else {
+    renderTrialGame(trial);
+  }
+}
+
+function startTrial(settings: GameSettings): void {
+  if (!data) {
+    return;
+  }
+  session?.destroy();
+  trialSession?.destroy();
+  session = null;
+  startLayoutObserver?.disconnect();
+  startLayoutObserver = null;
+  lastTrialQuestionKey = "";
+  lastTrialBossKey = "";
+  animatedTrialConsumedCardIds = new Set();
+  animatedTrialObscuredCardIds = new Set();
+  lastTrialPaused = false;
+  lastTimerFraction = 1;
+  lastSettings = structuredClone(settings);
+  trialSession = new TrialSession(
+    data,
+    settings,
+    (state, event) => {
+      if (!trialSession) {
+        return;
+      }
+      const active = trialSession;
+      if (event === "rule") {
+        renderTrialStageIntro(active);
+        return;
+      }
+      if (event === "obscure") {
+        updateTrialTimer(state);
+        updateTrialObscuration(state);
+        return;
+      }
+      if (event === "tick") {
+        updateTrialTimer(state);
+        return;
+      }
+      if (state.phase === "results") {
+        withPageTransition(() => renderTrialResults(active));
+        return;
+      }
+      if (state.phase === "stage-intro") {
+        withPageTransition(() => renderTrial(active));
+        return;
+      }
+      renderTrial(active);
+    },
+    Math.random,
+    experimentalPlay,
+    (char, way) => {
+      collection.recordEncounter(
+        char,
+        way,
+        !data!.levels.has(char),
+      );
+    },
+    cris,
+    trialRules,
+  );
+  renderTrialStageIntro(trialSession);
+}
+
 function renderResults(game: GameSession): void {
   const state = game.state;
   const result = state.result;
@@ -1511,6 +2647,7 @@ function renderResults(game: GameSession): void {
     normal: "练习模式",
     endless: "无尽模式",
     challenge: "挑战模式",
+    trial: "试炼模式",
   }[state.settings.mode];
   const finalBounds =
     state.settings.mode === "challenge"
@@ -1756,9 +2893,16 @@ function startGame(settings: GameSettings): void {
   }
 
   session?.destroy();
+  trialSession?.destroy();
+  trialSession = null;
+  if (settings.mode === "trial") {
+    startTrial(settings);
+    return;
+  }
   startLayoutObserver?.disconnect();
   startLayoutObserver = null;
   lastQuestionKey = "";
+  lastTrialQuestionKey = "";
   lastRenderedPaused = false;
   lastTimerFraction = 1;
   lastSettings = structuredClone(settings);
@@ -1790,9 +2934,13 @@ function startGame(settings: GameSettings): void {
 
 renderStart(DEFAULT_SETTINGS);
 
-void loadGameData(appBaseUrl)
-  .then((loadedData) => {
+void Promise.all([
+  loadGameData(appBaseUrl),
+  loadTrialRules(appBaseUrl),
+])
+  .then(([loadedData, loadedRules]) => {
     data = loadedData;
+    trialRules = loadedRules;
     collection.reconcile(
       loadedData.ways,
       (symbolId) => loadedData.component(symbolId).name,
@@ -1811,6 +2959,7 @@ void loadGameData(appBaseUrl)
 
 window.addEventListener("beforeunload", () => {
   session?.destroy();
+  trialSession?.destroy();
 });
 
 window.addEventListener("keydown", (event) => {
@@ -1818,14 +2967,22 @@ window.addEventListener("keydown", (event) => {
     event.key !== "Escape" ||
     event.isComposing ||
     document.querySelector("dialog[open]") ||
-    !session ||
-    session.state.phase !== "playing" ||
-    session.state.revealing
+    ((!session ||
+      session.state.phase !== "playing" ||
+      session.state.revealing) &&
+      (!trialSession ||
+        (trialSession.state.phase !== "playing" &&
+          trialSession.state.phase !== "boss") ||
+        trialSession.state.revealing))
   ) {
     return;
   }
   event.preventDefault();
-  session.togglePause();
+  if (session) {
+    session.togglePause();
+  } else {
+    trialSession?.togglePause();
+  }
 });
 
 window.addEventListener("resize", setupStartLayout);

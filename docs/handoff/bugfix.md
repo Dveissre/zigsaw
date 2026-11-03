@@ -12,7 +12,7 @@
 - 两边同时工作时必须使用不同的 Git worktree，不能同时编辑同一个目录。
 - 未经用户明确要求，不提交、不推送。
 
-## 项目快照（2026-11-01）
+## 项目快照（2026-11-02）
 
 - 项目目录：`C:\Projects\Web\zigsaw`
 - Bug worktree：`C:\Projects\Web\zigsaw-bugs`
@@ -21,8 +21,9 @@
 - 数据存储：localStorage；没有后端
 - 当前主线分支：`feature/trial-mode`，位于主 worktree
 - 当前修复分支：`bugfix/internal`，位于 Bug worktree
-- 当时 `main` 与 `origin/main` 位于 `003f9c1 fix: 2 New SVG`
-- 主线 worktree 尚未合入此后的 Bug 修复和答案兼容层
+- 最新已知 `main` 与 `origin/main` 为 `9e7fb51 fix: Daily maintainance`
+- 主线 `feature/trial-mode` 已同步到该提交
+- Bug worktree 合并前应重新 fetch，并以各自 `git status` 为准
 
 ## 开始 Bug 对话时先做什么
 
