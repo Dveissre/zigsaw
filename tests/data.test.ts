@@ -642,7 +642,7 @@ describe("static game data", () => {
       end: game.challengeOrder.length,
       isEx: false,
     });
-    expect(externalCharacterMeta("丒")).toBe("（表外 U+4E12）");
+    expect(externalCharacterMeta("丒")).toBe("表外 U+4E12");
   });
 });
 

@@ -1,5 +1,5 @@
 export type Level = 1 | 2 | 3;
-export type Mode = "normal" | "endless" | "challenge";
+export type Mode = "normal" | "endless" | "challenge" | "trial";
 export type ChallengeDifficulty =
   | "beginner"
   | "standard"
@@ -87,7 +87,7 @@ export function externalCharacterMeta(char: string): string {
   const codePoint = char.codePointAt(0);
   return codePoint === undefined
     ? ""
-    : `（表外 U+${codePoint.toString(16).toUpperCase().padStart(4, "0")}）`;
+    : `表外 U+${codePoint.toString(16).toUpperCase().padStart(4, "0")}`;
 }
 
 export class GameData {

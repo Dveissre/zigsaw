@@ -149,7 +149,7 @@ export function createTutorialDialog(): HTMLDialogElement {
             <section class="tutorial-section">
               <header class="tutorial-section-heading">
                 <span>03</span>
-                <h3>练习 / 无尽模式</h3>
+                <h3>练习模式</h3>
               </header>
               <div class="tutorial-mode-pair">
                 <div class="tutorial-mode-card">
@@ -174,7 +174,7 @@ export function createTutorialDialog(): HTMLDialogElement {
                 适合对全字表进行练习，尽可能多地答对吧！
               </p>
               <p class="tutorial-disclaimer">
-                练习 / 无尽模式无法解锁图鉴或获得分光水晶
+                练习模式无法解锁图鉴或获得分光水晶
               </p>
             </section>
 

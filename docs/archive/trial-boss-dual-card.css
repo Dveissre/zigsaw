@@ -1,0 +1,89 @@
+/*
+ * Archived on 2026-11-03.
+ *
+ * This was the combined BOSS result card used before BOSS answers were
+ * expanded into one card per answer character. Kept as a visual reference
+ * for the green two-character split treatment. It is not loaded by the app.
+ */
+
+.trial-review-card.is-boss-correct {
+  border-color: var(--correct-dark);
+  color: #fffaf5;
+  background: var(--correct);
+}
+
+.trial-review-card.is-boss-correct .review-index {
+  color: rgba(255, 250, 245, 0.28);
+}
+
+.trial-review-card.is-boss-correct .review-meta,
+.trial-review-card.is-boss-correct .review-parts {
+  color: #fffaf5;
+}
+
+.trial-review-card.is-boss-correct .review-result.is-correct {
+  background: #fffaf5;
+}
+
+.review-card.trial-review-card.is-boss-correct:hover {
+  box-shadow: inset 0 0 0 999px rgba(255, 250, 245, 0.1);
+}
+
+.review-card.trial-review-card.is-boss-correct:focus-visible {
+  outline-color: #fffaf5;
+}
+
+.trial-review-card.is-boss .review-answer {
+  --boss-char-size: calc(var(--trial-card-size) * 0.34);
+  --boss-char-shift: calc(var(--trial-card-size) * 0.221);
+  position: relative;
+  display: block;
+  width: calc(var(--trial-card-size) * 0.561);
+  height: calc(var(--trial-card-size) * 0.561);
+  flex: 0 0 auto;
+  margin: calc(var(--trial-card-size) * 0.055) auto 0;
+  transition: none;
+}
+
+.trial-review-card.is-boss .review-answer::after {
+  content: "";
+  position: absolute;
+  top: calc(var(--trial-card-size) * 0.34);
+  left: var(--boss-char-shift);
+  z-index: 3;
+  width: calc(var(--trial-card-size) * 0.168);
+  height: max(1px, calc(var(--trial-card-size) * 0.012));
+  background: currentColor;
+  opacity: 0.82;
+  transform: rotate(-45deg);
+  transform-origin: left center;
+  pointer-events: none;
+}
+
+.trial-review-card.is-boss .review-answer button {
+  position: absolute;
+  display: grid;
+  width: var(--boss-char-size);
+  height: var(--boss-char-size);
+  min-width: 0;
+  padding: 0;
+  border: 0;
+  place-items: center;
+  color: inherit;
+  background: transparent;
+  font-size: calc(var(--trial-card-size) * 0.31);
+  line-height: 1;
+  transition: opacity 120ms ease;
+}
+
+.trial-review-card.is-boss .review-answer button:first-child {
+  top: 0;
+  left: 0;
+  clip-path: polygon(0 0, 100% 0, 100% 65%, 65% 100%, 0 100%);
+}
+
+.trial-review-card.is-boss .review-answer button:last-child {
+  top: var(--boss-char-shift);
+  left: var(--boss-char-shift);
+  clip-path: polygon(35% 0, 100% 0, 100% 100%, 0 100%, 0 35%);
+}

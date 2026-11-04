@@ -17,3 +17,8 @@ executable with FontTools and Brotli installed when those paths differ.
 The subset uses the CSS family name “Zigsaw Component Serif”. Font metadata
 is renamed accordingly so the OFL Reserved Font Name is not reused by this
 modified font.
+
+## Trial rule labels
+
+`cormorant-sc-600.woff2` is the Latin subset of Cormorant SC 600 used for
+rule-name small capitals. `cormorant-OFL.txt` contains the upstream license.

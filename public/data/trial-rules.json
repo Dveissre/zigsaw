@@ -1,0 +1,834 @@
+{
+  "version": 2,
+  "stageAssignments": [
+    "unrestricted",
+    "tetrarchy",
+    "presto",
+    "minimalism",
+    "myopia",
+    "compages",
+    "aphantasia"
+  ],
+  "rules": {
+    "byland-water": {
+      "id": "byland-water",
+      "name": "奇境：涉沧澜",
+      "english": "Eagre",
+      "description": {
+        "public": "道中关卡额外出现 1 张、守幕关卡出现 2 张不同的「水 / 氵 / 冫 / 雨」干扰卡；题目答案及可用拆法不含这些部件。干扰卡可能组成其他汉字，但提交这些字会判错。",
+        "internal": "普通题加入 1 张、BOSS 加入 2 张不同且来自水、氵、冫、雨类别的干扰卡。所有候选拆法都必须完全排除该类别；允许干扰卡与答案卡组成其他汉字，但判题只接受本题目标答案。"
+      },
+      "stars": 1,
+      "icon": "byland-water.svg",
+      "family": {
+        "id": "byland",
+        "weight": 1,
+        "variantWeight": 1
+      },
+      "timing": {
+        "normalSeconds": 30,
+        "bossSeconds": 90,
+        "normalMultiplier": 1,
+        "bossMultiplier": 1
+      },
+      "selection": {
+        "excludedComponents": ["水", "氵", "冫", "雨"],
+        "normal": {
+          "partLengths": [2, 3, 4, 5, 6, 7, 8, 9, 10]
+        },
+        "boss": {
+          "answerCount": 2,
+          "partLengths": [2, 3, 4, 5, 6],
+          "totalParts": [6, 8]
+        }
+      },
+      "policy": {
+        "prompt": {
+          "normal": { "mode": "answer-components" },
+          "boss": { "mode": "answer-components" }
+        },
+        "answer": {
+          "normal": {
+            "input": "character",
+            "acceptance": "answer-compatibility",
+            "unique": false
+          },
+          "boss": {
+            "input": "character",
+            "acceptance": "answer-compatibility",
+            "unique": false,
+            "distinct": true
+          }
+        },
+        "cards": {
+          "normal": {
+            "sources": ["answer", "decoy"],
+            "display": "component",
+            "decoyCount": 1,
+            "decoyComponents": ["水", "氵", "冫", "雨"]
+          },
+          "boss": {
+            "sources": ["answer", "decoy"],
+            "display": "component",
+            "decoyCount": 2,
+            "decoyComponents": ["水", "氵", "冫", "雨"]
+          }
+        }
+      }
+    },
+    "byland-herb": {
+      "id": "byland-herb",
+      "name": "奇境：披丛莽",
+      "english": "Verdure",
+      "description": {
+        "public": "道中关卡额外出现 1 张、守幕关卡出现 2 张不同的「艹 / 屮 / 木 / 禾」干扰卡；题目答案及可用拆法不含这些部件。干扰卡可能组成其他汉字，但提交这些字会判错。",
+        "internal": "普通题加入 1 张、BOSS 加入 2 张不同且来自艹、屮、木、禾类别的干扰卡。所有候选拆法都必须完全排除该类别；允许干扰卡与答案卡组成其他汉字，但判题只接受本题目标答案。"
+      },
+      "stars": 1,
+      "icon": "byland-herb.svg",
+      "family": {
+        "id": "byland",
+        "weight": 1,
+        "variantWeight": 1
+      },
+      "timing": {
+        "normalSeconds": 30,
+        "bossSeconds": 90,
+        "normalMultiplier": 1,
+        "bossMultiplier": 1
+      },
+      "selection": {
+        "excludedComponents": ["艹", "屮", "木", "禾"],
+        "normal": {
+          "partLengths": [2, 3, 4, 5, 6, 7, 8, 9, 10]
+        },
+        "boss": {
+          "answerCount": 2,
+          "partLengths": [2, 3, 4, 5, 6],
+          "totalParts": [6, 8]
+        }
+      },
+      "policy": {
+        "prompt": {
+          "normal": { "mode": "answer-components" },
+          "boss": { "mode": "answer-components" }
+        },
+        "answer": {
+          "normal": {
+            "input": "character",
+            "acceptance": "answer-compatibility",
+            "unique": false
+          },
+          "boss": {
+            "input": "character",
+            "acceptance": "answer-compatibility",
+            "unique": false,
+            "distinct": true
+          }
+        },
+        "cards": {
+          "normal": {
+            "sources": ["answer", "decoy"],
+            "display": "component",
+            "decoyCount": 1,
+            "decoyComponents": ["艹", "屮", "木", "禾"]
+          },
+          "boss": {
+            "sources": ["answer", "decoy"],
+            "display": "component",
+            "decoyCount": 2,
+            "decoyComponents": ["艹", "屮", "木", "禾"]
+          }
+        }
+      }
+    },
+    "byland-mount": {
+      "id": "byland-mount",
+      "name": "奇境：临岩岫",
+      "english": "Cairn",
+      "description": {
+        "public": "道中关卡额外出现 1 张、守幕关卡出现 2 张不同的「土 / 石 / 山」干扰卡；题目答案及可用拆法不含这些部件。干扰卡可能组成其他汉字，但提交这些字会判错。",
+        "internal": "普通题加入 1 张、BOSS 加入 2 张不同且来自土、石、山类别的干扰卡。所有候选拆法都必须完全排除该类别；允许干扰卡与答案卡组成其他汉字，但判题只接受本题目标答案。"
+      },
+      "stars": 1,
+      "icon": "byland-mount.svg",
+      "family": {
+        "id": "byland",
+        "weight": 1,
+        "variantWeight": 1
+      },
+      "timing": {
+        "normalSeconds": 30,
+        "bossSeconds": 90,
+        "normalMultiplier": 1,
+        "bossMultiplier": 1
+      },
+      "selection": {
+        "excludedComponents": ["土", "石", "山"],
+        "normal": {
+          "partLengths": [2, 3, 4, 5, 6, 7, 8, 9, 10]
+        },
+        "boss": {
+          "answerCount": 2,
+          "partLengths": [2, 3, 4, 5, 6],
+          "totalParts": [6, 8]
+        }
+      },
+      "policy": {
+        "prompt": {
+          "normal": { "mode": "answer-components" },
+          "boss": { "mode": "answer-components" }
+        },
+        "answer": {
+          "normal": {
+            "input": "character",
+            "acceptance": "answer-compatibility",
+            "unique": false
+          },
+          "boss": {
+            "input": "character",
+            "acceptance": "answer-compatibility",
+            "unique": false,
+            "distinct": true
+          }
+        },
+        "cards": {
+          "normal": {
+            "sources": ["answer", "decoy"],
+            "display": "component",
+            "decoyCount": 1,
+            "decoyComponents": ["土", "石", "山"]
+          },
+          "boss": {
+            "sources": ["answer", "decoy"],
+            "display": "component",
+            "decoyCount": 2,
+            "decoyComponents": ["土", "石", "山"]
+          }
+        }
+      }
+    },
+    "byland-people": {
+      "id": "byland-people",
+      "name": "奇境：徕远客",
+      "english": "Multitude",
+      "description": {
+        "public": "道中关卡额外出现 1 张、守幕关卡出现 2 张不同的「人 / 亻 / 彳」干扰卡；题目答案及可用拆法不含这些部件。干扰卡可能组成其他汉字，但提交这些字会判错。",
+        "internal": "普通题加入 1 张、BOSS 加入 2 张不同且来自人、亻、彳类别的干扰卡。所有候选拆法都必须完全排除该类别；允许干扰卡与答案卡组成其他汉字，但判题只接受本题目标答案。"
+      },
+      "stars": 1,
+      "icon": "byland-people.svg",
+      "family": {
+        "id": "byland",
+        "weight": 1,
+        "variantWeight": 1
+      },
+      "timing": {
+        "normalSeconds": 30,
+        "bossSeconds": 90,
+        "normalMultiplier": 1,
+        "bossMultiplier": 1
+      },
+      "selection": {
+        "excludedComponents": ["人", "亻", "彳"],
+        "normal": {
+          "partLengths": [2, 3, 4, 5, 6, 7, 8, 9, 10]
+        },
+        "boss": {
+          "answerCount": 2,
+          "partLengths": [2, 3, 4, 5, 6],
+          "totalParts": [6, 8]
+        }
+      },
+      "policy": {
+        "prompt": {
+          "normal": { "mode": "answer-components" },
+          "boss": { "mode": "answer-components" }
+        },
+        "answer": {
+          "normal": {
+            "input": "character",
+            "acceptance": "answer-compatibility",
+            "unique": false
+          },
+          "boss": {
+            "input": "character",
+            "acceptance": "answer-compatibility",
+            "unique": false,
+            "distinct": true
+          }
+        },
+        "cards": {
+          "normal": {
+            "sources": ["answer", "decoy"],
+            "display": "component",
+            "decoyCount": 1,
+            "decoyComponents": ["人", "亻", "彳"]
+          },
+          "boss": {
+            "sources": ["answer", "decoy"],
+            "display": "component",
+            "decoyCount": 2,
+            "decoyComponents": ["人", "亻", "彳"]
+          }
+        }
+      }
+    },
+    "byland-speech": {
+      "id": "byland-speech",
+      "name": "奇境：听浮嚣",
+      "english": "Whobub",
+      "description": {
+        "public": "道中关卡额外出现 1 张、守幕关卡出现 2 张不同的「口 / 讠 / 耳」干扰卡；题目答案及可用拆法不含这些部件。干扰卡可能组成其他汉字，但提交这些字会判错。",
+        "internal": "普通题加入 1 张、BOSS 加入 2 张不同且来自口、讠、耳类别的干扰卡。所有候选拆法都必须完全排除该类别；允许干扰卡与答案卡组成其他汉字，但判题只接受本题目标答案。"
+      },
+      "stars": 1,
+      "icon": "byland-speech.svg",
+      "family": {
+        "id": "byland",
+        "weight": 1,
+        "variantWeight": 1
+      },
+      "timing": {
+        "normalSeconds": 30,
+        "bossSeconds": 90,
+        "normalMultiplier": 1,
+        "bossMultiplier": 1
+      },
+      "selection": {
+        "excludedComponents": ["口", "讠", "耳"],
+        "normal": {
+          "partLengths": [2, 3, 4, 5, 6, 7, 8, 9, 10]
+        },
+        "boss": {
+          "answerCount": 2,
+          "partLengths": [2, 3, 4, 5, 6],
+          "totalParts": [6, 8]
+        }
+      },
+      "policy": {
+        "prompt": {
+          "normal": { "mode": "answer-components" },
+          "boss": { "mode": "answer-components" }
+        },
+        "answer": {
+          "normal": {
+            "input": "character",
+            "acceptance": "answer-compatibility",
+            "unique": false
+          },
+          "boss": {
+            "input": "character",
+            "acceptance": "answer-compatibility",
+            "unique": false,
+            "distinct": true
+          }
+        },
+        "cards": {
+          "normal": {
+            "sources": ["answer", "decoy"],
+            "display": "component",
+            "decoyCount": 1,
+            "decoyComponents": ["口", "讠", "耳"]
+          },
+          "boss": {
+            "sources": ["answer", "decoy"],
+            "display": "component",
+            "decoyCount": 2,
+            "decoyComponents": ["口", "讠", "耳"]
+          }
+        }
+      }
+    },
+    "unrestricted": {
+      "id": "unrestricted",
+      "name": "无制限",
+      "english": "Unbound",
+      "description": {
+        "public": "不附加额外规则。",
+        "internal": "使用试炼模式默认题库、30/90 秒时限与两答案 BOSS 结构。"
+      },
+      "stars": 0,
+      "icon": "unrestricted.svg",
+      "timing": {
+        "normalSeconds": 30,
+        "bossSeconds": 90,
+        "normalMultiplier": 1,
+        "bossMultiplier": 1
+      },
+      "selection": {
+        "normal": {
+          "partLengths": [2, 3, 4, 5, 6, 7, 8, 9, 10]
+        },
+        "boss": {
+          "answerCount": 2,
+          "partLengths": [2, 3, 4, 5, 6],
+          "totalParts": [6, 8]
+        }
+      },
+      "policy": {
+        "prompt": {
+          "normal": { "mode": "answer-components" },
+          "boss": { "mode": "answer-components" }
+        },
+        "answer": {
+          "normal": {
+            "input": "character",
+            "acceptance": "answer-compatibility",
+            "unique": false
+          },
+          "boss": {
+            "input": "character",
+            "acceptance": "answer-compatibility",
+            "unique": false,
+            "distinct": true
+          }
+        },
+        "cards": {
+          "normal": { "sources": ["answer"], "display": "component" },
+          "boss": { "sources": ["answer"], "display": "component" }
+        }
+      }
+    },
+    "tetrarchy": {
+      "id": "tetrarchy",
+      "name": "四分法",
+      "english": "Tetrarchy",
+      "description": {
+        "public": "道中关卡只出现四部件字；守幕关卡为两个四部件字。作答时间不变。",
+        "internal": "普通题仅从四部件拆法池抽取；BOSS 固定两个答案、每字四部件、共 8 张卡，使用 30/90 秒时限。"
+      },
+      "stars": 1,
+      "icon": "tetrarchy.svg",
+      "timing": {
+        "normalSeconds": 30,
+        "bossSeconds": 90,
+        "normalMultiplier": 1,
+        "bossMultiplier": 1
+      },
+      "selection": {
+        "normal": {
+          "partLengths": [4]
+        },
+        "boss": {
+          "answerCount": 2,
+          "partLengths": [4],
+          "totalParts": [8, 8]
+        }
+      },
+      "policy": {
+        "prompt": {
+          "normal": {
+            "mode": "answer-components",
+            "minCards": 4,
+            "maxCards": 4
+          },
+          "boss": {
+            "mode": "answer-components",
+            "minCards": 8,
+            "maxCards": 8
+          }
+        },
+        "answer": {
+          "normal": {
+            "input": "character",
+            "acceptance": "answer-compatibility",
+            "unique": false
+          },
+          "boss": {
+            "input": "character",
+            "acceptance": "answer-compatibility",
+            "unique": false,
+            "distinct": true
+          }
+        },
+        "cards": {
+          "normal": { "sources": ["answer"], "display": "component" },
+          "boss": { "sources": ["answer"], "display": "component" }
+        }
+      }
+    },
+    "presto": {
+      "id": "presto",
+      "name": "急板",
+      "english": "Presto",
+      "description": {
+        "public": "作答时间缩短至三分之二。",
+        "internal": "普通题缩短至 20 秒，BOSS 缩短至 60 秒；题库与两答案 BOSS 结构不变。"
+      },
+      "stars": 1,
+      "icon": "presto.svg",
+      "timing": {
+        "normalSeconds": 20,
+        "bossSeconds": 60,
+        "normalMultiplier": 0.6667,
+        "bossMultiplier": 0.6667
+      },
+      "selection": {
+        "normal": {
+          "partLengths": [2, 3, 4, 5, 6, 7, 8, 9, 10]
+        },
+        "boss": {
+          "answerCount": 2,
+          "partLengths": [2, 3, 4, 5, 6],
+          "totalParts": [6, 8]
+        }
+      },
+      "policy": {
+        "prompt": {
+          "normal": { "mode": "answer-components" },
+          "boss": { "mode": "answer-components" }
+        },
+        "answer": {
+          "normal": {
+            "input": "character",
+            "acceptance": "answer-compatibility",
+            "unique": false
+          },
+          "boss": {
+            "input": "character",
+            "acceptance": "answer-compatibility",
+            "unique": false,
+            "distinct": true
+          }
+        },
+        "cards": {
+          "normal": { "sources": ["answer"], "display": "component" },
+          "boss": { "sources": ["answer"], "display": "component" }
+        }
+      }
+    },
+    "minimalism": {
+      "id": "minimalism",
+      "name": "极简主义",
+      "english": "Minimalism",
+      "description": {
+        "public": "作答时间减半；仅出现二、三部件字。守幕关卡以六个部件组成三个字。",
+        "internal": "普通题 15 秒，二、三部件拆法等权；BOSS 45 秒，固定三个二部件答案，共 6 张卡。"
+      },
+      "stars": 1,
+      "icon": "minimalism.svg",
+      "timing": {
+        "normalSeconds": 15,
+        "bossSeconds": 45,
+        "normalMultiplier": 0.5,
+        "bossMultiplier": 0.5
+      },
+      "selection": {
+        "normal": {
+          "partLengths": [2, 3],
+          "partWeights": {
+            "2": 1,
+            "3": 1
+          }
+        },
+        "boss": {
+          "answerCount": 3,
+          "partLengths": [2],
+          "totalParts": [6, 6]
+        }
+      },
+      "policy": {
+        "prompt": {
+          "normal": { "mode": "answer-components" },
+          "boss": { "mode": "answer-components" }
+        },
+        "answer": {
+          "normal": {
+            "input": "character",
+            "acceptance": "answer-compatibility",
+            "unique": false
+          },
+          "boss": {
+            "input": "character",
+            "acceptance": "answer-compatibility",
+            "unique": false,
+            "distinct": true
+          }
+        },
+        "cards": {
+          "normal": { "sources": ["answer"], "display": "component" },
+          "boss": { "sources": ["answer"], "display": "component" }
+        }
+      }
+    },
+    "reschedule": {
+      "id": "reschedule",
+      "name": "失与得",
+      "english": "Reschedule",
+      "description": {
+        "public": "整幕共享 150 秒（含守幕关卡）；答对后保留剩余时间并加 5 秒，总时间最多 150 秒。暂停扣除 15 秒。",
+        "internal": "每幕开始时重置为 150 秒共享时间池；普通题和 BOSS 共同消耗。每题答对后以实际剩余时间加 5 秒作为下一题时间，封顶 150 秒。暂停扣除 15 秒，最低为 0。"
+      },
+      "stars": 1,
+      "icon": "reschedule.svg",
+      "timing": {
+        "normalSeconds": 150,
+        "bossSeconds": 150,
+        "normalMultiplier": 1,
+        "bossMultiplier": 1,
+        "sharedBudgetSeconds": 150,
+        "correctBonusSeconds": 5,
+        "pausePenaltySeconds": 15
+      },
+      "selection": {
+        "normal": {
+          "partLengths": [2, 3, 4, 5, 6, 7, 8, 9, 10]
+        },
+        "boss": {
+          "answerCount": 2,
+          "partLengths": [2, 3, 4, 5, 6],
+          "totalParts": [6, 8]
+        }
+      },
+      "policy": {
+        "prompt": {
+          "normal": { "mode": "answer-components" },
+          "boss": { "mode": "answer-components" }
+        },
+        "answer": {
+          "normal": {
+            "input": "character",
+            "acceptance": "answer-compatibility",
+            "unique": false
+          },
+          "boss": {
+            "input": "character",
+            "acceptance": "answer-compatibility",
+            "unique": false,
+            "distinct": true
+          }
+        },
+        "cards": {
+          "normal": { "sources": ["answer"], "display": "component" },
+          "boss": { "sources": ["answer"], "display": "component" }
+        }
+      }
+    },
+    "inspissation": {
+      "id": "inspissation",
+      "name": "拾级",
+      "english": "Anabasis",
+      "description": {
+        "public": "八个道中关卡的部件数从 2 逐步增加到 7 或 8；守幕关卡用十张卡组成两个汉字。",
+        "internal": "每幕开始前生成一条非递减、单步不增加超过 1 的八题部件数路径：起点 2，终点 7 或 8。终点按当前可用答案数加权；停留位置按被重复长度的当前可用答案数加权。终点 7 时含 5 次增加与 2 次停留，终点 8 时含 6 次增加与 1 次停留。最近 12 个 7/8 部件汉字会跨局优先避开。BOSS 为两个不同答案、总计恰好 10 张卡。"
+      },
+      "stars": 1,
+      "icon": "inspissation.svg",
+      "timing": {
+        "normalSeconds": 30,
+        "bossSeconds": 90,
+        "normalMultiplier": 1,
+        "bossMultiplier": 1
+      },
+      "selection": {
+        "normal": {
+          "partLengths": [2, 3, 4, 5, 6, 7, 8],
+          "partLengthProgression": {
+            "start": 2,
+            "end": [7, 8]
+          }
+        },
+        "boss": {
+          "answerCount": 2,
+          "partLengths": [2, 3, 4, 5, 6, 7, 8],
+          "totalParts": [10, 10]
+        }
+      },
+      "policy": {
+        "prompt": {
+          "normal": { "mode": "answer-components" },
+          "boss": { "mode": "answer-components" }
+        },
+        "answer": {
+          "normal": {
+            "input": "character",
+            "acceptance": "answer-compatibility",
+            "unique": false
+          },
+          "boss": {
+            "input": "character",
+            "acceptance": "answer-compatibility",
+            "unique": false,
+            "distinct": true
+          }
+        },
+        "cards": {
+          "normal": { "sources": ["answer"], "display": "component" },
+          "boss": { "sources": ["answer"], "display": "component" }
+        }
+      }
+    },
+    "myopia": {
+      "id": "myopia",
+      "name": "短视",
+      "english": "Myopia",
+      "description": {
+        "public": "道中关卡开始 2 秒后遮挡 1 张部件卡；守幕关卡开始 2 秒后遮挡 2 张。",
+        "internal": "出题时随机选定遮挡目标；累计有效答题时间达到 2 秒后翻黑。遮挡卡仍参与组字与判题，但不能读取或操作；暂停冻结计时，恢复后不还原已翻黑卡。"
+      },
+      "stars": 2,
+      "icon": "myopia.svg",
+      "timing": {
+        "normalSeconds": 30,
+        "bossSeconds": 90,
+        "normalMultiplier": 1,
+        "bossMultiplier": 1
+      },
+      "selection": {
+        "normal": {
+          "partLengths": [2, 3, 4, 5, 6, 7, 8, 9, 10]
+        },
+        "boss": {
+          "answerCount": 2,
+          "partLengths": [2, 3, 4, 5, 6],
+          "totalParts": [6, 8]
+        }
+      },
+      "policy": {
+        "prompt": {
+          "normal": { "mode": "answer-components" },
+          "boss": { "mode": "answer-components" }
+        },
+        "answer": {
+          "normal": {
+            "input": "character",
+            "acceptance": "answer-compatibility",
+            "unique": false
+          },
+          "boss": {
+            "input": "character",
+            "acceptance": "answer-compatibility",
+            "unique": false,
+            "distinct": true
+          }
+        },
+        "cards": {
+          "normal": {
+            "sources": ["answer"],
+            "display": "obscured",
+            "obscureAfterMs": 2000,
+            "obscureCount": 1
+          },
+          "boss": {
+            "sources": ["answer"],
+            "display": "obscured",
+            "obscureAfterMs": 2000,
+            "obscureCount": 2
+          }
+        }
+      }
+    },
+    "aphantasia": {
+      "id": "aphantasia",
+      "name": "心盲症",
+      "english": "Aphantasia",
+      "description": {
+        "public": "道中关卡开始 4 秒后遮挡全部部件卡；守幕关卡开始 10 秒后遮挡全部。",
+        "internal": "普通题在累计有效答题 4 秒后翻黑全部卡，BOSS 为 10 秒。翻黑卡仍参与组字与判题，但不能读取或操作；暂停冻结计时，恢复后不还原已翻黑卡。"
+      },
+      "stars": 3,
+      "icon": "aphantasia.svg",
+      "timing": {
+        "normalSeconds": 30,
+        "bossSeconds": 90,
+        "normalMultiplier": 1,
+        "bossMultiplier": 1
+      },
+      "selection": {
+        "normal": {
+          "partLengths": [2, 3, 4, 5, 6, 7, 8, 9, 10]
+        },
+        "boss": {
+          "answerCount": 2,
+          "partLengths": [2, 3, 4, 5, 6],
+          "totalParts": [6, 8]
+        }
+      },
+      "policy": {
+        "prompt": {
+          "normal": { "mode": "answer-components" },
+          "boss": { "mode": "answer-components" }
+        },
+        "answer": {
+          "normal": {
+            "input": "character",
+            "acceptance": "answer-compatibility",
+            "unique": false
+          },
+          "boss": {
+            "input": "character",
+            "acceptance": "answer-compatibility",
+            "unique": false,
+            "distinct": true
+          }
+        },
+        "cards": {
+          "normal": {
+            "sources": ["answer"],
+            "display": "obscured",
+            "obscureAfterMs": 4000,
+            "obscureCount": "all"
+          },
+          "boss": {
+            "sources": ["answer"],
+            "display": "obscured",
+            "obscureAfterMs": 10000,
+            "obscureCount": "all"
+          }
+        }
+      }
+    },
+    "compages": {
+      "id": "compages",
+      "name": "繁缛",
+      "english": "Compages",
+      "description": {
+        "public": "作答时间不变；仅出现五部件及以上的字。守幕关卡以十个部件组成两个五部件字。",
+        "internal": "普通题按可用长字题库加权；BOSS 固定两个五部件答案、共 10 张卡，使用 30/90 秒时限。"
+      },
+      "stars": 2,
+      "icon": "compages.svg",
+      "timing": {
+        "normalSeconds": 30,
+        "bossSeconds": 90,
+        "normalMultiplier": 1,
+        "bossMultiplier": 1
+      },
+      "selection": {
+        "normal": {
+          "partLengths": [5, 6, 7, 8, 9, 10],
+          "partWeighting": "pool"
+        },
+        "boss": {
+          "answerCount": 2,
+          "partLengths": [5],
+          "totalParts": [10, 10]
+        }
+      },
+      "policy": {
+        "prompt": {
+          "normal": { "mode": "answer-components" },
+          "boss": { "mode": "answer-components" }
+        },
+        "answer": {
+          "normal": {
+            "input": "character",
+            "acceptance": "answer-compatibility",
+            "unique": false
+          },
+          "boss": {
+            "input": "character",
+            "acceptance": "answer-compatibility",
+            "unique": false,
+            "distinct": true
+          }
+        },
+        "cards": {
+          "normal": { "sources": ["answer"], "display": "component" },
+          "boss": { "sources": ["answer"], "display": "component" }
+        }
+      }
+    }
+  }
+}

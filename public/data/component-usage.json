@@ -3,7 +3,7 @@
   "source": "tongyong_hanzi.json + char_sym.json",
   "characterCount": 8105,
   "decompositionCount": 9163,
-  "totalUsageCount": 31939,
+  "totalUsageCount": 31937,
   "componentCount": 374,
   "symbols": [
     {
@@ -15,8 +15,8 @@
     {
       "symbolId": 1,
       "name": "一",
-      "count": 1224,
-      "charCount": 1084
+      "count": 1221,
+      "charCount": 1082
     },
     {
       "symbolId": 34,
@@ -39,8 +39,8 @@
     {
       "symbolId": 46,
       "name": "亠",
-      "count": 682,
-      "charCount": 621
+      "count": 681,
+      "charCount": 620
     },
     {
       "symbolId": 153,
@@ -99,8 +99,8 @@
     {
       "symbolId": 109,
       "name": "䒑",
-      "count": 431,
-      "charCount": 399
+      "count": 432,
+      "charCount": 400
     },
     {
       "symbolId": 77,
@@ -141,8 +141,8 @@
     {
       "symbolId": 4,
       "name": "丿",
-      "count": 322,
-      "charCount": 286
+      "count": 323,
+      "charCount": 287
     },
     {
       "symbolId": 21,
@@ -261,16 +261,16 @@
       "charCount": 166
     },
     {
+      "symbolId": 407,
+      "name": "纟",
+      "count": 188,
+      "charCount": 174
+    },
+    {
       "symbolId": 189,
       "name": "辶",
       "count": 186,
       "charCount": 161
-    },
-    {
-      "symbolId": 407,
-      "name": "纟",
-      "count": 186,
-      "charCount": 173
     },
     {
       "symbolId": 37,
@@ -631,12 +631,6 @@
       "charCount": 66
     },
     {
-      "symbolId": 128,
-      "name": "幺",
-      "count": 75,
-      "charCount": 55
-    },
-    {
       "symbolId": 345,
       "name": "雨",
       "count": 75,
@@ -654,6 +648,12 @@
       "count": 73,
       "charCount": 69,
       "asset": "component_svg/13.svg"
+    },
+    {
+      "symbolId": 128,
+      "name": "幺",
+      "count": 73,
+      "charCount": 54
     },
     {
       "symbolId": 301,

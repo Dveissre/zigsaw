@@ -12,7 +12,7 @@
 - 两边同时工作时必须使用不同的 Git worktree，不能同时编辑同一个目录。
 - 未经用户明确要求，不提交、不推送。
 
-## 项目快照（2026-11-01）
+## 项目快照（2026-11-04）
 
 - 项目目录：`C:\Projects\Web\zigsaw`
 - Bug worktree：`C:\Projects\Web\zigsaw-bugs`
@@ -21,8 +21,9 @@
 - 数据存储：localStorage；没有后端
 - 当前主线分支：`feature/trial-mode`，位于主 worktree
 - 当前修复分支：`bugfix/internal`，位于 Bug worktree
-- 当时 `main` 与 `origin/main` 位于 `003f9c1 fix: 2 New SVG`
-- 主线 worktree 尚未合入此后的 Bug 修复和答案兼容层
+- 最新已知 `origin/main` 为 `21cce3e TBC`，包含试炼模式更新
+- `bugfix/internal` 已将该版本合入工作区，但未创建 merge commit
+- Bug worktree 合并前应重新 fetch，并以各自 `git status` 为准
 
 ## 开始 Bug 对话时先做什么
 
@@ -118,6 +119,7 @@ Bug 修复不得要求用户随意清除网站数据，否则可能丢失：
 | `src/main.ts` | 首页、游戏页、结算页、模式切换和主 UI |
 | `src/game/session.ts` | 游戏状态机、计时、答题、挑战进度 |
 | `src/game/data.ts` | 字表、部件和拆法数据 |
+| `src/game/save.ts` | 加密存档、版本迁移与托管存储键替换 |
 | `src/game/records.ts` | 挑战纪录 |
 | `src/game/collection.ts` | 图鉴和收集进度 |
 | `src/game/gacha.ts` | 写字台抽卡算法 |
@@ -132,6 +134,16 @@ Bug 修复不得要求用户随意清除网站数据，否则可能丢失：
 `src/main.ts` 和 `src/styles.css` 是最容易发生主线/Bug 分支冲突的文件。两边并行时不要直接共用同一 worktree。
 
 ## 最近完成的修复
+
+### 2026-11-04：试炼主线同步与首页交互
+
+- 已同步 `origin/main@21cce3e` 的试炼模式更新到 `bugfix/internal` 工作区；
+  当前是未提交的 merge 状态，未创建 merge commit。
+- 设置浮窗新增“存档”行，位于“Git页”上方；支持下载 `.zsave` 加密文件和
+  上传迁移。上传先解密校验，再显示覆盖确认；取消不会改动现有存档。
+- 练习模式的无尽开关改为题数行最右侧的单按钮开关。题数控件始终保留，
+  无尽开启时变灰并禁用。
+- 同步修正 `main` 合并后 smoke 中仍指向旧试炼文案的断言。
 
 ### 答案反馈与写字台
 

@@ -36,7 +36,14 @@ git log --name-status -1 -- docs/handoff
 
 | 日期 | 类型 | 内容 | 文档 |
 | --- | --- | --- | --- |
+| 2026-11-04 | feature | 合并试炼主线；新增可迁移的加密存档；练习无尽改为题数行单键开关 | [save-archive.md](features/save-archive.md)、[bugfix.md](bugfix.md) |
+| 2026-11-04 | feature | 实装失与得、拾级、五个奇境变体、短视、心盲症并统一试炼文案 | [trial-mode.md](features/trial-mode.md) |
+| 2026-11-03 | feature | 试炼规则数据层升级 v2；实装四分法并同步急板显示名 | [trial-mode.md](features/trial-mode.md) |
 | 2026-11-03 | data | 同步字表修正；新增 `12`（㇈）和 `342`（叀）SVG | [bugfix.md](bugfix.md) |
+| 2026-11-03 | plan | 正式整理制限规则计划；归档 GBK 意见表并生成三类候选池报告 | [trial-rules-plan.md](../trial-rules-plan.md) |
+| 2026-11-03 | feature | 试炼接入急板、极简主义、繁缛；规则数据解耦、逐字撤回与规则图标框 | [trial-mode.md](features/trial-mode.md) |
+| 2026-11-03 | feature | 试炼规则前置：时限状态化、标准/展示卡分离、题库可用性预检 | [trial-mode.md](features/trial-mode.md) |
+| 2026-11-02 | feature | 试炼白模接入 `/test/`：七阶段、8题+BOSS、分步双字提交与撤销 | [trial-mode.md](features/trial-mode.md) |
 | 2026-11-02 | feature | 调整图鉴完成度里程碑；整理部件目录与关联字分类 | [atlas-classification.md](features/atlas-classification.md) |
 | 2026-11-02 | feature | 图鉴部件可达性、EX 属性与稀有度分类规则 | [atlas-classification.md](features/atlas-classification.md) |
 | 2026-11-02 | feature | `/test/` 隔离测试页：暂停控制、暂停半时、极矮视口和多行部件布局 | [pause-controls.md](features/pause-controls.md) |
@@ -49,9 +56,15 @@ git log --name-status -1 -- docs/handoff
 | 2026-11-01 | bugfix | 囗注记、换题揭示、教程计数、写字台方点、Cris 不足按钮、新增 SVG | [bugfix.md](bugfix.md) |
 | 2026-11-01 | feature | 汉字释义浮窗的静态分片和按需加载方案 | [char-detail.md](features/char-detail.md) |
 
-## 当前状态（2026-11-02）
+## 当前状态（2026-11-04）
 
-- `main`、`origin/main` 和 `feature/trial-mode` 已同步到 `b774aad`。
-- 本轮暂停、极矮视口和多行部件调整已同步到正式根页面 `/`；`/test/`
-  保留为同一版本的备用测试入口，仍在 `bugfix/internal` 工作区，尚未提交。
+- `origin/main` 已更新到 `21cce3e` 的试炼模式版本。
+- `bugfix/internal` 已在工作区合入该版本，但按约定没有创建 merge commit；
+  后续提交、推送和 `main` 合并由用户执行。
+- `/test/` 提供挑战、试炼与练习入口；正式 `/` 仍只提供挑战与练习。
+- 练习模式下的“无尽”已改为题数行右侧单键开关；开启时题数控件置灰禁用。
+- Bug worktree 的开发端口仍为 `5174`，试炼主线 worktree 为 `5173`。
+- 试炼已接入四分法、急板、失与得、增稠、五个奇境、极简主义、短视、繁缛
+  与心盲症。
+- 完整制限规则目录与实装批次见 `docs/trial-rules-plan.md`。
 - 未提交或合并任务仍以 `git status`、`git diff` 的实际结果为准。
