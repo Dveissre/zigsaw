@@ -20,6 +20,13 @@ import {
   readSaveArchive,
   type SavePayloadV1,
 } from "./game/save";
+import {
+  applyCompactSaveState,
+  decodeSaveCode,
+  encodeSaveCode,
+  readCompactSaveState,
+  type CompactSaveState,
+} from "./game/save-code";
 import { GameSession, type GameState } from "./game/session";
 import { buildChallengeShareText } from "./game/share";
 import {
@@ -332,6 +339,12 @@ function shell(
               </div>
               <p class="game-setting-note save-setting-note" data-save-status aria-live="polite"></p>
             </div>
+            <div class="game-setting-row save-code-setting-row">
+              <div class="game-setting-copy">
+                <strong>存档码 <span class="save-code-beta">(beta)</span></strong>
+              </div>
+              <button class="save-code-open-button" type="button" data-save-code-open aria-haspopup="dialog">打开</button>
+            </div>
             <a class="git-setting-link" href="https://github.com/Dveissre/zigsaw" target="_blank" rel="noreferrer">
               <span>Git页</span>
               <span>github.com/Dveissre/zigsaw ↗</span>
@@ -347,6 +360,43 @@ function shell(
           <div class="save-confirm-actions">
             <button type="button" data-save-cancel>取消</button>
             <button class="primary-action" type="button" data-save-confirm>覆盖存档</button>
+          </div>
+        </article>
+      </dialog>
+      <dialog class="save-code-dialog" data-save-code-dialog aria-labelledby="save-code-title">
+        <article class="save-code-panel">
+          <header class="save-code-header">
+            <div>
+              <div class="game-settings-kicker">SAVE CODE · BETA</div>
+              <h2 id="save-code-title">存档码 <span>(beta)</span></h2>
+            </div>
+            <button class="char-detail-close game-settings-close" type="button" data-save-code-close aria-label="关闭存档码">
+              <svg viewBox="0 0 24 24" aria-hidden="true">
+                <path d="M4 4 20 20M20 4 4 20"></path>
+              </svg>
+            </button>
+          </header>
+          <div class="save-code-content">
+            <textarea data-save-code-value rows="10" autocomplete="off" autocapitalize="off" spellcheck="false" aria-label="存档码" placeholder="点击“获取”生成存档码，或粘贴存档码后导入。"></textarea>
+            <div class="save-code-status-row">
+              <span data-save-code-length></span>
+              <p data-save-code-status aria-live="polite"></p>
+            </div>
+            <div class="save-code-actions">
+              <button class="primary-action" type="button" data-save-code-action data-action="acquire">获取</button>
+              <button type="button" data-save-code-import>导入</button>
+            </div>
+          </div>
+        </article>
+      </dialog>
+      <dialog class="save-confirm-dialog save-code-confirm-dialog" data-save-code-confirm-dialog aria-labelledby="save-code-confirm-title">
+        <article class="save-confirm-panel">
+          <div class="game-settings-kicker">IMPORT SAVE CODE</div>
+          <h2 id="save-code-confirm-title">导入存档码？</h2>
+          <p>导入后，当前图鉴、纪录、分光水晶等进度将被存档码中的内容覆盖，且无法撤销。</p>
+          <div class="save-confirm-actions">
+            <button type="button" data-save-code-cancel>取消</button>
+            <button class="primary-action" type="button" data-save-code-confirm>覆盖存档</button>
           </div>
         </article>
       </dialog>
@@ -745,6 +795,219 @@ function wireSaveControls(dialog: HTMLDialogElement): void {
     });
 }
 
+function setSaveCodeStatus(
+  dialog: HTMLDialogElement,
+  message: string,
+  state: "idle" | "success" | "error" = "idle",
+): void {
+  const status = dialog.querySelector<HTMLElement>(
+    "[data-save-code-status]",
+  );
+  if (!status) {
+    return;
+  }
+  status.textContent = message;
+  status.dataset.state = state;
+}
+
+function wireSaveCodeControls(settingsDialog: HTMLDialogElement): void {
+  const openButton = settingsDialog.querySelector<HTMLButtonElement>(
+    "[data-save-code-open]",
+  );
+  const dialog = document.querySelector<HTMLDialogElement>(
+    "[data-save-code-dialog]",
+  );
+  const confirmDialog = document.querySelector<HTMLDialogElement>(
+    "[data-save-code-confirm-dialog]",
+  );
+  if (!openButton || !dialog || !confirmDialog) {
+    return;
+  }
+
+  const textarea = dialog.querySelector<HTMLTextAreaElement>(
+    "[data-save-code-value]",
+  );
+  const actionButton = dialog.querySelector<HTMLButtonElement>(
+    "[data-save-code-action]",
+  );
+  const importButton = dialog.querySelector<HTMLButtonElement>(
+    "[data-save-code-import]",
+  );
+  const lengthLabel = dialog.querySelector<HTMLElement>(
+    "[data-save-code-length]",
+  );
+  if (!textarea || !actionButton || !importButton || !lengthLabel) {
+    return;
+  }
+
+  let pendingState: CompactSaveState | null = null;
+
+  const reset = (): void => {
+    textarea.value = "";
+    textarea.placeholder =
+      "点击“获取”生成存档码，或粘贴存档码后导入。";
+    actionButton.dataset.action = "acquire";
+    actionButton.textContent = "获取";
+    lengthLabel.textContent = "";
+    setSaveCodeStatus(dialog, "");
+  };
+
+  openButton.addEventListener("click", () => {
+    if (dialog.open) {
+      return;
+    }
+    reset();
+    dialog.showModal();
+  });
+
+  dialog
+    .querySelector<HTMLButtonElement>("[data-save-code-close]")
+    ?.addEventListener("click", () => dialog.close());
+  dialog.addEventListener("click", (event) => {
+    if (event.target === dialog) {
+      dialog.close();
+    }
+  });
+
+  textarea.addEventListener("input", () => {
+    lengthLabel.textContent = textarea.value
+      ? `${textarea.value.replace(/\s+/gu, "").length} 字符`
+      : "";
+    setSaveCodeStatus(dialog, "");
+  });
+
+  actionButton.addEventListener("click", () => {
+    void (async () => {
+      if (actionButton.dataset.action === "copy") {
+        if (!textarea.value) {
+          setSaveCodeStatus(dialog, "请先生成存档码", "error");
+          return;
+        }
+        actionButton.disabled = true;
+        try {
+          const copied = await copyText(textarea.value);
+          setSaveCodeStatus(
+            dialog,
+            copied ? "已复制存档码" : "复制失败，请长按文本框复制",
+            copied ? "success" : "error",
+          );
+        } finally {
+          actionButton.disabled = false;
+        }
+        return;
+      }
+
+      actionButton.disabled = true;
+      actionButton.textContent = "生成中…";
+      setSaveCodeStatus(dialog, "正在生成紧凑存档码…");
+      try {
+        const state = readCompactSaveState(localStorage);
+        const code = await encodeSaveCode(state);
+        textarea.value = code;
+        textarea.focus();
+        textarea.select();
+        actionButton.dataset.action = "copy";
+        actionButton.textContent = "复制";
+        lengthLabel.textContent = `${code.length} 字符`;
+        setSaveCodeStatus(
+          dialog,
+          "存档码已生成，可复制到剪贴板",
+          "success",
+        );
+      } catch (error) {
+        actionButton.dataset.action = "acquire";
+        actionButton.textContent = "获取";
+        setSaveCodeStatus(
+          dialog,
+          error instanceof Error ? error.message : "存档码生成失败",
+          "error",
+        );
+      } finally {
+        actionButton.disabled = false;
+      }
+    })();
+  });
+
+  importButton.addEventListener("click", () => {
+    void (async () => {
+      const code = textarea.value.trim();
+      if (!code) {
+        setSaveCodeStatus(
+          dialog,
+          "请先粘贴要导入的存档码",
+          "error",
+        );
+        textarea.focus();
+        return;
+      }
+      importButton.disabled = true;
+      setSaveCodeStatus(dialog, "正在校验存档码…");
+      try {
+        pendingState = await decodeSaveCode(code);
+        setSaveCodeStatus(dialog, "");
+        confirmDialog.showModal();
+      } catch (error) {
+        pendingState = null;
+        setSaveCodeStatus(
+          dialog,
+          error instanceof Error ? error.message : "存档码读取失败",
+          "error",
+        );
+      } finally {
+        importButton.disabled = false;
+      }
+    })();
+  });
+
+  confirmDialog
+    .querySelector<HTMLButtonElement>("[data-save-code-cancel]")
+    ?.addEventListener("click", () => confirmDialog.close());
+  confirmDialog.addEventListener("close", () => {
+    pendingState = null;
+  });
+  confirmDialog
+    .querySelector<HTMLButtonElement>("[data-save-code-confirm]")
+    ?.addEventListener("click", (event) => {
+      const button = event.currentTarget as HTMLButtonElement;
+      if (!pendingState) {
+        confirmDialog.close();
+        return;
+      }
+      if (!data) {
+        confirmDialog.close();
+        setSaveCodeStatus(
+          dialog,
+          "游戏数据尚未载入，请稍后重试",
+          "error",
+        );
+        return;
+      }
+      button.disabled = true;
+      try {
+        applyCompactSaveState(
+          pendingState,
+          data,
+          localStorage,
+        );
+        setSaveCodeStatus(
+          dialog,
+          "存档码已导入，正在刷新…",
+          "success",
+        );
+        window.location.reload();
+      } catch (error) {
+        confirmDialog.close();
+        setSaveCodeStatus(
+          dialog,
+          error instanceof Error ? error.message : "存档码导入失败",
+          "error",
+        );
+      } finally {
+        button.disabled = false;
+      }
+    });
+}
+
 function wireGameSettingsDialog(): void {
   const dialog =
     document.querySelector<HTMLDialogElement>(
@@ -823,6 +1086,7 @@ function wireGameSettingsDialog(): void {
       });
     });
   wireSaveControls(dialog);
+  wireSaveCodeControls(dialog);
 }
 
 document.addEventListener("click", (event) => {

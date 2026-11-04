@@ -8,6 +8,10 @@
 位于“Git页”上方。实现位于 `src/game/save.ts`，单元测试位于
 `tests/save.test.ts`。
 
+`.zsave` 文件仍是有下载条件时的主要方案。设置中另有一个独立的
+“存档码 (beta)”备用迁移入口，见 [save-code.md](save-code.md)；
+它不改变本文件的 `.zsave` 格式和行为。
+
 ## 文件格式
 
 - 扩展名建议为 `.zsave`；文件是约 1 KB 量级的 JSON envelope。

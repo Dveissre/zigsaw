@@ -605,19 +605,35 @@ try {
     const save = document
       .querySelector(".save-setting-row")
       ?.getBoundingClientRect();
+    const saveCode = document
+      .querySelector(".save-code-setting-row")
+      ?.getBoundingClientRect();
     const git = document
       .querySelector(".git-setting-link")
       ?.getBoundingClientRect();
     return {
       saveTop: save?.top ?? -1,
+      saveCodeTop: saveCode?.top ?? -1,
       gitTop: git?.top ?? -1,
       actionCount: document.querySelectorAll(
         ".save-setting-actions button",
       ).length,
     };
   });
-  assert.ok(saveSettingLayout.saveTop < saveSettingLayout.gitTop);
+  assert.ok(saveSettingLayout.saveTop < saveSettingLayout.saveCodeTop);
+  assert.ok(saveSettingLayout.saveCodeTop < saveSettingLayout.gitTop);
   assert.equal(saveSettingLayout.actionCount, 2);
+  await page.locator("[data-save-code-open]").click();
+  await page.locator("[data-save-code-dialog][open]").waitFor();
+  assert.equal(
+    await page.locator("[data-save-code-action]").innerText(),
+    "获取",
+  );
+  assert.equal(
+    await page.locator("[data-save-code-import]").innerText(),
+    "导入",
+  );
+  await page.locator("[data-save-code-close]").click();
   const supplementarySetting = page.locator(".supplementary-setting");
   assert.equal(
     await supplementarySetting
