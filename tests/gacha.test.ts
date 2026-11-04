@@ -7,6 +7,7 @@ import {
   GACHA_RARITY_WEIGHTS,
   GachaDrawer,
   componentDrawWeights,
+  gachaWordReward,
   type GachaCard,
 } from "../src/game/gacha";
 
@@ -68,6 +69,46 @@ function createDrawer(): GachaDrawer {
   );
 }
 
+function createFullDecompositionDrawer(): GachaDrawer {
+  const data = new GameData(
+    {
+      symbols: {
+        "1": "一",
+        "2": "丨",
+        "3": "丿",
+        "4": "丶",
+        "5": "乙",
+        "6": "亅",
+      },
+      chars: {
+        甲: [[1, 2, 3, 4, 5]],
+        乙: [[6, 2, 3, 4, 5]],
+      },
+    },
+    {
+      levels: {
+        一级: ["甲", "乙"],
+        二级: [],
+        三级: [],
+      },
+    },
+    null,
+    "https://example.com/",
+  );
+  return new GachaDrawer(
+    data,
+    [
+      component(1, "一", "N"),
+      component(2, "丨", "N"),
+      component(3, "丿", "N"),
+      component(4, "丶", "N"),
+      component(5, "乙", "N"),
+      component(6, "亅", "R"),
+    ],
+    () => 0,
+  );
+}
+
 describe("Gacha drawing", () => {
   it("uses the configured rarity and character-class weights", () => {
     expect(GACHA_RARITY_WEIGHTS).toEqual({
@@ -108,6 +149,18 @@ describe("Gacha drawing", () => {
     expect(exTotal / total).toBeCloseTo(0.2);
   });
 
+  it("rewards words by the number of parts used", () => {
+    expect([1, 2, 3, 4, 5, 6, 9].map(gachaWordReward)).toEqual([
+      0,
+      0,
+      2,
+      5,
+      10,
+      20,
+      20,
+    ]);
+  });
+
   it("always fills ten cards and leaves a playable seed", () => {
     const drawer = createDrawer();
     const hand = drawer.draw();
@@ -122,6 +175,38 @@ describe("Gacha drawing", () => {
     expect(drawer.hasPossibleWord(hand)).toBe(true);
     expect(drawer.lastTrace?.decompositions.length).toBeGreaterThan(0);
     expect(drawer.lastTrace?.fillerCards.length).toBeGreaterThan(0);
+  });
+
+  it("redraws an all-N final decomposition with an R axis component", () => {
+    const drawer = createFullDecompositionDrawer();
+    const hand = drawer.draw();
+    const trace = drawer.lastTrace;
+
+    expect(trace?.decompositions).toHaveLength(2);
+    expect(trace?.fillerCards).toEqual([]);
+    expect(hand.some((card) => card.rarity === "R")).toBe(true);
+    expect(trace?.decompositions[1].way).toContain(6);
+    const available = new Map<number, number>();
+    for (const card of hand) {
+      available.set(
+        card.symbolId,
+        (available.get(card.symbolId) ?? 0) + 1,
+      );
+    }
+    const required = new Map<number, number>();
+    for (const decomposition of trace?.decompositions ?? []) {
+      for (const symbolId of decomposition.way) {
+        required.set(
+          symbolId,
+          (required.get(symbolId) ?? 0) + 1,
+        );
+      }
+    }
+    for (const [symbolId, count] of required) {
+      expect(available.get(symbolId) ?? 0).toBeGreaterThanOrEqual(
+        count,
+      );
+    }
   });
 
   it("consumes only the cards used by a submitted character", () => {

@@ -36,6 +36,7 @@ git log --name-status -1 -- docs/handoff
 
 | 日期 | 类型 | 内容 | 文档 |
 | --- | --- | --- | --- |
+| 2026-11-04 | feature | 写字台结算按钮移位；多部件组字奖励 Cris 并增加卡片槽位与结算反馈 | [gacha-rewards.md](features/gacha-rewards.md) |
 | 2026-11-04 | feature | 合并试炼主线；新增可迁移的加密存档；练习无尽改为题数行单键开关 | [save-archive.md](features/save-archive.md)、[bugfix.md](bugfix.md) |
 | 2026-11-04 | feature | 实装失与得、拾级、五个奇境变体、短视、心盲症并统一试炼文案 | [trial-mode.md](features/trial-mode.md) |
 | 2026-11-03 | feature | 试炼规则数据层升级 v2；实装四分法并同步急板显示名 | [trial-mode.md](features/trial-mode.md) |

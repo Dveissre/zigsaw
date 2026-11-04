@@ -14,6 +14,7 @@ import {
   GACHA_COST,
   GACHA_RARITIES,
   GachaDrawer,
+  gachaWordReward,
   type GachaCard,
   type GachaDrawTrace,
 } from "./game/gacha";
@@ -68,6 +69,7 @@ interface CollectedWord {
   char: string;
   way: number[];
   isNew: boolean;
+  reward: number;
 }
 
 let data: GameData | null = null;
@@ -323,6 +325,16 @@ function openGachaDebugDialog(): void {
   }
 }
 
+function refreshCrisBalance(): void {
+  const balance = appRoot.querySelector<HTMLElement>(".corner-cris");
+  if (balance) {
+    balance.outerHTML = crisBalanceMarkup(
+      cris.load(),
+      debugUnlocked,
+    );
+  }
+}
+
 function refreshDebugControls(): void {
   document
     .querySelectorAll<HTMLButtonElement>("[data-gacha-advanced]")
@@ -332,13 +344,7 @@ function refreshDebugControls(): void {
         String(debugUnlocked),
       );
     });
-  const balance = appRoot.querySelector<HTMLElement>(".corner-cris");
-  if (balance) {
-    balance.outerHTML = crisBalanceMarkup(
-      cris.load(),
-      debugUnlocked,
-    );
-  }
+  refreshCrisBalance();
   const actions = appRoot.querySelector<HTMLElement>(
     ".gacha-corner-actions",
   );
@@ -456,7 +462,9 @@ function renderHand(): void {
       <div class="gacha-submit-row">
         <input data-gacha-answer type="text" autocomplete="off" autocapitalize="off" spellcheck="false" aria-label="组字答案">
         <button class="primary-action" type="button" data-gacha-submit>提交</button>
-        <button class="gacha-finish-button" type="button" data-gacha-finish>结算</button>
+      </div>
+      <div class="gacha-finish-row">
+        <button class="gacha-finish-button" type="button" data-gacha-finish>结算本轮</button>
       </div>
       ${obtainedRowsMarkup()}
     </div>
@@ -491,6 +499,10 @@ function renderHand(): void {
 
 function renderSummary(): void {
   phase = "summary";
+  const totalReward = collectedWords.reduce(
+    (total, entry) => total + entry.reward,
+    0,
+  );
   const sortedCards = [...obtainedCards].sort(
     (left, right) =>
       GACHA_RARITIES.indexOf(right.rarity) -
@@ -502,6 +514,13 @@ function renderSummary(): void {
   appRoot.innerHTML = shell(`
     <div class="gacha-summary">
       <h2>抽选结果</h2>
+      ${
+        totalReward > 0
+          ? `<div class="result-cris gacha-result-cris" aria-label="本次共获得分光水晶 ${totalReward}">
+              ${crisIconMarkup()}<strong>+${totalReward}</strong>
+            </div>`
+          : ""
+      }
       <div class="gacha-summary-cards ${hasObtainedCards ? "" : "is-empty"}" aria-label="本次抽到的部件卡">
         ${
           hasObtainedCards
@@ -585,13 +604,7 @@ async function startDraw(): Promise<void> {
   drawTrace = drawer.lastTrace;
 
   drawing = true;
-  const balance = appRoot.querySelector<HTMLElement>(".corner-cris");
-  if (balance) {
-    balance.outerHTML = crisBalanceMarkup(
-      cris.load(),
-      debugUnlocked,
-    );
-  }
+  refreshCrisBalance();
 
   cards = [...nextCards];
   cardSlots = [...nextCards];
@@ -620,6 +633,49 @@ async function startDraw(): Promise<void> {
   await wait(1080);
   drawing = false;
   renderHand();
+}
+
+async function showWordReward(
+  usedUids: Set<number>,
+  reward: number,
+): Promise<void> {
+  if (
+    reward <= 0 ||
+    window.matchMedia("(prefers-reduced-motion: reduce)").matches
+  ) {
+    return;
+  }
+  const firstUsedSlotIndex = cardSlots.findIndex(
+    (card) => card && usedUids.has(card.uid),
+  );
+  if (firstUsedSlotIndex < 0) {
+    return;
+  }
+  const firstUsedCard = cardSlots[firstUsedSlotIndex];
+  const cardElement = appRoot.querySelector<HTMLElement>(
+    `[data-gacha-card="${firstUsedCard?.uid}"]`,
+  );
+  if (!cardElement) {
+    return;
+  }
+
+  const rewardElement = document.createElement("span");
+  rewardElement.className = "gacha-hand-reward";
+  rewardElement.style.setProperty(
+    "--card-index",
+    String(firstUsedSlotIndex),
+  );
+  rewardElement.setAttribute("role", "status");
+  rewardElement.setAttribute(
+    "aria-label",
+    `获得分光水晶 ${reward}`,
+  );
+  rewardElement.innerHTML = `${crisIconMarkup()}<strong>+${reward}</strong>`;
+  cardElement.replaceWith(rewardElement);
+
+  await wait(560);
+  rewardElement.classList.add("is-leaving");
+  await wait(180);
 }
 
 async function submitWord(rawValue: string): Promise<void> {
@@ -656,6 +712,15 @@ async function submitWord(rawValue: string): Promise<void> {
       : 220,
   );
 
+  const reward = gachaWordReward(submission.way.length);
+  if (reward > 0) {
+    cris.add(reward);
+    refreshCrisBalance();
+    await showWordReward(
+      new Set(submission.usedUids),
+      reward,
+    );
+  }
   const wasNew = !collection.hasSeenChar(answer);
   const usedCards = cards.filter((card) =>
     submission.usedUids.includes(card.uid),
@@ -683,6 +748,7 @@ async function submitWord(rawValue: string): Promise<void> {
     char: answer,
     way: submission.way,
     isNew: wasNew,
+    reward,
   });
   obtainedCards.push(...usedCards);
   feedback = "";

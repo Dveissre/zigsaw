@@ -16,6 +16,22 @@ export const GACHA_RARITIES: ComponentRarity[] = [
   "XR",
 ];
 
+export function gachaWordReward(partCount: number): number {
+  if (partCount >= 6) {
+    return 20;
+  }
+  if (partCount === 5) {
+    return 10;
+  }
+  if (partCount === 4) {
+    return 5;
+  }
+  if (partCount === 3) {
+    return 2;
+  }
+  return 0;
+}
+
 export const GACHA_RARITY_WEIGHTS: Record<
   ComponentRarity,
   number
@@ -215,6 +231,32 @@ export class GachaDrawer {
       cards.push(...this.cardsForWay(next.way));
     }
 
+    if (
+      cards.length === GACHA_HAND_SIZE &&
+      !cards.some((card) => card.rarity !== "N")
+    ) {
+      const last = this.drawTrace.decompositions.pop();
+      if (last) {
+        cards.splice(cards.length - last.way.length);
+        const replacement = this.drawDecomposition(
+          GACHA_HAND_SIZE - cards.length,
+          "R",
+        );
+        if (replacement) {
+          this.recordDecomposition(replacement);
+          cards.push(...this.cardsForWay(replacement.way));
+        } else {
+          this.recordDecomposition({
+            char: last.char,
+            way: last.way,
+            maxRarity: last.rarity,
+            characterClass: this.characterClass(last.char),
+          });
+          cards.push(...this.cardsForWay(last.way));
+        }
+      }
+    }
+
     while (cards.length < GACHA_HAND_SIZE) {
       const forceRarity =
         !cards.some((card) => card.rarity === "R") &&
@@ -226,16 +268,6 @@ export class GachaDrawer {
       this.drawTrace.fillerCards.push({
         symbolId: filler.symbolId,
         rarity: filler.rarity,
-      });
-    }
-
-    if (!cards.some((card) => card.rarity === "R")) {
-      const replacement = this.randomFillerCard("R");
-      cards[Math.floor(this.random() * cards.length)] =
-        replacement;
-      this.drawTrace.fillerCards.push({
-        symbolId: replacement.symbolId,
-        rarity: replacement.rarity,
       });
     }
 
@@ -306,9 +338,10 @@ export class GachaDrawer {
 
   private drawDecomposition(
     slots: number,
+    forcedAxisRarity?: ComponentRarity,
   ): DrawWay | null {
     for (let attempt = 0; attempt < 64; attempt += 1) {
-      const rarity = this.rollRarity();
+      const rarity = forcedAxisRarity ?? this.rollRarity();
       const candidates =
         this.cardsByRarity.get(rarity) ?? [];
       if (candidates.length === 0) {
@@ -320,14 +353,23 @@ export class GachaDrawer {
       ).filter(
         (entry) =>
           entry.way.length <= slots &&
-          entry.maxRarity === rarity,
+          (forcedAxisRarity
+            ? entry.way.includes(component.symbolId)
+            : entry.maxRarity === rarity),
       );
       if (matching.length > 0) {
         return this.pickDecomposition(matching);
       }
     }
     const fallback = this.drawableWays.filter(
-      (entry) => entry.way.length <= slots,
+      (entry) =>
+        entry.way.length <= slots &&
+        (!forcedAxisRarity ||
+          entry.way.some(
+            (symbolId) =>
+              this.cardBySymbol.get(symbolId)?.rarity ===
+              forcedAxisRarity,
+          )),
     );
     return fallback.length > 0
       ? this.pickDecomposition(fallback)
