@@ -29,6 +29,7 @@ import type { TraditionalData } from "../src/game/traditional";
 import type { GestaltData } from "../src/game/gestalt";
 import type { CompositionData } from "../src/game/composition";
 import type { AssonanceData } from "../src/game/assonance";
+import type { WordAnswerData } from "../src/game/word-answers";
 
 const trialRulesData =
   trialRuleDataJson as unknown as TrialRulesData;
@@ -659,6 +660,8 @@ function createCompositionFixture(): {
     台: [[3, 4]],
     问: [[5]],
     答: [[3, 4]],
+    止: [[3, 4]],
+    丁: [[2, 1]],
     计: [[1]],
     算: [[2, 3]],
     机: [[4, 5, 6]],
@@ -741,6 +744,11 @@ function createAssonanceFixture(): {
     甲: [[1, 1, 2, 4]],
     乙: [[1, 3, 5]],
     丙: [[2, 3, 6]],
+    卜: [[2, 4]],
+    也: [[3]],
+    子: [[4]],
+    丑: [[5]],
+    寅: [[6]],
   };
   return {
     data: new GameData(
@@ -770,7 +778,7 @@ function createAssonanceFixture(): {
       answerCompatibilityHash: "",
       weighting: "test",
       words: {
-        "2": ["上台", "止丁", "问答"],
+        "2": ["上台", "止丁", "问答", "甲丁"],
         "3": ["甲乙丙"],
         "4": [],
       },
@@ -794,6 +802,24 @@ function createAssonanceFixture(): {
           ],
         },
       ],
+    },
+  };
+}
+
+function createWordAnswerData(): WordAnswerData {
+  return {
+    format: "zigsaw-word-answers/1",
+    sourceHash: "",
+    symbolsHash: "",
+    words: {
+      "2": ["上台", "台上", "问台", "问答", "甲丁", "止丁", "卜也"],
+      "3": [
+        "计算机",
+        "机算计",
+        "甲乙丙",
+        "子丑寅",
+      ],
+      "4": [],
     },
   };
 }
@@ -981,6 +1007,9 @@ describe("trial session", () => {
     expect(
       parsed.rules.assonance.stars,
     ).toBe(3);
+    expect(
+      parsed.rules.dissonance.policy.prompt.normal.mode,
+    ).toBe("dissonance-components");
     expect(
       parsed.rules.repetend.policy.prompt.normal.mode,
     ).toBe("repetend-components");
@@ -2522,6 +2551,7 @@ describe("trial session", () => {
       composition,
     );
     trial.setRuleOverride("composition");
+    trial.setWordAnswerData(createWordAnswerData());
     const helpers = trial as unknown as {
       compositionCards: (recipe: number[][]) => TrialCard[];
       compositionAcceptedWords: (
@@ -2541,7 +2571,12 @@ describe("trial session", () => {
     const acceptedWords = choice.composition.acceptedWords;
 
     expect(acceptedWords).toEqual(
-      expect.arrayContaining(["上台", "台上", "问台"]),
+      expect.arrayContaining([
+        "上台",
+        "台上",
+        "问台",
+        "止丁",
+      ]),
     );
 
     const question = helpers.questionFor(choice);
@@ -2579,6 +2614,7 @@ describe("trial session", () => {
       assonance,
     );
     trial.setRuleOverride("assonance");
+    trial.setWordAnswerData(createWordAnswerData());
     const helpers = trial as unknown as {
       pickAssonanceNormalChoice: () => unknown;
       questionFor: (choice: unknown) => TrialQuestionState;
@@ -2665,6 +2701,127 @@ describe("trial session", () => {
     trial.setDraft("甲乙丙");
     trial.submit();
     expect(trial.state.feedback).toBe("correct");
+  });
+
+  it("removes cross-character repetition cards and colors dissonance groups", () => {
+    vi.useFakeTimers();
+    const { data, assonance } =
+      createAssonanceFixture();
+    const trial = new TrialSession(
+      data,
+      settings,
+      () => {},
+      seededRandom(64),
+      false,
+      () => {},
+      null,
+      trialRulesData,
+      null,
+      null,
+      null,
+      null,
+      assonance,
+    );
+    trial.setRuleOverride("dissonance");
+    trial.setWordAnswerData(createWordAnswerData());
+    const helpers = trial as unknown as {
+      pickDissonanceNormalChoice: () => unknown;
+      questionFor: (choice: unknown) => TrialQuestionState;
+      dissonanceCards: (recipe: number[][]) => TrialCard[];
+      dissonanceAcceptedWords: (
+        cards: TrialCard[],
+        lengths: number[],
+      ) => string[];
+      startDissonanceBoss: (
+        rule: TrialRulesData["rules"][string],
+      ) => void;
+    };
+    const question = helpers.questionFor(
+      helpers.pickDissonanceNormalChoice(),
+    );
+
+    expect(
+      question.displayCards.map((card) => ({
+        symbolId: card.symbolId,
+        groupColor: card.groupColor,
+        displayMode: card.displayMode,
+      })),
+    ).toEqual(
+      expect.arrayContaining([
+        { symbolId: 2, groupColor: 0, displayMode: undefined },
+        { symbolId: 4, groupColor: 0, displayMode: undefined },
+        { symbolId: 3, groupColor: 1, displayMode: undefined },
+      ]),
+    );
+    expect(question.accepted).toContain("上台");
+    expect(question.accepted).toContain("卜也");
+
+    const eliminatedGroupCards =
+      helpers.dissonanceCards([
+        [1, 1, 2, 4],
+        [2, 1],
+      ]);
+    expect(eliminatedGroupCards).toEqual([
+      expect.objectContaining({
+        symbolId: 4,
+        groupColor: 1,
+      }),
+    ]);
+    expect(
+      helpers.dissonanceAcceptedWords(
+        eliminatedGroupCards,
+        [2],
+      ),
+    ).toContain("甲丁");
+
+    trial.state.phase = "playing";
+    trial.state.ruleId = "dissonance";
+    trial.state.questionInStage = 1;
+    trial.state.current = question;
+    trial.state.timeLimit = 30;
+    trial.state.remaining = 30;
+    trial.setDraft("上台");
+    trial.submit();
+    expect(trial.state.feedback).toBe("correct");
+
+    const bossTrial = new TrialSession(
+      data,
+      settings,
+      () => {},
+      seededRandom(65),
+      false,
+      () => {},
+      null,
+      trialRulesData,
+      null,
+      null,
+      null,
+      null,
+      assonance,
+    );
+    bossTrial.setRuleOverride("dissonance");
+    bossTrial.setWordAnswerData(createWordAnswerData());
+    const bossHelpers = bossTrial as unknown as {
+      startDissonanceBoss: (
+        rule: TrialRulesData["rules"][string],
+      ) => void;
+    };
+    bossHelpers.startDissonanceBoss(
+      trialRulesData.rules.dissonance,
+    );
+    expect(
+      new Set(
+        bossTrial.state.boss?.initialCards.map(
+          (card) => card.groupColor,
+        ),
+      ).size,
+    ).toBe(3);
+    expect(bossTrial.state.boss?.acceptedWords).toContain(
+      "子丑寅",
+    );
+    bossTrial.setDraft("甲乙丙");
+    bossTrial.submit();
+    expect(bossTrial.state.feedback).toBe("correct");
   });
 
   it("accepts an unambiguous composition word through incremental BOSS submission", () => {

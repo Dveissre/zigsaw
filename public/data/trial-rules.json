@@ -825,7 +825,7 @@
       "english": "Composition",
       "description": {
         "public": "道中关卡用 4 张部件卡组成一个二字词；守幕关卡用 6–8 张卡组成一个三字或四字词。一部件字可作为单张卡出现；同一组卡能组成的其他词也接受。",
-        "internal": "词池来自 docs/words_2to4.txt 中至少含有一、二级通规字的 2–4 字词。每个词按直接拆法生成 4 卡道中题或 6–8 卡 BOSS 题，并允许长度为 1 的拆法。普通题与 BOSS 分别统计各自生成池内的汉字出现次数，词权为词内各字池内频率几何平均数的倒数。提交判题遍历词表，并要求完整词中每个字可由一组互不重叠的卡通过答案兼容层组成、且恰好耗尽全部卡；同一卡组对应的全部合法词都接受。BOSS 可一次提交整词，也可按词序逐字提交。"
+        "internal": "生成词池来自 data-source/wordlists/words_2to4.txt 中至少含有一、二级通规字的 2–4 字词。每个词按直接拆法生成 4 卡道中题或 6–8 卡 BOSS 题，并允许长度为 1 的拆法。普通题与 BOSS 分别统计各自生成池内的汉字出现次数，词权为词内各字池内频率几何平均数的倒数。判题额外加载 data-source/wordlists/common_word.txt 生成的 word-answers.json，并要求完整词中每个字可由一组互不重叠的卡通过答案兼容层组成、且恰好耗尽全部卡；扩展词只参与接受，不进入生成池。BOSS 可一次提交整词，也可按词序逐字提交。"
       },
       "stars": 2,
       "icon": "composition.svg",
@@ -881,7 +881,7 @@
       "english": "Assonance",
       "description": {
         "public": "道中关卡用 4–5 张卡组成一个二字词，且至少有一张复沓卡同时属于两个字；守幕关卡用 6–10 张卡组成三字或四字词，且至少有 2 张复沓卡。复沓卡不会显示特殊样式或乘数，需要自行推断。词内不得有重复汉字。",
-        "internal": "词池来自 words_2to4.txt，仅保留各字不同的 2–4 字词。只有横跨至少两个字的 symbolId 才压缩为隐藏数量卡；仅在单字内重复的部件仍以多张普通卡显示。普通题要求压缩后显示卡数 4–5 且至少 1 张跨字复沓卡；BOSS 要求 6–10 张且至少 2 张跨字复沓卡。道中与 BOSS 均隐藏复沓卡的乘数、数量卡样式和辅助提示。判题枚举词内各字的兼容层拆法，以相同的可见卡数映射接受全部合法词；BOSS 支持整词或按词序逐字提交。词权按各候选池内字频几何平均数倒数计算。"
+        "internal": "生成词池来自 data-source/wordlists/words_2to4.txt，仅保留各字不同的 2–4 字词。只有横跨至少两个字的 symbolId 才压缩为隐藏数量卡；仅在单字内重复的部件仍以多张普通卡显示。普通题要求压缩后显示卡数 4–5 且至少 1 张跨字复沓卡；BOSS 要求 6–10 张且至少 2 张跨字复沓卡。道中与 BOSS 均隐藏复沓卡的乘数、数量卡样式和辅助提示。判题额外查询由 data-source/wordlists/common_word.txt 生成的 word-answers.json，枚举词内各字的兼容层拆法，以相同的可见卡数映射接受全部合法词；BOSS 支持整词或按词序逐字提交。词权按各候选池内字频几何平均数倒数计算。"
       },
       "stars": 3,
       "icon": "assonance.svg",
@@ -927,6 +927,62 @@
           "boss": {
             "sources": ["answer"],
             "display": "quantity"
+          }
+        }
+      }
+    },
+    "dissonance": {
+      "id": "dissonance",
+      "name": "失韵法",
+      "english": "Dissonance",
+      "description": {
+        "public": "与半韵法共用题目池。跨字复沓卡完全隐藏；剩余部件按所属汉字分组，并以不同颜色显示。道中关卡使用朱红、靛蓝双色；若某字没有可见卡，剩余组按靛蓝、朱红、橄榄的顺序取色。守幕关卡最多使用四种颜色，第四色为银灰。",
+        "internal": "复用 assonance-words.json。生成时移除所有横跨至少两个字的复沓组件，只显示各字独有的普通组件；同一来源字使用同一颜色。允许一个或多个答案字完全没有可见卡，但整题至少保留 1 张卡。无空组时按朱红、靛蓝、橄榄、银灰分配；存在空组时改按靛蓝、朱红、橄榄、银灰。颜色组只表达同字关系，不表达字序。判题从 word-answers.json 查询普通题与扩展词，将候选词经兼容层展开后移除跨字复沓卡，并接受非空分组多重结构相同的全部词语；因此颜色标签可置换，空组数量不参与比较。词权沿用半韵法对应池。"
+      },
+      "stars": 3,
+      "icon": "dissonance.svg",
+      "timing": {
+        "normalSeconds": 30,
+        "bossSeconds": 90,
+        "normalMultiplier": 1,
+        "bossMultiplier": 1
+      },
+      "selection": {
+        "normal": {
+          "partLengths": [4, 5]
+        },
+        "boss": {
+          "answerCount": 4,
+          "partLengths": [2, 3],
+          "totalParts": [6, 10]
+        }
+      },
+      "policy": {
+        "prompt": {
+          "normal": { "mode": "dissonance-components" },
+          "boss": { "mode": "dissonance-components" }
+        },
+        "answer": {
+          "normal": {
+            "input": "word",
+            "acceptance": "answer-compatibility",
+            "unique": false
+          },
+          "boss": {
+            "input": "word",
+            "acceptance": "answer-compatibility",
+            "unique": false,
+            "distinct": false
+          }
+        },
+        "cards": {
+          "normal": {
+            "sources": ["answer"],
+            "display": "component"
+          },
+          "boss": {
+            "sources": ["answer"],
+            "display": "component"
           }
         }
       }

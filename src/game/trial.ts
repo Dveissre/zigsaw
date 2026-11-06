@@ -29,6 +29,7 @@ import type {
   CompositionWordEntry,
 } from "./composition";
 import type { AssonanceData } from "./assonance";
+import type { WordAnswerData } from "./word-answers";
 
 export const TRIAL_STAGE_COUNT = 7;
 export const TRIAL_QUESTIONS_PER_STAGE = 8;
@@ -84,6 +85,7 @@ export interface TrialCard {
   remainingComponents?: number[];
   quantity?: number;
   remainingQuantity?: number;
+  groupColor?: number;
   obscuredAtMs?: number;
   obscured?: boolean;
   mustIgnore?: boolean;
@@ -300,6 +302,11 @@ interface TrialChoice {
     recipes: number[][][];
     acceptedWords: string[];
   };
+  dissonance?: {
+    word: string;
+    recipes: number[][][];
+    acceptedWords: string[];
+  };
   gestaltPair?: GestaltPair;
   wildcardIndex?: number;
   wildcardAnswers?: string[];
@@ -400,6 +407,7 @@ export class TrialSession {
   private gestalt: GestaltData | null;
   private composition: CompositionData | null;
   private assonance: AssonanceData | null;
+  private wordAnswers: WordAnswerData | null;
   private readonly onEncounter: (
     char: string,
     way: number[],
@@ -441,6 +449,15 @@ export class TrialSession {
     string,
     string[]
   >();
+  private readonly answerWordFirstIndex = new Map<
+    string,
+    string[]
+  >();
+  private readonly answerWordCharIndex = new Map<
+    string,
+    string[]
+  >();
+  private readonly answerCharacters = new Set<string>();
   private timerId: ReturnType<typeof setInterval> | null = null;
   private advanceId: ReturnType<typeof setTimeout> | null = null;
   private deadline = 0;
@@ -470,6 +487,7 @@ export class TrialSession {
     gestalt: GestaltData | null = null,
     composition: CompositionData | null = null,
     assonance: AssonanceData | null = null,
+    wordAnswers: WordAnswerData | null = null,
   ) {
     this.data = data;
     this.random = random;
@@ -485,6 +503,7 @@ export class TrialSession {
     this.gestalt = gestalt;
     this.composition = composition;
     this.assonance = assonance;
+    this.wordAnswers = wordAnswers;
     for (const ways of data.ways.values()) {
       for (const way of ways) {
         for (const symbolId of way) {
@@ -523,6 +542,7 @@ export class TrialSession {
     this.buildTraditionalChoices();
     this.buildGestaltPairMap();
     this.buildCompositionWordIndex();
+    this.buildAnswerWordIndexes();
   }
 
   beginStage(): void {
@@ -578,6 +598,13 @@ export class TrialSession {
   setAssonanceData(assonance: AssonanceData): void {
     this.assonance = assonance;
     this.assonanceAcceptedCache.clear();
+  }
+
+  setWordAnswerData(wordAnswers: WordAnswerData): void {
+    this.wordAnswers = wordAnswers;
+    this.compositionAcceptedCache.clear();
+    this.assonanceAcceptedCache.clear();
+    this.buildAnswerWordIndexes();
   }
 
   setRuleOverride(ruleId: string | null): void {
@@ -1208,6 +1235,294 @@ export class TrialSession {
     return shuffle(cards, this.random);
   }
 
+  private dissonanceCards(
+    recipe: number[][],
+  ): TrialCard[] {
+    const counts = new Map<number, number>();
+    for (const way of recipe) {
+      for (const symbolId of way) {
+        counts.set(
+          symbolId,
+          (counts.get(symbolId) ?? 0) + 1,
+        );
+      }
+    }
+    const crossSymbols = new Set(
+      [...counts.keys()].filter(
+        (symbolId) =>
+          recipe.filter((way) =>
+            way.includes(symbolId),
+          ).length >= 2,
+      ),
+    );
+    const nonEmptyGroups = recipe
+      .map((way, index) => ({
+        index,
+        symbols: way.filter(
+          (symbolId) => !crossSymbols.has(symbolId),
+        ),
+      }))
+      .filter(({ symbols }) => symbols.length > 0);
+    const paletteOrder =
+      nonEmptyGroups.length < recipe.length
+        ? [1, 0, 2, 3]
+        : [0, 1, 2, 3];
+    const colorByCharacter = new Map<number, number>();
+    nonEmptyGroups.forEach(({ index }, colorIndex) => {
+      colorByCharacter.set(
+        index,
+        paletteOrder[colorIndex] ?? colorIndex,
+      );
+    });
+    const cards: TrialCard[] = [];
+    recipe.forEach((way, groupColor) => {
+      for (const symbolId of way) {
+        if (crossSymbols.has(symbolId)) {
+          continue;
+        }
+        cards.push({
+          ...this.makeCard(symbolId),
+          groupColor:
+            colorByCharacter.get(groupColor) ?? 0,
+        });
+      }
+    });
+    return shuffle(cards, this.random);
+  }
+
+  private dissonanceAcceptedWords(
+    cards: TrialCard[],
+    lengths: number[],
+  ): string[] {
+    if (!this.assonance) {
+      return [];
+    }
+    const assonance = this.assonance;
+    const targetKey = this.dissonanceCardsKey(cards);
+    const cacheKey = `${lengths.join(",")}|${targetKey}`;
+    const cached = this.assonanceAcceptedCache.get(
+      `dissonance:${cacheKey}`,
+    );
+    if (cached) {
+      return cached;
+    }
+    const cardGroups = new Map<number, number[]>();
+    for (const card of cards) {
+      const group = card.groupColor ?? 0;
+      const symbols = cardGroups.get(group) ?? [];
+      symbols.push(card.symbolId);
+      cardGroups.set(group, symbols);
+    }
+    const groupCounts = [...cardGroups.values()].map(
+      (symbols) => this.componentCounts(symbols),
+    );
+    const possibleChars = new Set<string>();
+    const allChars =
+      this.wordAnswers
+        ? this.answerCharacters
+        : new Set(
+            (["2", "3", "4"] as const).flatMap(
+              (length) =>
+                assonance.words[length].flatMap((word) => [
+                  ...word,
+                ]),
+            ),
+          );
+    for (const char of allChars) {
+      if (
+        this.data.expandedDecompositions(char).some((way) => {
+          const counts = this.componentCounts(way);
+          return groupCounts.some((group) =>
+            [...group.entries()].every(
+              ([symbolId, count]) =>
+                (counts.get(symbolId) ?? 0) >= count,
+            ),
+          );
+        })
+      ) {
+        possibleChars.add(char);
+      }
+    }
+    const accepted: string[] = [];
+    for (const length of lengths) {
+      const candidates = this.answerWordsContaining(
+        length,
+        possibleChars,
+        assonance.words[
+          String(length) as "2" | "3" | "4"
+        ],
+      );
+      for (const word of candidates) {
+        if (
+          new Set([...word]).size !== [...word].length
+        ) {
+          continue;
+        }
+        if (
+          [...word].filter((char) =>
+            possibleChars.has(char),
+          ).length < groupCounts.length
+        ) {
+          continue;
+        }
+        if (
+          this.dissonanceWordCanUseCards(word, cards)
+        ) {
+          accepted.push(word);
+        }
+      }
+    }
+    accepted.sort((left, right) =>
+      left.localeCompare(right, "zh-CN"),
+    );
+    this.assonanceAcceptedCache.set(
+      `dissonance:${cacheKey}`,
+      accepted,
+    );
+    return accepted;
+  }
+
+  private dissonanceWordCanUseCards(
+    word: string,
+    cards: TrialCard[],
+  ): boolean {
+    return (
+      this.dissonanceGroupAssignment(word, cards) !== null
+    );
+  }
+
+  private dissonanceGroupAssignment(
+    word: string,
+    cards: TrialCard[],
+  ): number[] | null {
+    const cardGroups = new Map<number, number[]>();
+    for (const card of cards) {
+      if (card.groupColor === undefined) {
+        continue;
+      }
+      const symbols =
+        cardGroups.get(card.groupColor) ?? [];
+      symbols.push(card.symbolId);
+      cardGroups.set(card.groupColor, symbols);
+    }
+    const cardGroupSignatures = [...cardGroups.entries()]
+      .map(([group, symbols]) => ({
+        group,
+        key: [...symbols]
+          .sort((left, right) => left - right)
+          .join(","),
+      }))
+      .sort((left, right) =>
+        left.key.localeCompare(right.key),
+      );
+    const options = [...word].map((char) =>
+      this.data
+        .expandedDecompositions(char)
+        .filter((way) => way.length >= 1 && way.length <= 10),
+    );
+    if (options.some((ways) => ways.length === 0)) {
+      return null;
+    }
+    const selected: number[][] = [];
+    const search = (index: number): number[] | null => {
+      if (index >= options.length) {
+        const groups =
+          this.dissonanceRecipeGroupKeys(selected);
+        const nonEmptyGroups = groups.filter(Boolean);
+        if (
+          nonEmptyGroups.length !==
+          cardGroupSignatures.length
+        ) {
+          return null;
+        }
+        const used = new Set<number>();
+        const assignment = new Array<number>(
+          groups.length,
+        ).fill(-1);
+        for (let charIndex = 0; charIndex < groups.length; charIndex += 1) {
+          if (!groups[charIndex]) {
+            continue;
+          }
+          const match = cardGroupSignatures.findIndex(
+            (candidate, index) =>
+              !used.has(index) &&
+              candidate.key === groups[charIndex],
+          );
+          if (match < 0) {
+            return null;
+          }
+          used.add(match);
+          assignment[charIndex] =
+            cardGroupSignatures[match].group;
+        }
+        return assignment;
+      }
+      for (const way of options[index]) {
+        selected.push(way);
+        const result = search(index + 1);
+        if (result) {
+          return result;
+        }
+        selected.pop();
+      }
+      return null;
+    };
+    return search(0);
+  }
+
+  private dissonanceCardsKey(
+    cards: TrialCard[],
+  ): string {
+    const groups = new Map<number, number[]>();
+    for (const card of cards) {
+      const group = card.groupColor ?? 0;
+      const symbols = groups.get(group) ?? [];
+      symbols.push(card.symbolId);
+      groups.set(group, symbols);
+    }
+    return [...groups.values()]
+      .map((symbols) =>
+        [...symbols].sort((left, right) => left - right),
+      )
+      .sort((left, right) =>
+        left.join(",").localeCompare(right.join(",")),
+      )
+      .map((symbols) => symbols.join(","))
+      .join("|");
+  }
+
+  private dissonanceRecipeGroupKeys(
+    recipe: readonly number[][],
+  ): string[] {
+    const counts = new Map<number, number>();
+    for (const way of recipe) {
+      for (const symbolId of way) {
+        counts.set(
+          symbolId,
+          (counts.get(symbolId) ?? 0) + 1,
+        );
+      }
+    }
+    const crossSymbols = new Set(
+      [...counts.keys()].filter(
+        (symbolId) =>
+          recipe.filter((way) =>
+            way.includes(symbolId),
+          ).length >= 2,
+      ),
+    );
+    return recipe
+      .map((way) =>
+        way
+          .filter((symbolId) => !crossSymbols.has(symbolId))
+          .sort((left, right) => left - right),
+      )
+      .sort((left, right) =>
+        left.join(",").localeCompare(right.join(",")),
+      )
+      .map((symbols) => symbols.join(","));
+  }
+
   private pickCompositionEntry(
     entries: CompositionWordEntry[],
     lengths: number[],
@@ -1283,15 +1598,13 @@ export class TrialSession {
     };
     collect(0);
     for (const length of lengths) {
-      const candidates = new Set<string>();
-      for (const first of firstChars) {
-        for (const word of
-          this.compositionWordIndex.get(
-            `${length}|${first}`,
-          ) ?? []) {
-          candidates.add(word);
-        }
-      }
+      const candidates = this.answerWordsByFirst(
+        length,
+        firstChars,
+        this.composition.words[
+          String(length) as "2" | "3" | "4"
+        ],
+      );
       for (const word of candidates) {
         if (this.wordCanUseCards(word, cards)) {
           accepted.push(word);
@@ -1322,13 +1635,17 @@ export class TrialSession {
     }
     const visibleCounts = this.assonanceVisibleCounts(cards);
     const possibleChars = new Set<string>();
-    const allChars = new Set(
-      (["2", "3", "4"] as const).flatMap((length) =>
-        assonance.words[length].flatMap((word) => [
-          ...word,
-        ]),
-      ),
-    );
+    const allChars =
+      this.wordAnswers
+        ? this.answerCharacters
+        : new Set(
+            (["2", "3", "4"] as const).flatMap(
+              (length) =>
+                assonance.words[length].flatMap((word) => [
+                  ...word,
+                ]),
+            ),
+          );
     for (const char of allChars) {
       if (
         this.data.expandedDecompositions(char).some((way) => {
@@ -1351,10 +1668,19 @@ export class TrialSession {
     }
     const accepted: string[] = [];
     for (const length of lengths) {
-      for (const word of
+      const candidates = this.answerWordsByFirst(
+        length,
+        possibleChars,
         assonance.words[
           String(length) as "2" | "3" | "4"
-        ] ?? []) {
+        ],
+      );
+      for (const word of candidates) {
+        if (
+          new Set([...word]).size !== [...word].length
+        ) {
+          continue;
+        }
         if (
           ![...word].every((char) =>
             possibleChars.has(char),
@@ -1663,6 +1989,12 @@ export class TrialSession {
     if (
       rule.policy.prompt.normal.mode ===
       "assonance-components"
+    ) {
+      return this.inspectAssonancePool(rule);
+    }
+    if (
+      rule.policy.prompt.normal.mode ===
+      "dissonance-components"
     ) {
       return this.inspectAssonancePool(rule);
     }
@@ -1998,6 +2330,94 @@ export class TrialSession {
         this.compositionWordIndex.set(key, words);
       }
     }
+  }
+
+  private buildAnswerWordIndexes(): void {
+    this.answerWordFirstIndex.clear();
+    this.answerWordCharIndex.clear();
+    this.answerCharacters.clear();
+    if (!this.wordAnswers) {
+      return;
+    }
+    for (const length of ["2", "3", "4"] as const) {
+      for (const word of this.wordAnswers.words[length]) {
+        const chars = [...word];
+        for (const char of chars) {
+          this.answerCharacters.add(char);
+        }
+        const firstKey = `${length}|${chars[0]}`;
+        const firstWords =
+          this.answerWordFirstIndex.get(firstKey) ?? [];
+        firstWords.push(word);
+        this.answerWordFirstIndex.set(
+          firstKey,
+          firstWords,
+        );
+        for (const char of new Set(chars)) {
+          const charWords =
+            this.answerWordCharIndex.get(char) ?? [];
+          charWords.push(word);
+          this.answerWordCharIndex.set(
+            char,
+            charWords,
+          );
+        }
+      }
+    }
+  }
+
+  private answerWordsByFirst(
+    length: number,
+    firstChars: Iterable<string>,
+    fallbackWords: readonly string[],
+  ): Set<string> {
+    const words = new Set<string>();
+    if (this.wordAnswers) {
+      for (const first of firstChars) {
+        for (const word of
+          this.answerWordFirstIndex.get(
+            `${length}|${first}`,
+          ) ?? []) {
+          words.add(word);
+        }
+      }
+      return words;
+    }
+    const firstSet = new Set(firstChars);
+    for (const word of fallbackWords) {
+      if (firstSet.has([...word][0])) {
+        words.add(word);
+      }
+    }
+    return words;
+  }
+
+  private answerWordsContaining(
+    length: number,
+    chars: Iterable<string>,
+    fallbackWords: readonly string[],
+  ): Set<string> {
+    const words = new Set<string>();
+    if (this.wordAnswers) {
+      for (const char of chars) {
+        for (const word of
+          this.answerWordCharIndex.get(char) ?? []) {
+          if ([...word].length === length) {
+            words.add(word);
+          }
+        }
+      }
+      return words;
+    }
+    const charSet = new Set(chars);
+    for (const word of fallbackWords) {
+      if (
+        [...word].some((char) => charSet.has(char))
+      ) {
+        words.add(word);
+      }
+    }
+    return words;
   }
 
   private buildTraditionalChoices(): void {
@@ -2645,6 +3065,12 @@ export class TrialSession {
     ) {
       return this.pickAssonanceNormalChoice();
     }
+    if (
+      this.activeRule().policy.prompt.normal.mode ===
+      "dissonance-components"
+    ) {
+      return this.pickDissonanceNormalChoice();
+    }
     const plannedLength =
       this.state.partLengthPlan[
         this.state.questionInStage - 1
@@ -2962,13 +3388,65 @@ export class TrialSession {
     );
   }
 
+  private pickDissonanceNormalChoice(): TrialChoice {
+    if (!this.assonance || this.assonance.normal.length === 0) {
+      throw new Error(
+        "Dissonance question data is not loaded.",
+      );
+    }
+    for (let attempt = 0; attempt < 256; attempt += 1) {
+      const picked = this.pickCompositionEntry(
+        this.assonance.normal,
+        [2],
+      );
+      if (!picked) {
+        break;
+      }
+      const cards = this.dissonanceCards(picked.recipe);
+      if (cards.length === 0) {
+        continue;
+      }
+      const acceptedWords = this.dissonanceAcceptedWords(
+        cards,
+        [2],
+      );
+      if (
+        !acceptedWords.includes(picked.entry.word)
+      ) {
+        continue;
+      }
+      for (const char of picked.entry.word) {
+        this.usedStageChars.add(char);
+      }
+      this.usedStageBags.add(
+        `dissonance:${picked.entry.word}`,
+      );
+      return {
+        char: picked.entry.word,
+        ways: [picked.recipe.flat()],
+        dissonance: {
+          word: picked.entry.word,
+          recipes: [picked.recipe],
+          acceptedWords,
+        },
+      };
+    }
+    throw new Error(
+      "Unable to generate a dissonance question.",
+    );
+  }
+
   private questionFor(
     choice: TrialChoice,
   ): TrialQuestionState {
     const answerWay = [...choice.ways[0]];
     const displayWay = choice.displayWay ?? answerWay;
     const displayCards =
-      choice.assonance
+      choice.dissonance
+        ? this.dissonanceCards(
+            choice.dissonance.recipes[0],
+          )
+        : choice.assonance
         ? this.assonanceCards(
             choice.assonance.recipes[0],
           )
@@ -3014,6 +3492,8 @@ export class TrialSession {
       repetendUses,
       accepted: choice.displayChar
         ? [choice.char]
+        : choice.dissonance
+          ? choice.dissonance.acceptedWords
         : choice.assonance
           ? choice.assonance.acceptedWords
         : choice.composition
@@ -3201,6 +3681,13 @@ export class TrialSession {
       "assonance-components"
     ) {
       this.startAssonanceBoss(rule);
+      return;
+    }
+    if (
+      rule.policy.prompt.boss.mode ===
+      "dissonance-components"
+    ) {
+      this.startDissonanceBoss(rule);
       return;
     }
     const combinations =
@@ -3631,6 +4118,98 @@ export class TrialSession {
     );
     expectedAnswers.forEach((char, index) => {
       this.recordEncounter(char, picked.recipe[index]);
+    });
+    this.startTimer();
+    this.emit();
+  }
+
+  private startDissonanceBoss(
+    rule: TrialRuleDefinition,
+  ): void {
+    if (!this.assonance || this.assonance.boss.length === 0) {
+      throw new Error(
+        "Dissonance boss data is not loaded.",
+      );
+    }
+    let picked:
+      | {
+          entry: CompositionWordEntry;
+          recipe: number[][];
+        }
+      | null = null;
+    let cards: TrialCard[] = [];
+    for (let attempt = 0; attempt < 256; attempt += 1) {
+      picked = this.pickCompositionEntry(
+        this.assonance.boss,
+        [3, 4],
+      );
+      if (!picked) {
+        break;
+      }
+      cards = this.dissonanceCards(picked.recipe);
+      if (cards.length > 0) {
+        break;
+      }
+    }
+    if (
+      !picked ||
+      cards.length === 0
+    ) {
+      throw new Error(
+        "Unable to generate a dissonance boss.",
+      );
+    }
+    const acceptedWords = this.dissonanceAcceptedWords(
+      cards,
+      [3, 4],
+    );
+    if (!acceptedWords.includes(picked.entry.word)) {
+      throw new Error(
+        "Dissonance boss cards do not resolve to the selected word.",
+      );
+    }
+    const expectedAnswers = [...picked.entry.word];
+    for (const char of expectedAnswers) {
+      this.usedStageChars.add(char);
+    }
+    this.usedStageBags.add(
+      `dissonance:${picked.entry.word}`,
+    );
+    this.state.phase = "boss";
+    this.state.questionInStage =
+      TRIAL_QUESTIONS_PER_STAGE + 1;
+    this.state.current = null;
+    this.state.boss = {
+      cards,
+      initialCards: cards.map((card) => ({ ...card })),
+      expectedAnswers,
+      expectedDisplayChars: [...expectedAnswers],
+      expectedPinyin: expectedAnswers.map((char) =>
+        displayPinyinFor(this.pinyin, char),
+      ),
+      expectedWays: picked.recipe.map((way) => [...way]),
+      displayWays: picked.recipe.map((way) => [...way]),
+      expandedComponents: [],
+      acceptedWords,
+      pendingAnswers: [],
+      pendingSubmissions: [],
+      pendingAnswer: "",
+      pendingCardIds: [],
+      consumedCardIds: [],
+      submissionCount: 0,
+    };
+    this.state.revealing = false;
+    this.state.feedback = "";
+    this.state.draft = "";
+    this.state.revealAnswer = "";
+    this.state.revealPinyin = [];
+    this.state.revealMeta = "BOSS";
+    this.setQuestionTiming(
+      TRIAL_BOSS_SECONDS,
+      rule.timing.bossMultiplier,
+    );
+    expectedAnswers.forEach((char, index) => {
+      this.recordEncounter(char, picked!.recipe[index]);
     });
     this.startTimer();
     this.emit();
@@ -4345,12 +4924,20 @@ export class TrialSession {
       return;
     }
     const assignment =
-      this.assignCompositionBossPrefix(
-        boss.cards,
-        newChars,
-        [...currentPrefix].length,
-        matchingWords,
-      );
+      this.activeRule().policy.prompt.boss.mode ===
+      "dissonance-components"
+        ? this.assignDissonanceBossPrefix(
+            boss.cards,
+            newChars,
+            [...currentPrefix].length,
+            matchingWords,
+          )
+        : this.assignCompositionBossPrefix(
+            boss.cards,
+            newChars,
+            [...currentPrefix].length,
+            matchingWords,
+          );
     if (!assignment) {
       this.state.feedback = "wrong";
       this.emit();
@@ -4648,14 +5235,88 @@ export class TrialSession {
     return search(0, cards);
   }
 
+  private assignDissonanceBossPrefix(
+    cards: TrialCard[],
+    newChars: string[],
+    prefixLength: number,
+    matchingWords: string[],
+  ): TrialBossAssignment | null {
+    if (!this.state.boss) {
+      return null;
+    }
+    for (const word of matchingWords) {
+      const assignment = this.dissonanceGroupAssignment(
+        word,
+        this.state.boss.initialCards,
+      );
+      if (!assignment) {
+        continue;
+      }
+      let remainingCards = cards;
+      const submissions: TrialBossSubmission[] = [];
+      let valid = true;
+      for (
+        let index = 0;
+        index < newChars.length;
+        index += 1
+      ) {
+        const group = assignment[prefixLength + index];
+        if (group === undefined) {
+          valid = false;
+          break;
+        }
+        if (group < 0) {
+          submissions.push({
+            answer: newChars[index],
+            cardIds: [],
+            componentUses: [],
+          });
+          continue;
+        }
+        const groupCards = remainingCards.filter(
+          (card) => card.groupColor === group,
+        );
+        if (groupCards.length === 0) {
+          valid = false;
+          break;
+        }
+        const uses = groupCards.map((card) => ({
+          cardUid: card.uid,
+          symbolId: card.symbolId,
+        }));
+        remainingCards = this.consumeBossComponentUses(
+          remainingCards,
+          uses,
+        );
+        submissions.push({
+          answer: newChars[index],
+          cardIds: groupCards.map((card) => card.uid),
+          componentUses: uses,
+        });
+      }
+      if (valid) {
+        return {
+          remainingCards,
+          submissions,
+        };
+      }
+    }
+    return null;
+  }
+
   private wordCanUseCardsForRule(
     word: string,
     cards: TrialCard[],
   ): boolean {
-    return this.activeRule().policy.prompt.boss.mode ===
-      "assonance-components"
-      ? this.assonanceWordCanUseCards(word, cards)
-      : this.wordCanUseCards(word, cards);
+    const mode =
+      this.activeRule().policy.prompt.boss.mode;
+    if (mode === "assonance-components") {
+      return this.assonanceWordCanUseCards(word, cards);
+    }
+    if (mode === "dissonance-components") {
+      return this.dissonanceWordCanUseCards(word, cards);
+    }
+    return this.wordCanUseCards(word, cards);
   }
 
   private assignGestaltBossAnswers(

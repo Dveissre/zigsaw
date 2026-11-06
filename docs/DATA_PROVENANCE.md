@@ -14,6 +14,12 @@ Web 版只复制游戏运行时需要的成品 JSON，不复制原始素材或�
 | `docs/component-usage.csv` | 从 `component-usage.json` 导出 | 可直接查看的部件使用次数表 |
 | `docs/component-glyph-priority.csv` | `C:\Projects\Python\char_components\component_glyph_priority.csv` | 多字符 sym 名的补字优先级 |
 | `docs/component-glyph-priority-missing.csv` | 本地根据 `component-assets.json` 导出 | 尚未配置 SVG 的补齐清单 |
+| `data-source/wordlists/words_2to4.txt` | 用户维护 | 构词法、半韵法、失韵法的出题词表 |
+| `data-source/wordlists/common_word.txt` | 用户维护 | 三种词语规则的扩展答案词表 |
+| `data-source/wordlists/hanzi_pinyin12.json` | 用户维护 | 指差确认的拼音源数据 |
+| `data-source/wordlists/tongyong12_trad.json` | 用户维护 | 三秋树的繁简映射源数据 |
+| `public/data/hanzi_pinyin12.json` | `data-source/wordlists/hanzi_pinyin12.json` | 运行时拼音副本 |
+| `public/data/tongyong12_trad.json` | `data-source/wordlists/tongyong12_trad.json` | 运行时繁简映射副本 |
 
 数据按原文件逐字节复制。更新数据时应从对应的成品文件重新复制，并重新运行 `npm test`。
 
@@ -29,6 +35,9 @@ sym 自动回退到 `char_sym.json` 中的文字名称。
 都会先执行该命令，因此拆字表更新后只需重新启动开发服务或重新构建，统计会自动更新。
 统计范围为《通用规范汉字表》全部 8105 字，每套拆分方式分别计入；重复部件
 在一次拆分中出现两次，也按两次计。
+
+拼音库与繁简映射由 `npm run sync:wordlists` 原样复制到 `public/data/`。
+`npm run dev` 和 `npm run build` 都会先运行该同步步骤。
 
 `component-atlas.json` 与 `component-atlas/*.json` 由
 `npm run build:atlas` 生成，并在开发和构建前自动更新。首屏摘要与部件汉字列表

@@ -67,6 +67,10 @@ import {
   loadAssonanceData,
   type AssonanceData,
 } from "./game/assonance";
+import {
+  loadWordAnswerData,
+  type WordAnswerData,
+} from "./game/word-answers";
 import { ATLAS_TRIGGER_MARKUP } from "./ui/atlas";
 import { CharDetailView } from "./ui/char-detail";
 import {
@@ -126,6 +130,7 @@ let traditionalData: TraditionalData | null = null;
 let gestaltData: GestaltData | null = null;
 let compositionData: CompositionData | null = null;
 let assonanceData: AssonanceData | null = null;
+let wordAnswerData: WordAnswerData | null = null;
 let startupError = "";
 let session: GameSession | null = null;
 let trialSession: TrialSession | null = null;
@@ -2208,6 +2213,7 @@ interface TrialPartCardModel {
   components?: number[];
   quantity?: number;
   remainingQuantity?: number;
+  groupColor?: number;
   displayGlyph?: string;
   displayMode?: TrialCard["displayMode"];
   consumed?: boolean;
@@ -2229,6 +2235,10 @@ function trialPartCardsMarkup(
       Boolean(card.displayGlyph);
     const wildcard = card.displayMode === "wildcard";
     const quantity = card.displayMode === "quantity";
+    const coloredGroup =
+      card.groupColor === undefined
+        ? ""
+        : `is-dissonance-group is-group-${card.groupColor + 1}`;
     const quantityVisible = quantity && !concealQuantityCards;
     const quantityLabel =
       quantityVisible && !hideQuantityLabels
@@ -2284,6 +2294,7 @@ function trialPartCardsMarkup(
       overlay,
       quantity: quantityVisible,
       quantityLabel,
+              coloredGroup,
     };
   });
   const cardAngles = [-0.8, 0.9, -0.35, 1.15, -1.05, 0.45];
@@ -2295,7 +2306,7 @@ function trialPartCardsMarkup(
         `<div class="part-row">${row
           .map(
             (part) =>
-              `<span class="part-card ${part.prefabricated ? "is-prefabricated" : ""} ${part.wildcard ? "is-wildcard" : ""} ${part.overlay ? "is-overlay" : ""} ${part.quantity ? "is-quantity" : ""} ${part.partiallyConsumed ? "is-partially-consumed" : ""} ${part.consumed ? "is-consumed" : ""} ${part.animateConsumed ? "is-consumed-new" : ""} ${part.obscured ? "is-obscured" : ""} ${part.animateObscured ? "is-obscuring" : ""}" data-card-uid="${part.uid}" data-card-source="${part.source ?? "answer"}" ${part.obscured ? 'aria-label="已遮挡部件" aria-disabled="true"' : part.wildcard ? 'data-card-display="wildcard" aria-label="通配部件"' : part.overlay ? 'data-card-display="overlay" aria-label="叠印部件"' : part.quantity ? `data-card-display="quantity" aria-label="复沓部件 ${escapeHtml(data!.component(part.symbolId).name)}${part.quantityLabel ? ` ${part.quantityLabel}` : ""}"` : part.prefabricated ? `data-card-display="prefabricated" aria-label="预组汉字 ${escapeHtml(part.displayGlyph!)}"` : `data-symbol-id="${part.symbolId}"`} ${part.consumed ? 'aria-hidden="true"' : ""} style="--card-index:${cardIndex};--card-angle:${cardAngles[cardIndex % cardAngles.length]}deg;--card-offset:${cardOffsets[cardIndex++ % cardOffsets.length]}px">${
+              `<span class="part-card ${part.prefabricated ? "is-prefabricated" : ""} ${part.wildcard ? "is-wildcard" : ""} ${part.overlay ? "is-overlay" : ""} ${part.quantity ? "is-quantity" : ""} ${part.coloredGroup} ${part.partiallyConsumed ? "is-partially-consumed" : ""} ${part.consumed ? "is-consumed" : ""} ${part.animateConsumed ? "is-consumed-new" : ""} ${part.obscured ? "is-obscured" : ""} ${part.animateObscured ? "is-obscuring" : ""}" data-card-uid="${part.uid}" data-card-source="${part.source ?? "answer"}" ${part.groupColor === undefined ? "" : `data-card-group="${part.groupColor}"`} ${part.obscured ? 'aria-label="已遮挡部件" aria-disabled="true"' : part.wildcard ? 'data-card-display="wildcard" aria-label="通配部件"' : part.overlay ? 'data-card-display="overlay" aria-label="叠印部件"' : part.quantity ? `data-card-display="quantity" aria-label="复沓部件 ${escapeHtml(data!.component(part.symbolId).name)}${part.quantityLabel ? ` ${part.quantityLabel}` : ""}"` : part.prefabricated ? `data-card-display="prefabricated" aria-label="预组汉字 ${escapeHtml(part.displayGlyph!)}"` : `data-symbol-id="${part.symbolId}"`} ${part.consumed ? 'aria-hidden="true"' : ""} style="--card-index:${cardIndex};--card-angle:${cardAngles[cardIndex % cardAngles.length]}deg;--card-offset:${cardOffsets[cardIndex++ % cardOffsets.length]}px">${
                 part.obscured && !part.animateObscured
                   ? ""
                   : `<span class="part ${part.long ? "is-long" : ""} ${part.isEnclosedFrame ? "is-enclosed-frame" : ""} ${part.prefabricated ? "is-prefabricated" : ""} ${part.overlay ? "is-overlay" : ""}">${part.html}</span>${part.quantity && part.quantityLabel ? `<span class="trial-quantity-badge" aria-hidden="true">${part.quantityLabel}</span>` : ""}`
@@ -2606,12 +2617,23 @@ function renderTrialStageIntro(trial: TrialSession): void {
             "assonance-components" ||
           rule?.policy.prompt.boss.mode ===
             "assonance-components";
+        const needsDissonance =
+          rule?.policy.prompt.normal.mode ===
+            "dissonance-components" ||
+          rule?.policy.prompt.boss.mode ===
+            "dissonance-components";
+        const needsWordAnswers =
+          needsComposition ||
+          needsAssonance ||
+          needsDissonance;
         if (
           needsPinyin ||
           needsTraditional ||
           needsGestalt ||
           needsComposition ||
-          needsAssonance
+          needsAssonance ||
+          needsDissonance ||
+          needsWordAnswers
         ) {
           select.disabled = true;
           const beginButton =
@@ -2642,10 +2664,15 @@ function renderTrialStageIntro(trial: TrialSession): void {
                 await loadCompositionData(appBaseUrl);
               trial.setCompositionData(compositionData);
             }
-            if (needsAssonance) {
+            if (needsAssonance || needsDissonance) {
               assonanceData ??=
                 await loadAssonanceData(appBaseUrl);
               trial.setAssonanceData(assonanceData);
+            }
+            if (needsWordAnswers) {
+              wordAnswerData ??=
+                await loadWordAnswerData(appBaseUrl);
+              trial.setWordAnswerData(wordAnswerData);
             }
           } catch {
             select.value = trial.state.forcedRuleId ?? "";
@@ -2669,7 +2696,8 @@ function renderTrialGame(trial: TrialSession): void {
   const isWordNormal =
     !isBoss &&
     (state.ruleId === "composition" ||
-      state.ruleId === "assonance");
+      state.ruleId === "assonance" ||
+      state.ruleId === "dissonance");
   const orderedBossAnswers = (() => {
     if (!isBoss || !state.boss) {
       return [];
@@ -2809,6 +2837,7 @@ function renderTrialGame(trial: TrialSession): void {
           remainingQuantity:
             current?.remainingQuantity ??
             card.remainingQuantity,
+          groupColor: card.groupColor,
           displayGlyph: card.displayGlyph,
           displayMode: card.displayMode,
           consumed:
@@ -2833,6 +2862,7 @@ function renderTrialGame(trial: TrialSession): void {
         components: card.components,
         quantity: card.quantity,
         remainingQuantity: card.remainingQuantity,
+        groupColor: card.groupColor,
         displayGlyph: card.displayGlyph,
         displayMode: card.displayMode,
         obscured: !state.revealing && card.obscured,
@@ -2901,7 +2931,8 @@ function renderTrialGame(trial: TrialSession): void {
               cardModels,
               isBoss && cardModels.length === 4,
               !isBoss && state.ruleId === "repetend",
-              state.ruleId === "assonance",
+              state.ruleId === "assonance" ||
+                state.ruleId === "dissonance",
             )}
           </div>
 
@@ -3043,7 +3074,8 @@ function trialReviewCardMarkup(
   const detail = item.answerDetails[detailIndex];
   const isWordItem =
     item.ruleId === "composition" ||
-    item.ruleId === "assonance";
+    item.ruleId === "assonance" ||
+    item.ruleId === "dissonance";
   const char = isWordItem
     ? item.answerDetails.map((answer) => answer.char).join("")
     : detail?.char ?? item.answer;
@@ -3107,10 +3139,10 @@ function trialReviewCardMarkup(
     .join(" ");
   const showIndex = item.kind !== "boss" || detailIndex === 0;
   return `
-    <li class="review-card trial-review-card ${themeClass} ${isCompositionWord ? "is-composition-word" : ""}" style="--review-index:${index}" ${isCompositionWord ? `aria-label="词语 ${escapeHtml(char)}"` : `data-review-char="${escapeHtml(char)}" role="button" tabindex="0" aria-label="查看「${escapeHtml(char)}」的释义"`}>
+    <li class="review-card trial-review-card ${themeClass} ${isCompositionWord ? `is-composition-word is-word-${[...char].length}` : ""}" style="--review-index:${index}" ${isCompositionWord ? `aria-label="词语 ${escapeHtml(char)}"` : `data-review-char="${escapeHtml(char)}" role="button" tabindex="0" aria-label="查看「${escapeHtml(char)}」的释义"`}>
       ${showIndex ? `<span class="review-index" aria-hidden="true">${String(slot).padStart(2, "0")}</span>` : ""}
       <span class="review-result ${item.ok ? "is-correct" : "is-wrong"}" aria-label="${item.ok ? "正确" : "错误"}"></span>
-      <div class="review-answer ${pinyin ? "has-pinyin" : ""} ${isTraditionalPair ? "is-traditional-pair" : ""} ${isCompositionWord ? "is-composition-word" : ""}">
+      <div class="review-answer ${pinyin ? "has-pinyin" : ""} ${isTraditionalPair ? "is-traditional-pair" : ""} ${isCompositionWord ? `is-composition-word is-word-${[...char].length}` : ""}">
         ${pinyin ? `<small class="review-pinyin">${escapeHtml(pinyin)}</small>` : ""}
         ${
           isCompositionWord
@@ -3185,7 +3217,8 @@ function renderTrialResults(trial: TrialSession): void {
               .flatMap((item) => {
                 const detailCount =
                   (item.ruleId === "composition" ||
-                    item.ruleId === "assonance")
+                    item.ruleId === "assonance" ||
+                    item.ruleId === "dissonance")
                     ? 1
                     : Math.max(
                         1,
@@ -3426,6 +3459,7 @@ function startTrial(settings: GameSettings): void {
     gestaltData,
     compositionData,
     assonanceData,
+    wordAnswerData,
   );
   renderTrialStageIntro(trialSession);
 }

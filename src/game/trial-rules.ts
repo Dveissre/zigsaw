@@ -3,6 +3,7 @@ import type { Level } from "./data";
 export type TrialRulePromptMode =
   | "answer-components"
   | "assonance-components"
+  | "dissonance-components"
   | "displayed-cards"
   | "gestalt-components"
   | "overlay-components"
@@ -221,6 +222,7 @@ function validatePolicy(
       ![
         "answer-components",
         "assonance-components",
+        "dissonance-components",
         "displayed-cards",
         "gestalt-components",
         "overlay-components",

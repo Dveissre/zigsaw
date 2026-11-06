@@ -20,7 +20,8 @@
 - 当前运行时规则包含 `unrestricted`、`tetrarchy`、`presto`、
   `reschedule`、`inspissation`、`byland-water`、`byland-herb`、
   `byland-mount`、`byland-people`、`byland-speech`、`nuncupation`、
-  `abscission`、`reductionism`、`prefabrication`、`composition`、`assonance`、`wildcard`、
+  `abscission`、`reductionism`、`prefabrication`、`composition`、`assonance`、
+  `dissonance`、`wildcard`、
   `polydactyly`、`selcouth`、`gestalt`、`repetend`、`minimalism`、`myopia`、
   `compages`、`aphantasia`。
 
@@ -220,6 +221,7 @@ answerDetails[]
 | `outland-speech` | 厄境：断声讯 | 2 | 口、讠、耳系附着干扰 |
 | `hallraum` | 回声室 | 3 | 跨题继承并遮挡一个部件 |
 | `assonance` | 半韵法 | 3 | 已实现：隐藏复沓标识的词组题 |
+| `dissonance` | 失韵法 | 3 | 已实现：移除复沓卡，按来源字着色 |
 | `fugue` | 赋格曲 | 2 | 双题槽并行计时与补题；BOSS 为两份双字题 |
 
 ### 奇境与厄境英文名
@@ -451,7 +453,8 @@ answerDetails[]
 
 ### 构词法 / Composition / 2 星
 
-- 状态：已实现；词池来自 [words_2to4.txt](words_2to4.txt)，运行数据位于
+- 状态：已实现；词池来自
+  [words_2to4.txt](../data-source/wordlists/words_2to4.txt)，运行数据位于
   `public/data/composition-words.json`。
 - 公开说明：道中关卡用 4 张卡组成一个二字词；守幕关卡用 6–8 张卡组成三字词
   或四字词。允许一部件字作为单张卡出现。
@@ -466,9 +469,13 @@ answerDetails[]
 - 普通题与 BOSS 分别建立候选词池，并分别在各自池内统计汉字出现次数。词的
   选择权重为 `1 / 词内各字在所属候选池中出现次数的几何平均数`。池内高频字
   越多，词权重越低。
-- 当前词池：普通题 3531 个词，BOSS 6252 个词（三字 3866、四字 2386）。
+- 当前词池：普通题 7538 个词，BOSS 6351 个词（三字 3947、四字 2404）。
 - 判题兼容层可能引入直接词池之外的别名；这些别名只参与接受与分歧，不需要
   各自进入生成池。
+- 判题额外加载
+  [common_word.txt](../data-source/wordlists/common_word.txt) 生成的
+  `public/data/word-answers.json`。扩展词只参与构词法、半韵法、失韵法的
+  答案检查，不进入任何题目生成池。
 
 ### 复沓 / Repetend / 2 星
 
@@ -511,7 +518,31 @@ answerDetails[]
   一张单独显示的同名卡可以表示普通单卡，也可以表示至少两份的跨字复沓。
 - 词权按普通题候选池和 BOSS 候选池分别统计字频，再取词内字频几何平均数的
   倒数。
-- 当前池：普通题 958 词，BOSS 708 词（三字 198、四字 510）。
+- 当前池：普通题 2220 词，BOSS 722 词（三字 206、四字 516）。
+- 答案检查同时查询扩展词库；例如半韵法或失韵法题面允许时，未进入生成池的
+  常用词也可提交。
+
+### 失韵法 / Dissonance / 3 星
+
+- 状态：已实现；与半韵法共用 `public/data/assonance-words.json`。
+- 公开说明：跨字复沓卡完全隐藏；剩余部件按所属汉字分组，以不同颜色显示。
+  普通题为两种颜色，守幕关卡按三字或四字词显示三至四种颜色。
+- 只在单字内重复、未跨字的部件仍逐张显示，并沿用该字的颜色。
+- 颜色组只表示“来自同一个字”，不表示词语中的先后顺序。不同颜色使用同一
+  套视觉权重：浅底、深字、独立描边与角点，不套用稀有度色。
+- 当前色组：朱红、靛蓝、橄榄、银灰。均避开 N/R/SR/SSR/UR/XR 的现有主色，
+  并与预制件的黄色、通配符的黑色 Cris 标识区分。统一调色板见
+  [palette.md](palette.md)。
+- 判题从候选词的兼容层拆法重新执行同一删除与分组流程，再忽略颜色标签顺序
+  比较分组多重结构；因此同结构的其他合法词也接受。
+- 允许一个或多个来源字的组件被完全消去；整题至少保留 1 张可见卡。无空组时
+  按朱红、靛蓝、橄榄、银灰分配；有空组时按靛蓝、朱红、橄榄、银灰优先取色。
+- 词权沿用半韵法对应候选池。
+- 半韵法的 2220 个普通题词和 722 个 BOSS 词都至少保留一张可见卡，因此均可
+  进入失韵法生成池。普通题仅 41 条拆法只剩 1 个颜色组；BOSS 可按实际消去
+  情况形成 1–4 个颜色组。
+- 判题查询扩展词库，因此同卡组的 `混沌` / `馄饨` 都会被接受；`混沌` 不是
+  生成池词，不影响难度和抽题分布。
 
 ### 赋格曲 / Fugue / 2 星
 
@@ -657,7 +688,8 @@ answerDetails[]
 
 ### 词语
 
-- 构词法直接采用 [words_2to4.txt](words_2to4.txt) 的完整词表；之后调整收录
+- 构词法直接采用
+  [words_2to4.txt](../data-source/wordlists/words_2to4.txt) 的完整词表；调整收录
   边界时应重新生成 `public/data/composition-words.json`。
 - 半韵法已从同一词表生成独立池，并固定跨字复沓压缩和隐藏显示规则。
 

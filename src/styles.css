@@ -38,6 +38,22 @@
   --level3-blue: #527787;
   --level3-pale: #dde9ee;
   --level3-ink: #263940;
+  --dissonance-red: #9d503f;
+  --dissonance-red-pale: #f8ebe7;
+  --dissonance-red-ink: #4f211a;
+  --dissonance-red-shadow: #ead8d2;
+  --dissonance-blue: #4f6598;
+  --dissonance-blue-pale: #edf0f8;
+  --dissonance-blue-ink: #273757;
+  --dissonance-blue-shadow: #d8dfec;
+  --dissonance-olive: #747733;
+  --dissonance-olive-pale: #f4f3e8;
+  --dissonance-olive-ink: #3b3e17;
+  --dissonance-olive-shadow: #e2e0cd;
+  --dissonance-silver: #7f8589;
+  --dissonance-silver-pale: #f2f3f4;
+  --dissonance-silver-ink: #34383a;
+  --dissonance-silver-shadow: #d9dcde;
   --hard-shadow: #d6d1c5;
   --display-font-family:
     "Zigsaw Component Serif",
@@ -1659,6 +1675,45 @@ input:focus-visible {
   box-shadow: 3px 3px 0 #c8d9d6;
 }
 
+.part-card.is-dissonance-group {
+  border-color: var(--dissonance-accent);
+  color: var(--dissonance-ink);
+  background-color: var(--dissonance-fill);
+  box-shadow: 3px 3px 0 var(--dissonance-shadow);
+}
+
+.part-card.is-dissonance-group::after {
+  background: var(--dissonance-accent);
+}
+
+.part-card.is-group-1 {
+  --dissonance-accent: var(--dissonance-red);
+  --dissonance-ink: var(--dissonance-red-ink);
+  --dissonance-fill: var(--dissonance-red-pale);
+  --dissonance-shadow: var(--dissonance-red-shadow);
+}
+
+.part-card.is-group-2 {
+  --dissonance-accent: var(--dissonance-blue);
+  --dissonance-ink: var(--dissonance-blue-ink);
+  --dissonance-fill: var(--dissonance-blue-pale);
+  --dissonance-shadow: var(--dissonance-blue-shadow);
+}
+
+.part-card.is-group-3 {
+  --dissonance-accent: var(--dissonance-olive);
+  --dissonance-ink: var(--dissonance-olive-ink);
+  --dissonance-fill: var(--dissonance-olive-pale);
+  --dissonance-shadow: var(--dissonance-olive-shadow);
+}
+
+.part-card.is-group-4 {
+  --dissonance-accent: var(--dissonance-silver);
+  --dissonance-ink: var(--dissonance-silver-ink);
+  --dissonance-fill: var(--dissonance-silver-pale);
+  --dissonance-shadow: var(--dissonance-silver-shadow);
+}
+
 .part-card.is-overlay::after,
 .part-card.is-quantity::after {
   background: #356767;
@@ -3118,6 +3173,11 @@ input:focus-visible {
 }
 
 .trial-review-list
+  .review-answer.is-composition-word.is-word-4 {
+  margin-top: calc(var(--trial-card-size) * 0.115);
+}
+
+.trial-review-list
   .review-answer.is-composition-word
   > .trial-review-word-chars {
   display: flex;
@@ -3138,9 +3198,7 @@ input:focus-visible {
   > .trial-review-word-chars.is-four {
   display: grid;
   grid-template-columns: repeat(2, auto);
-  gap:
-    calc(var(--trial-card-size) * 0.015)
-    calc(var(--trial-card-size) * 0.045);
+  gap: calc(var(--trial-card-size) * 0.015);
 }
 
 .trial-review-word-char {
@@ -4300,6 +4358,13 @@ input:focus-visible {
     .review-answer {
     height: auto;
     margin-top: calc(var(--trial-card-size) * 0.24);
+  }
+
+  .review-card.trial-review-card.is-word-4:hover
+    .review-answer,
+  .review-card.trial-review-card.is-word-4:focus-within
+    .review-answer {
+    margin-top: calc(var(--trial-card-size) * 0.115);
   }
 
   .review-card.trial-review-card.is-composition-word:hover

@@ -66,6 +66,13 @@ type AssonanceWordsTable = Omit<
   format: "zigsaw-assonance-words/1";
 };
 
+type WordAnswersTable = {
+  format: string;
+  sourceHash: string;
+  symbolsHash: string;
+  words: Record<"2" | "3" | "4", string[]>;
+};
+
 type CharDetailTable = Array<{
   char: string;
   pronunciations: Array<{
@@ -135,6 +142,31 @@ const readJson = <T>(path: string): T =>
   JSON.parse(readFileSync(resolve(process.cwd(), path), "utf8")) as T;
 
 describe("static game data", () => {
+  it("keeps copied lexicon assets synchronized with their sources", () => {
+    for (const name of [
+      "hanzi_pinyin12.json",
+      "tongyong12_trad.json",
+    ]) {
+      expect(
+        readFileSync(
+          resolve(
+            process.cwd(),
+            "public/data",
+            name,
+          ),
+        ),
+      ).toEqual(
+        readFileSync(
+          resolve(
+            process.cwd(),
+            "data-source/wordlists",
+            name,
+          ),
+        ),
+      );
+    }
+  });
+
   it("keeps the generated composition pool synchronized with words and decompositions", () => {
     const composition = readJson<CompositionWordsTable>(
       "public/data/composition-words.json",
@@ -146,7 +178,10 @@ describe("static game data", () => {
       createHash("sha256")
         .update(
           readFileSync(
-            resolve(process.cwd(), "docs/words_2to4.txt"),
+            resolve(
+              process.cwd(),
+              "data-source/wordlists/words_2to4.txt",
+            ),
           ),
         )
         .digest("hex"),
@@ -172,11 +207,11 @@ describe("static game data", () => {
         )
         .digest("hex"),
     );
-    expect(composition.normal).toHaveLength(3531);
-    expect(composition.boss).toHaveLength(6252);
-    expect(composition.words["2"]).toHaveLength(16735);
-    expect(composition.words["3"]).toHaveLength(6731);
-    expect(composition.words["4"]).toHaveLength(8278);
+    expect(composition.normal).toHaveLength(7538);
+    expect(composition.boss).toHaveLength(6351);
+    expect(composition.words["2"]).toHaveLength(36947);
+    expect(composition.words["3"]).toHaveLength(6858);
+    expect(composition.words["4"]).toHaveLength(8341);
     expect(
       composition.normal.every(
         (entry) =>
@@ -245,7 +280,10 @@ describe("static game data", () => {
       createHash("sha256")
         .update(
           readFileSync(
-            resolve(process.cwd(), "docs/words_2to4.txt"),
+            resolve(
+              process.cwd(),
+              "data-source/wordlists/words_2to4.txt",
+            ),
           ),
         )
         .digest("hex"),
@@ -271,11 +309,11 @@ describe("static game data", () => {
         )
         .digest("hex"),
     );
-    expect(assonance.normal).toHaveLength(958);
-    expect(assonance.boss).toHaveLength(708);
-    expect(assonance.words["2"]).toHaveLength(16685);
-    expect(assonance.words["3"]).toHaveLength(6459);
-    expect(assonance.words["4"]).toHaveLength(7550);
+    expect(assonance.normal).toHaveLength(2220);
+    expect(assonance.boss).toHaveLength(722);
+    expect(assonance.words["2"]).toHaveLength(36717);
+    expect(assonance.words["3"]).toHaveLength(6586);
+    expect(assonance.words["4"]).toHaveLength(7603);
     for (const words of Object.values(assonance.words)) {
       expect(
         words.every(
@@ -336,6 +374,40 @@ describe("static game data", () => {
         }),
       ),
     ).toBe(true);
+  });
+
+  it("keeps the extended answer lexicon separate from question generation", () => {
+    const answers = readJson<WordAnswersTable>(
+      "public/data/word-answers.json",
+    );
+    expect(answers.format).toBe("zigsaw-word-answers/1");
+    expect(answers.sourceHash).toBe(
+      createHash("sha256")
+        .update(
+          readFileSync(
+            resolve(
+              process.cwd(),
+              "data-source/wordlists/common_word.txt",
+            ),
+          ),
+        )
+        .digest("hex"),
+    );
+    expect(answers.symbolsHash).toBe(
+      createHash("sha256")
+        .update(
+          readFileSync(
+            resolve(process.cwd(), "public/data/char_sym.json"),
+          ),
+        )
+        .digest("hex"),
+    );
+    expect(answers.words["2"]).toHaveLength(108685);
+    expect(answers.words["3"]).toHaveLength(11143);
+    expect(answers.words["4"]).toHaveLength(8384);
+    expect(answers.words["2"]).toEqual(
+      expect.arrayContaining(["日晕", "混沌", "馄饨"]),
+    );
   });
 
   it("keeps generated Gestalt pairs free of direct-answer and compatibility-only seeds", () => {

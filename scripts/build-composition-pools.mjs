@@ -9,8 +9,16 @@ import { fileURLToPath } from "node:url";
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 const dataDir = resolve(root, "public/data");
-const wordPath = resolve(root, "docs/words_2to4.txt");
+const wordPath = resolve(
+  root,
+  "data-source/wordlists/words_2to4.txt",
+);
+const commonWordPath = resolve(
+  root,
+  "data-source/wordlists/common_word.txt",
+);
 const outputPath = resolve(dataDir, "composition-words.json");
+const answerWordsPath = resolve(dataDir, "word-answers.json");
 
 const readJson = (name) =>
   JSON.parse(readFileSync(resolve(dataDir, name), "utf8"));
@@ -23,6 +31,9 @@ const answerCompatibility = readJson(
 
 const sourceHash = createHash("sha256")
   .update(readFileSync(wordPath))
+  .digest("hex");
+const answerSourceHash = createHash("sha256")
+  .update(readFileSync(commonWordPath))
   .digest("hex");
 const symbolHash = createHash("sha256")
   .update(readFileSync(resolve(dataDir, "char_sym.json")))
@@ -254,6 +265,31 @@ const weightedAssonanceNormal = applyPoolWeights(
 const weightedAssonanceBoss = applyPoolWeights(
   mergeRecipes(assonanceBoss),
 );
+const answerWords = { 2: [], 3: [], 4: [] };
+const commonWords = [
+  ...new Set(
+    readFileSync(commonWordPath, "utf8")
+      .split(/\r?\n/)
+      .map((word) => word.trim())
+      .filter(Boolean),
+  ),
+];
+for (const word of commonWords) {
+  const chars = [...word];
+  if (
+    chars.length < 2 ||
+    chars.length > 4 ||
+    chars.some((char) => charWays(char).length === 0)
+  ) {
+    continue;
+  }
+  answerWords[chars.length].push(word);
+}
+for (const length of [2, 3, 4]) {
+  answerWords[length].sort((left, right) =>
+    left.localeCompare(right, "zh-CN"),
+  );
+}
 mkdirSync(dataDir, { recursive: true });
 writeFileSync(
   outputPath,
@@ -293,10 +329,27 @@ writeFileSync(
   )}\n`,
   "utf8",
 );
+writeFileSync(
+  answerWordsPath,
+  `${JSON.stringify(
+    {
+      format: "zigsaw-word-answers/1",
+      sourceHash: answerSourceHash,
+      symbolsHash: symbolHash,
+      words: answerWords,
+    },
+    null,
+    2,
+  )}\n`,
+  "utf8",
+);
 
 console.log(
   `composition: ${normal.length} normal words, ${boss.length} boss words`,
 );
 console.log(
   `assonance: ${weightedAssonanceNormal.length} normal words, ${weightedAssonanceBoss.length} boss words`,
+);
+console.log(
+  `answer words: ${answerWords[2].length} two-character, ${answerWords[3].length} three-character, ${answerWords[4].length} four-character`,
 );

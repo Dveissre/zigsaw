@@ -15,8 +15,8 @@
     "includeSupplementaryCharacters": true,
     "selectableCharacterRule": "任一拆法包含不可渲染部件时排除整字"
   },
-  "sourceHash": "ed9e99dc453350d73c19bcbdabb318c16b1793a71e084bf3f248fdb62ab4e2ac",
-  "answerCompatibilityHash": "6235fc3519b03e344673aafdb8c81c74023f586928155fcad3f333d92186c9d4",
+  "sourceHash": "e20de615eb0f2e8c4704b711c8a80e4101470db82058981a33b34c25677e6055",
+  "answerCompatibilityHash": "0bd39a997e3624df2e0b721bf22c10f429fe3df84572e59ef0f5a783b540a972",
   "eligible": {
     "characters": 6500,
     "decompositionWays": 7210
