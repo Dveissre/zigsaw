@@ -2,74 +2,80 @@
   "format": "zigsaw-component-usage/1",
   "source": "tongyong_hanzi.json + char_sym.json",
   "characterCount": 8105,
-  "decompositionCount": 9163,
-  "totalUsageCount": 31937,
+  "decompositionCount": 9269,
+  "totalUsageCount": 32415,
   "componentCount": 374,
   "symbols": [
     {
       "symbolId": 90,
       "name": "口",
-      "count": 1840,
+      "count": 1864,
       "charCount": 1506
     },
     {
       "symbolId": 1,
       "name": "一",
-      "count": 1221,
+      "count": 1233,
       "charCount": 1082
     },
     {
       "symbolId": 34,
       "name": "人",
-      "count": 920,
-      "charCount": 737
+      "count": 935,
+      "charCount": 744
     },
     {
       "symbolId": 140,
       "name": "木",
-      "count": 868,
+      "count": 873,
       "charCount": 736
     },
     {
       "symbolId": 157,
       "name": "日",
-      "count": 780,
+      "count": 782,
       "charCount": 674
     },
     {
       "symbolId": 46,
       "name": "亠",
-      "count": 681,
-      "charCount": 620
+      "count": 676,
+      "charCount": 616
     },
     {
       "symbolId": 153,
       "name": "艹",
-      "count": 605,
-      "charCount": 545
+      "count": 634,
+      "charCount": 568
     },
     {
       "symbolId": 73,
       "name": "土",
-      "count": 586,
+      "count": 592,
       "charCount": 488
     },
     {
       "symbolId": 211,
       "name": "氵",
-      "count": 572,
+      "count": 576,
       "charCount": 525
     },
     {
       "symbolId": 29,
       "name": "冂",
-      "count": 534,
-      "charCount": 476
+      "count": 558,
+      "charCount": 500
+    },
+    {
+      "symbolId": 5,
+      "name": "丶",
+      "count": 516,
+      "charCount": 403
     },
     {
       "symbolId": 49,
       "name": "丷",
-      "count": 493,
+      "count": 494,
       "charCount": 417
     },
     {
@@ -77,12 +83,6 @@
       "name": "十",
       "count": 482,
       "charCount": 378
-    },
-    {
-      "symbolId": 5,
-      "name": "丶",
-      "count": 460,
-      "charCount": 397
     },
     {
       "symbolId": 36,
@@ -93,8 +93,8 @@
     {
       "symbolId": 177,
       "name": "月",
-      "count": 441,
-      "charCount": 394
+      "count": 452,
+      "charCount": 400
     },
     {
       "symbolId": 109,
@@ -111,25 +111,25 @@
     {
       "symbolId": 61,
       "name": "又",
-      "count": 399,
+      "count": 401,
       "charCount": 332
     },
     {
       "symbolId": 35,
       "name": "亻",
-      "count": 392,
+      "count": 394,
       "charCount": 352
     },
     {
       "symbolId": 43,
       "name": "⺈",
-      "count": 369,
+      "count": 373,
       "charCount": 333
     },
     {
       "symbolId": 232,
       "name": "田",
-      "count": 349,
+      "count": 353,
       "charCount": 296
     },
     {
@@ -145,16 +145,23 @@
       "charCount": 287
     },
     {
+      "symbolId": 119,
+      "name": "女",
+      "count": 320,
+      "charCount": 267
+    },
+    {
       "symbolId": 21,
       "name": "匕",
-      "count": 321,
+      "count": 319,
       "charCount": 224
     },
     {
-      "symbolId": 119,
-      "name": "女",
-      "count": 319,
-      "charCount": 267
+      "symbolId": 420,
+      "name": "亽",
+      "count": 312,
+      "charCount": 147,
+      "asset": "component_svg/420.svg"
     },
     {
       "symbolId": 108,
@@ -163,36 +170,41 @@
       "charCount": 286
     },
     {
-      "symbolId": 420,
-      "name": "亽",
-      "count": 304,
-      "charCount": 147,
-      "asset": "component_svg/420.svg"
-    },
-    {
       "symbolId": 413,
       "name": "钅",
-      "count": 297,
+      "count": 300,
       "charCount": 272
     },
     {
       "symbolId": 131,
       "name": "王",
-      "count": 290,
-      "charCount": 260
+      "count": 291,
+      "charCount": 259
     },
     {
       "symbolId": 107,
       "name": "广",
-      "count": 277,
-      "charCount": 237
+      "count": 285,
+      "charCount": 243
     },
     {
       "symbolId": 44,
       "name": "勹",
-      "count": 269,
-      "charCount": 253,
+      "count": 267,
+      "charCount": 252,
       "asset": "component_svg/44.svg"
+    },
+    {
+      "symbolId": 125,
+      "name": "阝",
+      "count": 238,
+      "charCount": 202
+    },
+    {
+      "symbolId": 110,
+      "name": "尸",
+      "count": 237,
+      "charCount": 182
     },
     {
       "symbolId": 63,
@@ -201,33 +213,27 @@
       "charCount": 219
     },
     {
+      "symbolId": 92,
+      "name": "山",
+      "count": 232,
+      "charCount": 216
+    },
+    {
       "symbolId": 51,
       "name": "冖",
       "count": 231,
       "charCount": 227
     },
     {
-      "symbolId": 92,
-      "name": "山",
-      "count": 231,
-      "charCount": 216
-    },
-    {
-      "symbolId": 125,
-      "name": "阝",
-      "count": 231,
-      "charCount": 202
-    },
-    {
       "symbolId": 186,
       "name": "火",
-      "count": 226,
+      "count": 231,
       "charCount": 184
     },
     {
       "symbolId": 289,
       "name": "虫",
-      "count": 224,
+      "count": 226,
       "charCount": 200
     },
     {
@@ -237,40 +243,34 @@
       "charCount": 215
     },
     {
-      "symbolId": 110,
-      "name": "尸",
-      "count": 220,
-      "charCount": 183
-    },
-    {
       "symbolId": 155,
       "name": "止",
-      "count": 217,
+      "count": 221,
       "charCount": 202
     },
     {
       "symbolId": 406,
       "name": "习",
-      "count": 197,
+      "count": 199,
       "charCount": 88
+    },
+    {
+      "symbolId": 189,
+      "name": "辶",
+      "count": 191,
+      "charCount": 161
     },
     {
       "symbolId": 48,
       "name": "冫",
-      "count": 188,
+      "count": 189,
       "charCount": 166
     },
     {
       "symbolId": 407,
       "name": "纟",
-      "count": 188,
+      "count": 189,
       "charCount": 174
-    },
-    {
-      "symbolId": 189,
-      "name": "辶",
-      "count": 186,
-      "charCount": 161
     },
     {
       "symbolId": 37,
@@ -281,7 +281,7 @@
     {
       "symbolId": 415,
       "name": "讠",
-      "count": 181,
+      "count": 183,
       "charCount": 166
     },
     {
@@ -293,14 +293,20 @@
     {
       "symbolId": 252,
       "name": "禾",
-      "count": 171,
+      "count": 173,
       "charCount": 157
     },
     {
       "symbolId": 192,
       "name": "心",
-      "count": 170,
+      "count": 171,
       "charCount": 146
+    },
+    {
+      "symbolId": 194,
+      "name": "忄",
+      "count": 170,
+      "charCount": 154
     },
     {
       "symbolId": 101,
@@ -311,43 +317,37 @@
     {
       "symbolId": 31,
       "name": "𠂉",
-      "count": 166,
+      "count": 164,
       "charCount": 148
-    },
-    {
-      "symbolId": 194,
-      "name": "忄",
-      "count": 166,
-      "charCount": 154
     },
     {
       "symbolId": 230,
       "name": "目",
-      "count": 163,
+      "count": 164,
       "charCount": 139
     },
     {
       "symbolId": 223,
       "name": "石",
-      "count": 156,
+      "count": 158,
       "charCount": 147
     },
     {
       "symbolId": 84,
       "name": "寸",
-      "count": 153,
+      "count": 157,
       "charCount": 139
     },
     {
       "symbolId": 278,
       "name": "西",
-      "count": 151,
+      "count": 152,
       "charCount": 141
     },
     {
       "symbolId": 40,
       "name": "几",
-      "count": 150,
+      "count": 151,
       "charCount": 143
     },
     {
@@ -377,13 +377,13 @@
     {
       "symbolId": 60,
       "name": "力",
-      "count": 136,
-      "charCount": 122
+      "count": 137,
+      "charCount": 123
     },
     {
       "symbolId": 358,
       "name": "隹",
-      "count": 133,
+      "count": 134,
       "charCount": 126
     },
     {
@@ -399,16 +399,28 @@
       "charCount": 123
     },
     {
+      "symbolId": 115,
+      "name": "ヨ",
+      "count": 127,
+      "charCount": 123
+    },
+    {
       "symbolId": 309,
       "name": "米",
-      "count": 126,
+      "count": 127,
       "charCount": 117
     },
     {
       "symbolId": 19,
       "name": "厂",
-      "count": 124,
+      "count": 125,
       "charCount": 118
+    },
+    {
+      "symbolId": 255,
+      "name": "白",
+      "count": 125,
+      "charCount": 113
     },
     {
       "symbolId": 39,
@@ -417,15 +429,9 @@
       "charCount": 111
     },
     {
-      "symbolId": 255,
-      "name": "白",
-      "count": 124,
-      "charCount": 113
-    },
-    {
       "symbolId": 104,
       "name": "夕",
-      "count": 119,
+      "count": 120,
       "charCount": 87
     },
     {
@@ -435,16 +441,16 @@
       "charCount": 105
     },
     {
+      "symbolId": 261,
+      "name": "疒",
+      "count": 117,
+      "charCount": 103
+    },
+    {
       "symbolId": 93,
       "name": "巾",
       "count": 116,
       "charCount": 109
-    },
-    {
-      "symbolId": 261,
-      "name": "疒",
-      "count": 116,
-      "charCount": 103
     },
     {
       "symbolId": 91,
@@ -458,6 +464,13 @@
       "count": 114,
       "charCount": 106,
       "asset": "component_svg/416.svg"
+    },
+    {
+      "symbolId": 121,
+      "name": "𰀠",
+      "count": 106,
+      "charCount": 102,
+      "asset": "component_svg/121N.svg"
     },
     {
       "symbolId": 14,
@@ -480,21 +493,21 @@
       "charCount": 100
     },
     {
+      "symbolId": 169,
+      "name": "牛",
+      "count": 103,
+      "charCount": 87
+    },
+    {
       "symbolId": 24,
       "name": "丁",
       "count": 101,
       "charCount": 96
     },
     {
-      "symbolId": 169,
-      "name": "牛",
-      "count": 101,
-      "charCount": 87
-    },
-    {
       "symbolId": 57,
       "name": "凵",
-      "count": 100,
+      "count": 101,
       "charCount": 75
     },
     {
@@ -510,16 +523,16 @@
       "charCount": 85
     },
     {
-      "symbolId": 411,
-      "name": "马",
-      "count": 95,
-      "charCount": 88
-    },
-    {
       "symbolId": 145,
       "name": "犭",
-      "count": 94,
+      "count": 96,
       "charCount": 89
+    },
+    {
+      "symbolId": 411,
+      "name": "马",
+      "count": 96,
+      "charCount": 88
     },
     {
       "symbolId": 432,
@@ -528,16 +541,16 @@
       "charCount": 87
     },
     {
-      "symbolId": 28,
-      "name": "⺊",
-      "count": 91,
-      "charCount": 89
-    },
-    {
       "symbolId": 173,
       "name": "爫",
-      "count": 88,
+      "count": 92,
       "charCount": 85
+    },
+    {
+      "symbolId": 28,
+      "name": "⺊",
+      "count": 90,
+      "charCount": 88
     },
     {
       "symbolId": 181,
@@ -547,10 +560,22 @@
       "asset": "component_svg/181.svg"
     },
     {
+      "symbolId": 237,
+      "name": "罒",
+      "count": 87,
+      "charCount": 80
+    },
+    {
       "symbolId": 156,
       "name": "龰",
       "count": 86,
       "charCount": 82
+    },
+    {
+      "symbolId": 412,
+      "name": "门",
+      "count": 86,
+      "charCount": 77
     },
     {
       "symbolId": 74,
@@ -565,22 +590,16 @@
       "charCount": 78
     },
     {
-      "symbolId": 412,
-      "name": "门",
-      "count": 85,
-      "charCount": 77
-    },
-    {
       "symbolId": 322,
       "name": "酉",
-      "count": 84,
+      "count": 85,
       "charCount": 78
     },
     {
-      "symbolId": 237,
-      "name": "罒",
+      "symbolId": 236,
+      "name": "皿",
       "count": 83,
-      "charCount": 80
+      "charCount": 78
     },
     {
       "symbolId": 139,
@@ -589,21 +608,21 @@
       "charCount": 74
     },
     {
-      "symbolId": 236,
-      "name": "皿",
+      "symbolId": 313,
+      "name": "艮",
       "count": 82,
-      "charCount": 78
+      "charCount": 79
     },
     {
       "symbolId": 98,
       "name": "彳",
-      "count": 80,
+      "count": 81,
       "charCount": 60
     },
     {
       "symbolId": 22,
       "name": "匚",
-      "count": 79,
+      "count": 80,
       "charCount": 79
     },
     {
@@ -631,16 +650,16 @@
       "charCount": 66
     },
     {
+      "symbolId": 307,
+      "name": "衤",
+      "count": 75,
+      "charCount": 64
+    },
+    {
       "symbolId": 345,
       "name": "雨",
       "count": 75,
       "charCount": 70
-    },
-    {
-      "symbolId": 313,
-      "name": "艮",
-      "count": 74,
-      "charCount": 71
     },
     {
       "symbolId": 13,
@@ -672,12 +691,6 @@
       "name": "耳",
       "count": 72,
       "charCount": 70
-    },
-    {
-      "symbolId": 307,
-      "name": "衤",
-      "count": 72,
-      "charCount": 64
     },
     {
       "symbolId": 114,
@@ -736,7 +749,7 @@
     {
       "symbolId": 10,
       "name": "㇆",
-      "count": 62,
+      "count": 63,
       "charCount": 59
     },
     {
@@ -770,22 +783,16 @@
       "charCount": 51
     },
     {
-      "symbolId": 78,
-      "name": "尢",
+      "symbolId": 25,
+      "name": "丂",
       "count": 55,
       "charCount": 53
     },
     {
-      "symbolId": 25,
-      "name": "丂",
-      "count": 54,
+      "symbolId": 78,
+      "name": "尢",
+      "count": 55,
       "charCount": 53
-    },
-    {
-      "symbolId": 115,
-      "name": "ヨ",
-      "count": 53,
-      "charCount": 52
     },
     {
       "symbolId": 410,
@@ -813,6 +820,12 @@
       "charCount": 48
     },
     {
+      "symbolId": 144,
+      "name": "犬",
+      "count": 50,
+      "charCount": 44
+    },
+    {
       "symbolId": 244,
       "name": "业",
       "count": 50,
@@ -825,10 +838,10 @@
       "charCount": 36
     },
     {
-      "symbolId": 144,
-      "name": "犬",
-      "count": 49,
-      "charCount": 44
+      "symbolId": 54,
+      "name": "卩",
+      "count": 46,
+      "charCount": 40
     },
     {
       "symbolId": 213,
@@ -859,7 +872,7 @@
     {
       "symbolId": 146,
       "name": "歹",
-      "count": 43,
+      "count": 44,
       "charCount": 37
     },
     {
@@ -893,15 +906,9 @@
       "charCount": 40
     },
     {
-      "symbolId": 54,
-      "name": "卩",
-      "count": 41,
-      "charCount": 40
-    },
-    {
       "symbolId": 286,
       "name": "虍",
-      "count": 41,
+      "count": 42,
       "charCount": 38
     },
     {
@@ -1029,12 +1036,6 @@
       "charCount": 30
     },
     {
-      "symbolId": 30,
-      "name": "⺆",
-      "count": 33,
-      "charCount": 27
-    },
-    {
       "symbolId": 160,
       "name": "中",
       "count": 33,
@@ -1045,13 +1046,6 @@
       "name": "未",
       "count": 33,
       "charCount": 32
-    },
-    {
-      "symbolId": 121,
-      "name": "𰀠",
-      "count": 32,
-      "charCount": 31,
-      "asset": "component_svg/121N.svg"
     },
     {
       "symbolId": 180,
@@ -1095,6 +1089,12 @@
       "name": "至",
       "count": 29,
       "charCount": 28
+    },
+    {
+      "symbolId": 30,
+      "name": "⺆",
+      "count": 28,
+      "charCount": 22
     },
     {
       "symbolId": 52,
@@ -1206,13 +1206,6 @@
       "charCount": 24
     },
     {
-      "symbolId": 205,
-      "name": "鹿心",
-      "count": 24,
-      "charCount": 21,
-      "asset": "component_svg/205.svg"
-    },
-    {
       "symbolId": 243,
       "name": "𠕁",
       "count": 24,
@@ -1243,6 +1236,19 @@
       "name": "气",
       "count": 23,
       "charCount": 23
+    },
+    {
+      "symbolId": 196,
+      "name": "肀",
+      "count": 23,
+      "charCount": 22
+    },
+    {
+      "symbolId": 205,
+      "name": "鹿心",
+      "count": 23,
+      "charCount": 21,
+      "asset": "component_svg/205.svg"
     },
     {
       "symbolId": 359,
@@ -1356,6 +1362,12 @@
       "charCount": 19
     },
     {
+      "symbolId": 150,
+      "name": "旡",
+      "count": 19,
+      "charCount": 10
+    },
+    {
       "symbolId": 263,
       "name": "必",
       "count": 19,
@@ -1407,12 +1419,6 @@
     {
       "symbolId": 118,
       "name": "也",
-      "count": 17,
-      "charCount": 16
-    },
-    {
-      "symbolId": 196,
-      "name": "肀",
       "count": 17,
       "charCount": 16
     },
@@ -1517,10 +1523,11 @@
       "asset": "component_svg/88.svg"
     },
     {
-      "symbolId": 150,
-      "name": "旡",
+      "symbolId": 103,
+      "name": "𠂎",
       "count": 13,
-      "charCount": 10
+      "charCount": 12,
+      "asset": "component_svg/103.svg"
     },
     {
       "symbolId": 198,
@@ -1573,13 +1580,6 @@
       "charCount": 12
     },
     {
-      "symbolId": 103,
-      "name": "𠂎",
-      "count": 12,
-      "charCount": 12,
-      "asset": "component_svg/103.svg"
-    },
-    {
       "symbolId": 184,
       "name": "及",
       "count": 12,
@@ -1627,6 +1627,12 @@
       "name": "了",
       "count": 11,
       "charCount": 10
+    },
+    {
+      "symbolId": 126,
+      "name": "乡",
+      "count": 11,
+      "charCount": 9
     },
     {
       "symbolId": 269,
@@ -1677,12 +1683,6 @@
       "count": 9,
       "charCount": 9,
       "asset": "component_svg/89.svg"
-    },
-    {
-      "symbolId": 126,
-      "name": "乡",
-      "count": 9,
-      "charCount": 9
     },
     {
       "symbolId": 201,
@@ -1746,6 +1746,12 @@
       "asset": "component_svg/12.svg"
     },
     {
+      "symbolId": 147,
+      "name": "歺",
+      "count": 8,
+      "charCount": 4
+    },
+    {
       "symbolId": 253,
       "name": "段偏",
       "count": 8,
@@ -1787,12 +1793,6 @@
       "name": "井",
       "count": 7,
       "charCount": 7
-    },
-    {
-      "symbolId": 147,
-      "name": "歺",
-      "count": 7,
-      "charCount": 4
     },
     {
       "symbolId": 158,

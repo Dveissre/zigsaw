@@ -105,7 +105,19 @@ export class GameData {
     parts: number[];
   }>;
   private readonly acceptedCache = new Map<string, Set<string>>();
+  private readonly containingAcceptedCache = new Map<
+    string,
+    Set<string>
+  >();
+  private readonly expandedDecompositionCache = new Map<
+    string,
+    number[][]
+  >();
   private readonly candidateCache = new Map<string, string[]>();
+  private readonly componentAssociatedChars = new Map<
+    number,
+    Set<string>
+  >();
 
   constructor(
     symData: SymTable,
@@ -216,6 +228,26 @@ export class GameData {
       }
     }
     this.byBag = byBag;
+    for (const [char, ways] of this.ways) {
+      if (
+        !this.levels.has(char) ||
+        !this.isCharSelectable(char)
+      ) {
+        continue;
+      }
+      const components = new Set(
+        ways
+          .filter((way) => way.length >= 2)
+          .flatMap((way) => way),
+      );
+      for (const symbolId of components) {
+        const chars =
+          this.componentAssociatedChars.get(symbolId) ??
+          new Set<string>();
+        chars.add(char);
+        this.componentAssociatedChars.set(symbolId, chars);
+      }
+    }
   }
 
   candidates(
@@ -277,6 +309,28 @@ export class GameData {
     );
   }
 
+  componentIds(): number[] {
+    return [...this.components.keys()].filter(
+      (symbolId) => this.component(symbolId).renderable,
+    );
+  }
+
+  commonComponents(): Array<{
+    symbolId: number;
+    count: number;
+  }> {
+    return [...this.componentAssociatedChars.entries()]
+      .map(([symbolId, chars]) => ({
+        symbolId,
+        count: chars.size,
+      }))
+      .filter(
+        ({ symbolId, count }) =>
+          count >= 100 &&
+          this.component(symbolId).renderable,
+      );
+  }
+
   isCharSelectable(char: string): boolean {
     return !(this.ways.get(char) ?? []).some((way) =>
       way.some((symbolId) => this.unsupportedSymbolIds.has(symbolId)),
@@ -286,6 +340,31 @@ export class GameData {
   isBasicPlaneCharacter(char: string): boolean {
     const codePoint = char.codePointAt(0);
     return codePoint !== undefined && codePoint <= 0xffff;
+  }
+
+  twoPartAnswerExpansions(symbolId: number): number[][] {
+    return (this.answerExpansions.get(symbolId) ?? [])
+      .filter(
+        (parts) =>
+          parts.length === 2 &&
+          parts.every(
+            (part) => this.component(part).renderable,
+          ),
+      )
+      .map((parts) => [...parts]);
+  }
+
+  directTwoPartChars(
+    first: number,
+    second: number,
+  ): string[] {
+    return [
+      ...(this.byBag.get(bagKey([first, second])) ?? []),
+    ];
+  }
+
+  directChars(way: readonly number[]): string[] {
+    return [...(this.byBag.get(bagKey([...way])) ?? [])];
   }
 
   accepted(way: number[]): Set<string> {
@@ -322,6 +401,64 @@ export class GameData {
     }
     this.acceptedCache.set(key, accepted);
     return accepted;
+  }
+
+  acceptedContaining(way: readonly number[]): Set<string> {
+    const key = bagKey([...way]);
+    const cached = this.containingAcceptedCache.get(key);
+    if (cached) {
+      return cached;
+    }
+
+    const target = this.countParts([...way]);
+    const accepted = new Set<string>();
+    for (const [char, ways] of this.ways) {
+      if (
+        ways.some((decomposition) =>
+          this.expandedDecompositionContains(
+            decomposition,
+            target,
+          ),
+        )
+      ) {
+        accepted.add(char);
+      }
+    }
+    this.containingAcceptedCache.set(key, accepted);
+    return accepted;
+  }
+
+  expandedDecompositions(char: string): number[][] {
+    const cached = this.expandedDecompositionCache.get(char);
+    if (cached) {
+      return cached;
+    }
+
+    const pending = (this.ways.get(char) ?? []).map((way) => [
+      ...way,
+    ]);
+    const bags = new Map<string, number[]>();
+    const visited = new Set<string>();
+    while (pending.length > 0) {
+      const current = pending.pop()!;
+      const key = bagKey(current);
+      if (visited.has(key)) {
+        continue;
+      }
+      visited.add(key);
+      bags.set(key, current);
+      for (const symbolId of new Set(current)) {
+        for (const alternative of
+          this.answerExpansions.get(symbolId) ?? []) {
+          const next = [...current];
+          next.splice(next.indexOf(symbolId), 1, ...alternative);
+          pending.push(next);
+        }
+      }
+    }
+    const result = [...bags.values()].map((way) => [...way]);
+    this.expandedDecompositionCache.set(char, result);
+    return result;
   }
 
   private validateAnswerCompatibility(): void {
@@ -377,6 +514,53 @@ export class GameData {
       counts.set(symbolId, (counts.get(symbolId) ?? 0) + 1);
     }
     return counts;
+  }
+
+  private expandedDecompositionContains(
+    way: readonly number[],
+    target: Map<number, number>,
+  ): boolean {
+    const pending = [this.countParts([...way])];
+    const visited = new Set<string>();
+    while (pending.length > 0) {
+      const current = pending.pop()!;
+      const currentKey = this.countPartsKey(current);
+      if (visited.has(currentKey)) {
+        continue;
+      }
+      visited.add(currentKey);
+      if (
+        [...target.entries()].every(
+          ([symbolId, count]) =>
+            (current.get(symbolId) ?? 0) >= count,
+        )
+      ) {
+        return true;
+      }
+      for (const [symbolId, count] of current) {
+        const alternatives =
+          this.answerExpansions.get(symbolId);
+        if (!alternatives) {
+          continue;
+        }
+        for (const alternative of alternatives) {
+          const next = new Map(current);
+          if (count === 1) {
+            next.delete(symbolId);
+          } else {
+            next.set(symbolId, count - 1);
+          }
+          for (const part of alternative) {
+            next.set(
+              part,
+              (next.get(part) ?? 0) + 1,
+            );
+          }
+          pending.push(next);
+        }
+      }
+    }
+    return false;
   }
 
   private countPartsKey(counts: Map<number, number>): string {

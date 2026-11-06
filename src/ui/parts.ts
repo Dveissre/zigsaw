@@ -1,4 +1,10 @@
-export function splitPartsIntoRows<T>(parts: T[]): T[][] {
+export function splitPartsIntoRows<T>(
+  parts: T[],
+  twoByTwo = false,
+): T[][] {
+  if (twoByTwo && parts.length === 4) {
+    return [parts.slice(0, 2), parts.slice(2, 4)];
+  }
   if (parts.length === 6) {
     return [parts.slice(0, 3), parts.slice(3, 6)];
   }

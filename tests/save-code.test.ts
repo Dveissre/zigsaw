@@ -147,8 +147,11 @@ describe("compact beta save code", () => {
     const code = await encodeSaveCode(
       readCompactSaveState(createStorage()),
     );
+    const corruptionIndex = Math.floor(code.length / 2);
     const corrupted =
-      code.slice(0, -1) + (code.endsWith("A") ? "B" : "A");
+      code.slice(0, corruptionIndex) +
+      (code[corruptionIndex] === "A" ? "B" : "A") +
+      code.slice(corruptionIndex + 1);
     await expect(decodeSaveCode(corrupted)).rejects.toThrow(
       "校验失败",
     );

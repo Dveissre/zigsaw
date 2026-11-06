@@ -498,6 +498,604 @@
         }
       }
     },
+    "nuncupation": {
+      "id": "nuncupation",
+      "name": "指差确认",
+      "english": "Nuncupation",
+      "description": {
+        "public": "道中关卡提交答案的拼音（无声调，ü 可写作 v）；多音字任一读音均可。守幕关卡可逐字提交，或用空格分隔同时提交。答案揭示时显示带调拼音。",
+        "internal": "输入大小写不敏感，ü/v 等价，忽略声调。多音字接受拼音库中的任一 plain 读音。守幕关卡同时提交时以空白分隔拼音，并搜索能完成卡片切分的未答目标。揭示使用 marked 拼音，多音以斜杠分隔。"
+      },
+      "stars": 1,
+      "icon": "nuncupation.svg",
+      "timing": {
+        "normalSeconds": 30,
+        "bossSeconds": 90,
+        "normalMultiplier": 1,
+        "bossMultiplier": 1
+      },
+      "selection": {
+        "normal": {
+          "partLengths": [2, 3, 4, 5, 6, 7, 8, 9, 10]
+        },
+        "boss": {
+          "answerCount": 2,
+          "partLengths": [2, 3, 4, 5, 6],
+          "totalParts": [6, 8]
+        }
+      },
+      "policy": {
+        "prompt": {
+          "normal": { "mode": "answer-components" },
+          "boss": { "mode": "answer-components" }
+        },
+        "answer": {
+          "normal": {
+            "input": "pinyin",
+            "acceptance": "canonical",
+            "unique": false
+          },
+          "boss": {
+            "input": "pinyin",
+            "acceptance": "canonical",
+            "unique": false,
+            "distinct": true
+          }
+        },
+        "cards": {
+          "normal": { "sources": ["answer"], "display": "component" },
+          "boss": { "sources": ["answer"], "display": "component" }
+        }
+      }
+    },
+    "abscission": {
+      "id": "abscission",
+      "name": "三秋树",
+      "english": "Abscission",
+      "description": {
+        "public": "道中关卡展示一个繁体字的拆法，请提交对应简体字；守幕关卡为两个不同简体字，总卡数放宽至 6–10 张。",
+        "internal": "题目池仅使用 tongyong12_trad.json 中一、二级简体字且至少存在一条二部件以上繁体拆法的映射。普通题显示繁体拆法卡；BOSS 两个答案均为简体字。判题只接受对应简体答案。"
+      },
+      "stars": 2,
+      "icon": "abscission.svg",
+      "timing": {
+        "normalSeconds": 30,
+        "bossSeconds": 90,
+        "normalMultiplier": 1,
+        "bossMultiplier": 1
+      },
+      "selection": {
+        "normal": {
+          "partLengths": [2, 3, 4, 5, 6, 7, 8, 9, 10]
+        },
+        "boss": {
+          "answerCount": 2,
+          "partLengths": [2, 3, 4, 5, 6, 7, 8],
+          "totalParts": [6, 10]
+        }
+      },
+      "policy": {
+        "prompt": {
+          "normal": { "mode": "traditional-components" },
+          "boss": { "mode": "traditional-components" }
+        },
+        "answer": {
+          "normal": {
+            "input": "character",
+            "acceptance": "canonical",
+            "unique": false
+          },
+          "boss": {
+            "input": "character",
+            "acceptance": "canonical",
+            "unique": false,
+            "distinct": true
+          }
+        },
+        "cards": {
+          "normal": { "sources": ["answer"], "display": "component" },
+          "boss": { "sources": ["answer"], "display": "component" }
+        }
+      }
+    },
+    "reductionism": {
+      "id": "reductionism",
+      "name": "化约论",
+      "english": "Reductionism",
+      "description": {
+        "public": "道中关卡有一个部件会展开为两个基础部件；守幕关卡的两个答案各展开一个部件。同一部件每幕只能展开一次。若展示部件能组成其他汉字，提交该字也判为正确。",
+        "internal": "仅使用答案兼容层中可直接展开为恰好两个可渲染部件的来源部件，每题只展开一个来源且不递归。同一来源 symbolId 在同一幕只能使用一次。普通题按展开后的完整卡片集合调用答案兼容判定；BOSS 的两个答案各展开一个来源，展开后共 8–10 张卡，并允许任意不重复的两个展示部件组合答案。"
+      },
+      "stars": 2,
+      "icon": "reductionism.svg",
+      "timing": {
+        "normalSeconds": 30,
+        "bossSeconds": 90,
+        "normalMultiplier": 1,
+        "bossMultiplier": 1
+      },
+      "selection": {
+        "normal": {
+          "partLengths": [2, 3, 4, 5, 6, 7, 8, 9, 10]
+        },
+        "boss": {
+          "answerCount": 2,
+          "partLengths": [2, 3, 4, 5, 6],
+          "totalParts": [6, 8]
+        }
+      },
+      "policy": {
+        "prompt": {
+          "normal": { "mode": "reduction-components" },
+          "boss": { "mode": "reduction-components" }
+        },
+        "answer": {
+          "normal": {
+            "input": "character",
+            "acceptance": "answer-compatibility",
+            "unique": false
+          },
+          "boss": {
+            "input": "character",
+            "acceptance": "answer-compatibility",
+            "unique": false,
+            "distinct": true
+          }
+        },
+        "cards": {
+          "normal": { "sources": ["answer"], "display": "component" },
+          "boss": { "sources": ["answer"], "display": "component" }
+        }
+      }
+    },
+    "prefabrication": {
+      "id": "prefabrication",
+      "name": "预制件",
+      "english": "Prefabrication",
+      "description": {
+        "public": "道中关卡会把两个部件预组为一个黄色汉字卡；守幕关卡进行两次预组，取件可以跨两个答案。同一个预组汉字每幕只能出现一次。",
+        "internal": "只使用 char_sym 全字表中的直接两部件拆法，不经过答案兼容层。道中题答案至少三部件，以 3:4:5:6:7:8:9 = 30:45:17:6:1.5:0.4:0.1 的长度权重抽取，并把一对来源卡替换为一张复合提示卡。预组后的 symbol ID 集合若等同于答案已有的任一拆法，则拒绝该预组方案。BOSS 原始拆法合计 8–10 张，跨两个答案选择两组互不重叠的来源卡进行预组，显示为 6–8 张；复合卡内部保留原部件，可跨答案分别消费。已预组汉字按幕去重。"
+      },
+      "stars": 2,
+      "icon": "prefabrication.svg",
+      "timing": {
+        "normalSeconds": 30,
+        "bossSeconds": 90,
+        "normalMultiplier": 1,
+        "bossMultiplier": 1
+      },
+      "selection": {
+        "normal": {
+          "partLengths": [3, 4, 5, 6, 7, 8, 9],
+          "partWeights": {
+            "3": 30,
+            "4": 45,
+            "5": 17,
+            "6": 6,
+            "7": 1.5,
+            "8": 0.4,
+            "9": 0.1
+          }
+        },
+        "boss": {
+          "answerCount": 2,
+          "partLengths": [2, 3, 4, 5, 6],
+          "totalParts": [8, 10]
+        }
+      },
+      "policy": {
+        "prompt": {
+          "normal": { "mode": "prefabricated-components" },
+          "boss": { "mode": "prefabricated-components" }
+        },
+        "answer": {
+          "normal": {
+            "input": "character",
+            "acceptance": "answer-compatibility",
+            "unique": false
+          },
+          "boss": {
+            "input": "character",
+            "acceptance": "answer-compatibility",
+            "unique": false,
+            "distinct": true
+          }
+        },
+        "cards": {
+          "normal": { "sources": ["answer"], "display": "compound" },
+          "boss": { "sources": ["answer"], "display": "compound" }
+        }
+      }
+    },
+    "wildcard": {
+      "id": "wildcard",
+      "name": "通配符",
+      "english": "Wildcard",
+      "description": {
+        "public": "道中关卡有 1 张通配卡，守幕关卡的两个答案各保留 1 张。通配卡可代表任意部件；每题只存在一个可行答案。",
+        "internal": "普通题从答案拆法中隐藏一个部件；逐一替换为所有可渲染部件，生成阶段只按 char_sym 直接拆法判定，仅当直接可能答案集合恰好为 1 个汉字时出题。提交判题时重新枚举所有替换并应用答案兼容层，因此兼容层形成的非预期合法答案也接受。BOSS 两个答案各隐藏一个部件，并分别通过同样的直接唯一性检查。白板卡的真实部件 ID 不进入 DOM。"
+      },
+      "stars": 3,
+      "icon": "wildcard.svg",
+      "timing": {
+        "normalSeconds": 30,
+        "bossSeconds": 90,
+        "normalMultiplier": 1,
+        "bossMultiplier": 1
+      },
+      "selection": {
+        "normal": {
+          "partLengths": [2, 3, 4, 5, 6, 7, 8, 9, 10]
+        },
+        "boss": {
+          "answerCount": 2,
+          "partLengths": [2, 3, 4, 5, 6],
+          "totalParts": [6, 8]
+        }
+      },
+      "policy": {
+        "prompt": {
+          "normal": { "mode": "wildcard-components" },
+          "boss": { "mode": "wildcard-components" }
+        },
+        "answer": {
+          "normal": {
+            "input": "character",
+            "acceptance": "answer-compatibility",
+            "unique": true
+          },
+          "boss": {
+            "input": "character",
+            "acceptance": "answer-compatibility",
+            "unique": true,
+            "distinct": true
+          }
+        },
+        "cards": {
+          "normal": {
+            "sources": ["answer", "wildcard"],
+            "display": "wildcard"
+          },
+          "boss": {
+            "sources": ["answer", "wildcard"],
+            "display": "wildcard"
+          }
+        }
+      }
+    },
+    "repetend": {
+      "id": "repetend",
+      "name": "复沓",
+      "english": "Repetend",
+      "description": {
+        "public": "同名部件合并为 1 张复沓卡。道中不显示卡面乘数，只要答案用完全部普通卡并让每张复沓卡至少取 2 份即可；结算时显示该答案实际使用的乘数。守幕关卡显示乘数，合并后为 6–8 张卡，其中至少有 2 张复沓卡，且至少有 1 张会被两个答案共同使用。",
+        "internal": "每道题的同一个 symbolId 只显示 1 张卡，全部同名组件必须合并，份数写入 quantity、remainingQuantity 与重复 component 数组；复沓后不足 2 张卡的答案拆法排除。普通题至少包含 1 个复沓组，并对复沓后恰好 2 张卡的拆法使用 0.2 权重降频。普通题卡面隐藏乘数；判题枚举每张复沓卡 2 份至原始份数的全部组合，用完全部普通卡后以答案兼容层收集所有合法答案。结算按各答案实际选中的份数重建数量卡，显示该答案的乘数。BOSS 两个答案的原始拆法不要求各自含有复沓组；合并全部组件后按唯一 symbolId 计显示卡数，要求恰好 6–8 张、至少 2 个复沓组，并至少有 1 个复沓 symbolId 同时出现在两个答案中。BOSS 判题按 componentUses 枚举同名份数，复沓卡可分两次被两个答案消费；部分消费后保留原槽位并降低不透明度。"
+      },
+      "stars": 2,
+      "icon": "repetend.svg",
+      "timing": {
+        "normalSeconds": 30,
+        "bossSeconds": 90,
+        "normalMultiplier": 1,
+        "bossMultiplier": 1
+      },
+      "selection": {
+        "normal": {
+          "partLengths": [3, 4, 5, 6, 7, 8, 9, 10]
+        },
+        "boss": {
+          "answerCount": 2,
+          "partLengths": [2, 3, 4, 5, 6, 7, 8, 9, 10],
+          "totalParts": [8, 20]
+        }
+      },
+      "policy": {
+        "prompt": {
+          "normal": { "mode": "repetend-components" },
+          "boss": { "mode": "repetend-components" }
+        },
+        "answer": {
+          "normal": {
+            "input": "character",
+            "acceptance": "answer-compatibility",
+            "unique": false
+          },
+          "boss": {
+            "input": "character",
+            "acceptance": "answer-compatibility",
+            "unique": false,
+            "distinct": true
+          }
+        },
+        "cards": {
+          "normal": {
+            "sources": ["answer"],
+            "display": "quantity"
+          },
+          "boss": {
+            "sources": ["answer"],
+            "display": "quantity"
+          }
+        }
+      }
+    },
+    "composition": {
+      "id": "composition",
+      "name": "构词法",
+      "english": "Composition",
+      "description": {
+        "public": "道中关卡用 4 张部件卡组成一个二字词；守幕关卡用 6–8 张卡组成一个三字或四字词。一部件字可作为单张卡出现；同一组卡能组成的其他词也接受。",
+        "internal": "词池来自 docs/words_2to4.txt 中至少含有一、二级通规字的 2–4 字词。每个词按直接拆法生成 4 卡道中题或 6–8 卡 BOSS 题，并允许长度为 1 的拆法。普通题与 BOSS 分别统计各自生成池内的汉字出现次数，词权为词内各字池内频率几何平均数的倒数。提交判题遍历词表，并要求完整词中每个字可由一组互不重叠的卡通过答案兼容层组成、且恰好耗尽全部卡；同一卡组对应的全部合法词都接受。BOSS 可一次提交整词，也可按词序逐字提交。"
+      },
+      "stars": 2,
+      "icon": "composition.svg",
+      "timing": {
+        "normalSeconds": 30,
+        "bossSeconds": 90,
+        "normalMultiplier": 1,
+        "bossMultiplier": 1
+      },
+      "selection": {
+        "normal": {
+          "partLengths": [4]
+        },
+        "boss": {
+          "answerCount": 4,
+          "partLengths": [2, 3],
+          "totalParts": [6, 8]
+        }
+      },
+      "policy": {
+        "prompt": {
+          "normal": { "mode": "word-components" },
+          "boss": { "mode": "word-components" }
+        },
+        "answer": {
+          "normal": {
+            "input": "word",
+            "acceptance": "answer-compatibility",
+            "unique": false
+          },
+          "boss": {
+            "input": "word",
+            "acceptance": "answer-compatibility",
+            "unique": false,
+            "distinct": false
+          }
+        },
+        "cards": {
+          "normal": {
+            "sources": ["answer"],
+            "display": "component"
+          },
+          "boss": {
+            "sources": ["answer"],
+            "display": "component"
+          }
+        }
+      }
+    },
+    "assonance": {
+      "id": "assonance",
+      "name": "半韵法",
+      "english": "Assonance",
+      "description": {
+        "public": "道中关卡用 4–5 张卡组成一个二字词，且至少有一张复沓卡同时属于两个字；守幕关卡用 6–10 张卡组成三字或四字词，且至少有 2 张复沓卡。复沓卡不会显示特殊样式或乘数，需要自行推断。词内不得有重复汉字。",
+        "internal": "词池来自 words_2to4.txt，仅保留各字不同的 2–4 字词。只有横跨至少两个字的 symbolId 才压缩为隐藏数量卡；仅在单字内重复的部件仍以多张普通卡显示。普通题要求压缩后显示卡数 4–5 且至少 1 张跨字复沓卡；BOSS 要求 6–10 张且至少 2 张跨字复沓卡。道中与 BOSS 均隐藏复沓卡的乘数、数量卡样式和辅助提示。判题枚举词内各字的兼容层拆法，以相同的可见卡数映射接受全部合法词；BOSS 支持整词或按词序逐字提交。词权按各候选池内字频几何平均数倒数计算。"
+      },
+      "stars": 3,
+      "icon": "assonance.svg",
+      "timing": {
+        "normalSeconds": 30,
+        "bossSeconds": 90,
+        "normalMultiplier": 1,
+        "bossMultiplier": 1
+      },
+      "selection": {
+        "normal": {
+          "partLengths": [4, 5]
+        },
+        "boss": {
+          "answerCount": 4,
+          "partLengths": [2, 3],
+          "totalParts": [6, 10]
+        }
+      },
+      "policy": {
+        "prompt": {
+          "normal": { "mode": "assonance-components" },
+          "boss": { "mode": "assonance-components" }
+        },
+        "answer": {
+          "normal": {
+            "input": "word",
+            "acceptance": "answer-compatibility",
+            "unique": false
+          },
+          "boss": {
+            "input": "word",
+            "acceptance": "answer-compatibility",
+            "unique": false,
+            "distinct": false
+          }
+        },
+        "cards": {
+          "normal": {
+            "sources": ["answer"],
+            "display": "quantity"
+          },
+          "boss": {
+            "sources": ["answer"],
+            "display": "quantity"
+          }
+        }
+      }
+    },
+    "polydactyly": {
+      "id": "polydactyly",
+      "name": "枝指",
+      "english": "Polydactyly",
+      "description": {
+        "public": "道中关卡额外出现 1 张常用部件卡，守幕关卡额外出现 2 张不同的常用部件卡；这些卡无需使用，可以留在场上。",
+        "internal": "干扰卡来自图鉴 N 级且按关联汉字数加权抽取。普通题加入 1 张、BOSS 加入 2 张不同干扰卡并标记 mustIgnore。对每个答案拆法和每张干扰卡，依次移除答案中的一个部件并补入干扰卡；若该组合能组成任何合法汉字则重抽。较少部件的子集不受此检查限制。干扰卡在未揭示时不增加任何视觉标记。"
+      },
+      "stars": 3,
+      "icon": "polydactyly.svg",
+      "timing": {
+        "normalSeconds": 30,
+        "bossSeconds": 90,
+        "normalMultiplier": 1,
+        "bossMultiplier": 1
+      },
+      "selection": {
+        "normal": {
+          "partLengths": [2, 3, 4, 5, 6, 7, 8, 9, 10]
+        },
+        "boss": {
+          "answerCount": 2,
+          "partLengths": [2, 3, 4, 5, 6],
+          "totalParts": [6, 8]
+        }
+      },
+      "policy": {
+        "prompt": {
+          "normal": { "mode": "answer-components" },
+          "boss": { "mode": "answer-components" }
+        },
+        "answer": {
+          "normal": {
+            "input": "character",
+            "acceptance": "answer-compatibility",
+            "unique": false
+          },
+          "boss": {
+            "input": "character",
+            "acceptance": "answer-compatibility",
+            "unique": false,
+            "distinct": true
+          }
+        },
+        "cards": {
+          "normal": {
+            "sources": ["answer", "decoy"],
+            "display": "component",
+            "decoyCount": 1,
+            "decoyRarity": "N",
+            "decoyWeighting": "usage",
+            "decoyUnique": true
+          },
+          "boss": {
+            "sources": ["answer", "decoy"],
+            "display": "component",
+            "decoyCount": 2,
+            "decoyRarity": "N",
+            "decoyWeighting": "usage",
+            "decoyUnique": true
+          }
+        }
+      }
+    },
+    "selcouth": {
+      "id": "selcouth",
+      "name": "茁轧",
+      "english": "Selcouth",
+      "description": {
+        "public": "道中与守幕均只使用二级、三级汉字；其余规则不变。",
+        "internal": "普通题和 BOSS 的候选字仅来自通用规范汉字表二级、三级字，不包含表外 EX 字。普通题继续使用试炼默认长度权重；BOSS 为两个不同答案、总部件数 6–8。"
+      },
+      "stars": 2,
+      "icon": "selcouth.svg",
+      "timing": {
+        "normalSeconds": 30,
+        "bossSeconds": 90,
+        "normalMultiplier": 1,
+        "bossMultiplier": 1
+      },
+      "selection": {
+        "levels": [2, 3],
+        "normal": {
+          "partLengths": [2, 3, 4, 5, 6, 7, 8, 9]
+        },
+        "boss": {
+          "answerCount": 2,
+          "partLengths": [2, 3, 4, 5, 6],
+          "totalParts": [6, 8]
+        }
+      },
+      "policy": {
+        "prompt": {
+          "normal": { "mode": "answer-components" },
+          "boss": { "mode": "answer-components" }
+        },
+        "answer": {
+          "normal": {
+            "input": "character",
+            "acceptance": "answer-compatibility",
+            "unique": false
+          },
+          "boss": {
+            "input": "character",
+            "acceptance": "answer-compatibility",
+            "unique": false,
+            "distinct": true
+          }
+        },
+        "cards": {
+          "normal": { "sources": ["answer"], "display": "component" },
+          "boss": { "sources": ["answer"], "display": "component" }
+        }
+      }
+    },
+    "gestalt": {
+      "id": "gestalt",
+      "name": "格式塔",
+      "english": "Gestalt",
+      "description": {
+        "public": "道中关卡给出 2 张部件卡，提交能够同时覆盖这两张卡的汉字；守幕关卡给出 4 张卡，用两个不同汉字覆盖全部线索。每题最多 3 个解。",
+        "internal": "生成池中的部件对和答案均由同一条原始拆法直接覆盖：两张线索卡必须同时出现在该拆法中，兼容层不能扩充生成池。排除指定常用部件，并排除自身能直接组成任意汉字的整对。生成答案按字符去重后保留 1–3 解。判题时使用答案兼容层，提交字的拆法只要向下展开后同时包含线索卡即接受，不要求耗尽答案拆法的全部部件，因此允许生成池之外的兼容答案。普通题展示一对；BOSS 从池中取两组共四张卡，两个答案分别按对应组的线索做兼容判定，并检查另外两种二分配对；任一替代配对两侧都有解时拒绝候选。"
+      },
+      "stars": 3,
+      "icon": "gestalt.svg",
+      "timing": {
+        "normalSeconds": 30,
+        "bossSeconds": 90,
+        "normalMultiplier": 1,
+        "bossMultiplier": 1
+      },
+      "selection": {
+        "normal": {
+          "partLengths": [2]
+        },
+        "boss": {
+          "answerCount": 2,
+          "partLengths": [2],
+          "totalParts": [4, 4]
+        }
+      },
+      "policy": {
+        "prompt": {
+          "normal": { "mode": "gestalt-components" },
+          "boss": { "mode": "gestalt-components" }
+        },
+        "answer": {
+          "normal": {
+            "input": "character",
+            "acceptance": "answer-compatibility",
+            "unique": false
+          },
+          "boss": {
+            "input": "character",
+            "acceptance": "answer-compatibility",
+            "unique": false,
+            "distinct": true
+          }
+        },
+        "cards": {
+          "normal": { "sources": ["answer"], "display": "component" },
+          "boss": { "sources": ["answer"], "display": "component" }
+        }
+      }
+    },
     "minimalism": {
       "id": "minimalism",
       "name": "极简主义",
@@ -614,7 +1212,7 @@
         "internal": "每幕开始前生成一条非递减、单步不增加超过 1 的八题部件数路径：起点 2，终点 7 或 8。终点按当前可用答案数加权；停留位置按被重复长度的当前可用答案数加权。终点 7 时含 5 次增加与 2 次停留，终点 8 时含 6 次增加与 1 次停留。最近 12 个 7/8 部件汉字会跨局优先避开。BOSS 为两个不同答案、总计恰好 10 张卡。"
       },
       "stars": 1,
-      "icon": "inspissation.svg",
+      "icon": "anabasis.svg",
       "timing": {
         "normalSeconds": 30,
         "bossSeconds": 90,

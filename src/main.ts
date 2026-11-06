@@ -35,6 +35,8 @@ import {
   TRIAL_QUESTIONS_PER_STAGE,
   TRIAL_STAGE_COUNT,
   TrialSession,
+  orderedBossAnswerChars,
+  type TrialCard,
   type TrialCardSource,
   type TrialHistoryItem,
   type TrialState,
@@ -45,6 +47,26 @@ import {
   type TrialRuleDefinition,
   type TrialRulesData,
 } from "./game/trial-rules";
+import {
+  loadPinyinData,
+  type PinyinData,
+} from "./game/pinyin";
+import {
+  loadTraditionalData,
+  type TraditionalData,
+} from "./game/traditional";
+import {
+  loadGestaltData,
+  type GestaltData,
+} from "./game/gestalt";
+import {
+  loadCompositionData,
+  type CompositionData,
+} from "./game/composition";
+import {
+  loadAssonanceData,
+  type AssonanceData,
+} from "./game/assonance";
 import { ATLAS_TRIGGER_MARKUP } from "./ui/atlas";
 import { CharDetailView } from "./ui/char-detail";
 import {
@@ -99,6 +121,11 @@ const DEFAULT_SETTINGS: GameSettings = {
 
 let data: GameData | null = null;
 let trialRules: TrialRulesData | null = null;
+let pinyinData: PinyinData | null = null;
+let traditionalData: TraditionalData | null = null;
+let gestaltData: GestaltData | null = null;
+let compositionData: CompositionData | null = null;
+let assonanceData: AssonanceData | null = null;
 let startupError = "";
 let session: GameSession | null = null;
 let trialSession: TrialSession | null = null;
@@ -2178,7 +2205,13 @@ interface TrialPartCardModel {
   uid: number;
   symbolId: number;
   source?: TrialCardSource;
+  components?: number[];
+  quantity?: number;
+  remainingQuantity?: number;
+  displayGlyph?: string;
+  displayMode?: TrialCard["displayMode"];
   consumed?: boolean;
+  partiallyConsumed?: boolean;
   animateConsumed?: boolean;
   obscured?: boolean;
   animateObscured?: boolean;
@@ -2186,24 +2219,86 @@ interface TrialPartCardModel {
 
 function trialPartCardsMarkup(
   cards: TrialPartCardModel[],
+  twoByTwo = false,
+  hideQuantityLabels = false,
+  concealQuantityCards = false,
 ): string {
-  const parts = cards.map((card) => ({
-    ...renderComponent(data!.component(card.symbolId), true),
-    ...card,
-  }));
+  const parts = cards.map((card) => {
+    const prefabricated =
+      card.displayMode === "compound" &&
+      Boolean(card.displayGlyph);
+    const wildcard = card.displayMode === "wildcard";
+    const quantity = card.displayMode === "quantity";
+    const quantityVisible = quantity && !concealQuantityCards;
+    const quantityLabel =
+      quantityVisible && !hideQuantityLabels
+      ? `×${
+          card.remainingQuantity ??
+          card.quantity ??
+          card.components?.length ??
+          1
+        }`
+      : "";
+    const overlay =
+      card.displayMode === "overlay" &&
+      card.components?.length === 2;
+    const overlayParts = overlay
+      ? card.components!.map((symbolId) =>
+          renderComponent(data!.component(symbolId), true),
+        )
+      : [];
+    return {
+      ...(overlay
+        ? {
+            html: `<span class="trial-overlay-parts">${overlayParts
+              .map(
+                (part, index) =>
+                  `<span class="trial-overlay-part is-${index === 0 ? "first" : "second"} ${part.long ? "is-long" : ""} ${part.isEnclosedFrame ? "is-enclosed-frame" : ""}">${part.html}</span>`,
+              )
+              .join("")}</span>`,
+            long: false,
+            hasAsset: false,
+            isEnclosedFrame: false,
+          }
+        : wildcard
+        ? {
+            html: `<span class="trial-wildcard-icon">${crisIconMarkup()}</span>`,
+            long: false,
+            hasAsset: false,
+            isEnclosedFrame: false,
+          }
+        : prefabricated
+        ? {
+            html: escapeHtml(card.displayGlyph!),
+            long: false,
+            hasAsset: false,
+            isEnclosedFrame: false,
+          }
+        : renderComponent(
+            data!.component(card.symbolId),
+            true,
+          )),
+      ...card,
+      prefabricated,
+      wildcard,
+      overlay,
+      quantity: quantityVisible,
+      quantityLabel,
+    };
+  });
   const cardAngles = [-0.8, 0.9, -0.35, 1.15, -1.05, 0.45];
   const cardOffsets = [1, 4, 0, 5, 2, 3];
   let cardIndex = 0;
-  return splitPartsIntoRows(parts)
+  return splitPartsIntoRows(parts, twoByTwo)
     .map(
       (row) =>
         `<div class="part-row">${row
           .map(
             (part) =>
-              `<span class="part-card ${part.consumed ? "is-consumed" : ""} ${part.animateConsumed ? "is-consumed-new" : ""} ${part.obscured ? "is-obscured" : ""} ${part.animateObscured ? "is-obscuring" : ""}" data-card-uid="${part.uid}" data-card-source="${part.source ?? "answer"}" ${part.obscured ? 'aria-label="已遮挡部件" aria-disabled="true"' : `data-symbol-id="${part.symbolId}"`} ${part.consumed ? 'aria-hidden="true"' : ""} style="--card-index:${cardIndex};--card-angle:${cardAngles[cardIndex % cardAngles.length]}deg;--card-offset:${cardOffsets[cardIndex++ % cardOffsets.length]}px">${
+              `<span class="part-card ${part.prefabricated ? "is-prefabricated" : ""} ${part.wildcard ? "is-wildcard" : ""} ${part.overlay ? "is-overlay" : ""} ${part.quantity ? "is-quantity" : ""} ${part.partiallyConsumed ? "is-partially-consumed" : ""} ${part.consumed ? "is-consumed" : ""} ${part.animateConsumed ? "is-consumed-new" : ""} ${part.obscured ? "is-obscured" : ""} ${part.animateObscured ? "is-obscuring" : ""}" data-card-uid="${part.uid}" data-card-source="${part.source ?? "answer"}" ${part.obscured ? 'aria-label="已遮挡部件" aria-disabled="true"' : part.wildcard ? 'data-card-display="wildcard" aria-label="通配部件"' : part.overlay ? 'data-card-display="overlay" aria-label="叠印部件"' : part.quantity ? `data-card-display="quantity" aria-label="复沓部件 ${escapeHtml(data!.component(part.symbolId).name)}${part.quantityLabel ? ` ${part.quantityLabel}` : ""}"` : part.prefabricated ? `data-card-display="prefabricated" aria-label="预组汉字 ${escapeHtml(part.displayGlyph!)}"` : `data-symbol-id="${part.symbolId}"`} ${part.consumed ? 'aria-hidden="true"' : ""} style="--card-index:${cardIndex};--card-angle:${cardAngles[cardIndex % cardAngles.length]}deg;--card-offset:${cardOffsets[cardIndex++ % cardOffsets.length]}px">${
                 part.obscured && !part.animateObscured
                   ? ""
-                  : `<span class="part ${part.long ? "is-long" : ""} ${part.isEnclosedFrame ? "is-enclosed-frame" : ""}">${part.html}</span>`
+                  : `<span class="part ${part.long ? "is-long" : ""} ${part.isEnclosedFrame ? "is-enclosed-frame" : ""} ${part.prefabricated ? "is-prefabricated" : ""} ${part.overlay ? "is-overlay" : ""}">${part.html}</span>${part.quantity && part.quantityLabel ? `<span class="trial-quantity-badge" aria-hidden="true">${part.quantityLabel}</span>` : ""}`
               }</span>`,
           )
           .join("")}</div>`,
@@ -2484,7 +2579,86 @@ function renderTrialStageIntro(trial: TrialSession): void {
     )
     ?.addEventListener("change", (event) => {
       const select = event.currentTarget as HTMLSelectElement;
-      trial.setRuleOverride(select.value || null);
+      const rule = select.value
+        ? trialRules?.rules[select.value]
+        : null;
+      void (async () => {
+        const needsPinyin =
+          rule?.policy.answer.normal.input === "pinyin" ||
+          rule?.policy.answer.boss.input === "pinyin";
+        const needsTraditional =
+          rule?.policy.prompt.normal.mode ===
+            "traditional-components" ||
+          rule?.policy.prompt.boss.mode ===
+            "traditional-components";
+        const needsGestalt =
+          rule?.policy.prompt.normal.mode ===
+            "gestalt-components" ||
+          rule?.policy.prompt.boss.mode ===
+            "gestalt-components";
+        const needsComposition =
+          rule?.policy.prompt.normal.mode ===
+            "word-components" ||
+          rule?.policy.prompt.boss.mode ===
+            "word-components";
+        const needsAssonance =
+          rule?.policy.prompt.normal.mode ===
+            "assonance-components" ||
+          rule?.policy.prompt.boss.mode ===
+            "assonance-components";
+        if (
+          needsPinyin ||
+          needsTraditional ||
+          needsGestalt ||
+          needsComposition ||
+          needsAssonance
+        ) {
+          select.disabled = true;
+          const beginButton =
+            document.querySelector<HTMLButtonElement>(
+              "[data-trial-begin]",
+            );
+          if (beginButton) {
+            beginButton.disabled = true;
+          }
+          try {
+            if (needsPinyin) {
+              pinyinData ??=
+                await loadPinyinData(appBaseUrl);
+              trial.setPinyinData(pinyinData);
+            }
+            if (needsTraditional) {
+              traditionalData ??=
+                await loadTraditionalData(appBaseUrl);
+              trial.setTraditionalData(traditionalData);
+            }
+            if (needsGestalt) {
+              gestaltData ??=
+                await loadGestaltData(appBaseUrl);
+              trial.setGestaltData(gestaltData);
+            }
+            if (needsComposition) {
+              compositionData ??=
+                await loadCompositionData(appBaseUrl);
+              trial.setCompositionData(compositionData);
+            }
+            if (needsAssonance) {
+              assonanceData ??=
+                await loadAssonanceData(appBaseUrl);
+              trial.setAssonanceData(assonanceData);
+            }
+          } catch {
+            select.value = trial.state.forcedRuleId ?? "";
+            if (beginButton) {
+              beginButton.disabled = false;
+            }
+            return;
+          } finally {
+            select.disabled = false;
+          }
+        }
+        trial.setRuleOverride(select.value || null);
+      })();
     });
   wireGameSettingsDialog();
 }
@@ -2492,8 +2666,87 @@ function renderTrialStageIntro(trial: TrialSession): void {
 function renderTrialGame(trial: TrialSession): void {
   const state = trial.state;
   const isBoss = state.phase === "boss";
+  const isWordNormal =
+    !isBoss &&
+    (state.ruleId === "composition" ||
+      state.ruleId === "assonance");
+  const orderedBossAnswers = (() => {
+    if (!isBoss || !state.boss) {
+      return [];
+    }
+    return orderedBossAnswerChars(
+      state.boss,
+      state.ruleId === "gestalt" &&
+        state.feedback === "correct",
+    );
+  })();
+  const displayedRevealAnswers = isBoss
+    ? orderedBossAnswers.map((char, index) => {
+        const answerIndex =
+          state.boss?.expectedAnswers.indexOf(char) ?? -1;
+        return {
+          char,
+          displayChar:
+            answerIndex >= 0
+              ? state.boss?.expectedDisplayChars[answerIndex]
+              : undefined,
+          pinyin:
+            (state.feedback === "correct"
+              ? state.revealPinyin[index]
+              : undefined) ??
+            (answerIndex >= 0
+              ? state.boss?.expectedPinyin[answerIndex]
+              : ""),
+          meta: trialCharacterMeta(char),
+        };
+      })
+    : isWordNormal
+      ? [...state.revealAnswer].map((char) => ({
+          char,
+          pinyin: "",
+          meta: trialCharacterMeta(char),
+        }))
+      : [
+        {
+          char: state.revealAnswer,
+          displayChar: state.current?.displayChar,
+          pinyin: state.revealPinyin[0] ?? "",
+          meta: state.revealMeta,
+        },
+      ];
+  const revealText = (answer: {
+    char: string;
+    displayChar?: string;
+  }): string =>
+    state.ruleId === "abscission" &&
+    answer.displayChar &&
+    answer.displayChar !== answer.char
+      ? `${answer.displayChar}—${answer.char}`
+      : answer.char;
+  const answerInputMode =
+    trialRules?.rules[state.ruleId]?.policy.answer[
+      isBoss ? "boss" : "normal"
+    ].input;
+  const answerInputLabel = isBoss
+    ? answerInputMode === "pinyin"
+      ? "守幕关卡拼音答案"
+      : "守幕关卡答案"
+    : answerInputMode === "pinyin"
+      ? "拼音答案"
+      : "答案";
   const consumedCardIds = new Set(
     state.boss?.consumedCardIds ?? [],
+  );
+  const partiallyConsumedCardIds = new Set(
+    (state.boss?.cards ?? [])
+      .filter(
+        (card) =>
+          card.components &&
+          card.remainingComponents &&
+          card.remainingComponents.length <
+            card.components.length,
+      )
+      .map((card) => card.uid),
   );
   const bossKey = isBoss
     ? `${state.stage}|${(state.boss?.initialCards ?? [])
@@ -2538,26 +2791,50 @@ function renderTrialGame(trial: TrialSession): void {
     (uid) => !animatedTrialObscuredCardIds.has(uid),
   );
   animatedTrialObscuredCardIds = new Set(obscuredCardIds);
+  const currentBossCards = new Map(
+    (state.boss?.cards ?? []).map((card) => [
+      card.uid,
+      card,
+    ]),
+  );
   const cardModels: TrialPartCardModel[] = isBoss
-    ? (state.boss?.initialCards ?? []).map((card) => ({
-        uid: card.uid,
-        symbolId: card.symbolId,
-        source: card.source,
-        consumed:
-          !state.revealing &&
-          consumedCardIds.has(card.uid),
-        animateConsumed:
-          !state.revealing &&
-          newlyConsumedCardIds.includes(card.uid),
-        obscured: !state.revealing && card.obscured,
-        animateObscured:
-          !state.revealing &&
-          newlyObscuredCardIds.includes(card.uid),
-      }))
+    ? (state.boss?.initialCards ?? []).map((card) => {
+        const current = currentBossCards.get(card.uid);
+        return {
+          uid: card.uid,
+          symbolId: card.symbolId,
+          source: card.source,
+          components: card.components,
+          quantity: card.quantity,
+          remainingQuantity:
+            current?.remainingQuantity ??
+            card.remainingQuantity,
+          displayGlyph: card.displayGlyph,
+          displayMode: card.displayMode,
+          consumed:
+            !state.revealing &&
+            consumedCardIds.has(card.uid),
+          partiallyConsumed:
+            !state.revealing &&
+            partiallyConsumedCardIds.has(card.uid),
+          animateConsumed:
+            !state.revealing &&
+            newlyConsumedCardIds.includes(card.uid),
+          obscured: !state.revealing && card.obscured,
+          animateObscured:
+            !state.revealing &&
+            newlyObscuredCardIds.includes(card.uid),
+        };
+      })
     : (state.current?.displayCards ?? []).map((card) => ({
         uid: card.uid,
         symbolId: card.symbolId,
         source: card.source,
+        components: card.components,
+        quantity: card.quantity,
+        remainingQuantity: card.remainingQuantity,
+        displayGlyph: card.displayGlyph,
+        displayMode: card.displayMode,
         obscured: !state.revealing && card.obscured,
         animateObscured:
           !state.revealing &&
@@ -2585,9 +2862,6 @@ function renderTrialGame(trial: TrialSession): void {
     state.boss?.pendingSubmissions ?? []
   ).map((submission) => ({
     ...submission,
-    cards: (state.boss?.initialCards ?? []).filter((card) =>
-      submission.cardIds.includes(card.uid),
-    ),
   }));
   const resuming = !state.paused && lastTrialPaused;
   lastTrialPaused = state.paused;
@@ -2599,10 +2873,10 @@ function renderTrialGame(trial: TrialSession): void {
             <div class="progress-stack ${isBoss ? `is-trial-boss ${bossEntering ? "is-trial-boss-enter" : ""}` : ""}">
               <span class="question-progress">${
                 isBoss
-                  ? `${trialStageName(state.stage)} · 守幕关卡`
-                  : `${trialStageName(state.stage)} · 道中关卡 ${state.questionInStage}`
+                  ? `${trialStageName(state.stage)} · ACTKEEPER`
+                  : `${trialStageName(state.stage)} · 道中#${state.questionInStage}`
               }</span>
-              <small class="trial-mode-caption">${isBoss ? "ACTKEEPER" : "试炼模式"}</small>
+              <small class="trial-mode-caption">试炼模式</small>
             </div>
             <button class="timer-ring" type="button" data-trial-timer aria-label="${state.paused ? "继续" : "暂停"}，剩余 ${state.remaining} 秒" aria-pressed="${state.paused}" ${state.revealing ? "disabled" : ""}>
               <svg viewBox="0 0 80 80" aria-hidden="true">
@@ -2623,28 +2897,40 @@ function renderTrialGame(trial: TrialSession): void {
                   </span>`
                 : ""
             }
-            ${trialPartCardsMarkup(cardModels)}
+            ${trialPartCardsMarkup(
+              cardModels,
+              isBoss && cardModels.length === 4,
+              !isBoss && state.ruleId === "repetend",
+              state.ruleId === "assonance",
+            )}
           </div>
 
           <div class="answer-stage ${correct ? "is-correct" : wrong && state.revealing ? "is-miss" : wrong ? "is-wrong" : ""}">
             ${
               state.revealing
-                ? isBoss
-                  ? `<div class="reveal trial-reveal is-boss" aria-live="polite">
+                ? isBoss || isWordNormal
+                  ? `<div class="reveal trial-reveal ${isBoss ? "is-boss" : "is-word"}" aria-live="polite">
                       <div class="trial-boss-reveal-chars">
-                        ${[...state.revealAnswer]
+                        ${displayedRevealAnswers
                           .map(
-                            (char) =>
-                              `<span><strong>${escapeHtml(char)}</strong><small>${escapeHtml(
-                                trialCharacterMeta(char),
-                              )}</small></span>`,
+                            (answer) =>
+                              `<span>${
+                                answer.pinyin
+                                  ? `<small class="trial-reveal-pinyin">${escapeHtml(answer.pinyin)}</small>`
+                                  : ""
+                              }<strong>${escapeHtml(revealText(answer))}</strong><small>${escapeHtml(answer.meta)}</small></span>`,
                           )
                           .join("")}
                       </div>
                     </div>`
-                  : `<div class="reveal trial-reveal" aria-live="polite">
-                      <strong>${escapeHtml(state.revealAnswer)}</strong>
-                      <small>${escapeHtml(state.revealMeta)}</small>
+                  : `<div class="reveal trial-reveal ${state.revealPinyin[0] ? "has-pinyin" : ""}" aria-live="polite">
+                      ${
+                        displayedRevealAnswers[0]?.pinyin
+                          ? `<small class="trial-reveal-pinyin">${escapeHtml(displayedRevealAnswers[0].pinyin)}</small>`
+                          : ""
+                      }
+                      <strong>${escapeHtml(revealText(displayedRevealAnswers[0]))}</strong>
+                      <small>${escapeHtml(displayedRevealAnswers[0]?.meta ?? state.revealMeta)}</small>
                     </div>`
                 : `<div class="answer-row">
                     <input
@@ -2655,7 +2941,7 @@ function renderTrialGame(trial: TrialSession): void {
                       autocomplete="off"
                       autocapitalize="off"
                       spellcheck="false"
-                      aria-label="${isBoss ? "守幕关卡答案" : "答案"}"
+                      aria-label="${answerInputLabel}"
                       ${state.paused ? "disabled" : ""}
                     >
                     <button class="submit-button" type="button" data-trial-submit ${state.paused ? "disabled" : ""}>提交</button>
@@ -2673,10 +2959,10 @@ function renderTrialGame(trial: TrialSession): void {
                       (submission, index) =>
                         `<div class="trial-boss-record">
                           <div class="trial-boss-record-parts" aria-label="已使用部件">
-                            ${submission.cards
+                            ${submission.componentUses
                               .map(
-                                (card) =>
-                                  `<span class="trial-boss-used-part">${renderComponent(data!.component(card.symbolId), true).html}</span>`,
+                                (use) =>
+                                  `<span class="trial-boss-used-part ${use.wildcard ? "is-wildcard" : ""}">${use.wildcard ? crisIconMarkup() : renderComponent(data!.component(use.symbolId), true).html}</span>`,
                               )
                               .join("")}
                           </div>
@@ -2755,13 +3041,36 @@ function trialReviewCardMarkup(
   detailIndex = 0,
 ): string {
   const detail = item.answerDetails[detailIndex];
-  const char = detail?.char ?? item.answer;
-  const answerWay = detail?.answerWay ?? item.answerWay;
-  const displayCards = detail?.displayCards ?? item.displayCards;
-  const displaySymbolIds = displayCards.map(
-    (card) => card.symbolId,
+  const isWordItem =
+    item.ruleId === "composition" ||
+    item.ruleId === "assonance";
+  const char = isWordItem
+    ? item.answerDetails.map((answer) => answer.char).join("")
+    : detail?.char ?? item.answer;
+  const displayCards = isWordItem
+    ? item.answerDetails.flatMap(
+        (answer) => answer.displayCards,
+      )
+    : detail?.displayCards ?? item.displayCards;
+  const reviewCards = displayCards.flatMap((card) =>
+    card.displayMode === "overlay" && card.components
+      ? card.components.map((symbolId) => ({
+          ...card,
+          symbolId,
+          components: undefined,
+          remainingComponents: undefined,
+          displayMode: undefined,
+        }))
+      : [card],
   );
-  const displayParts = data!.names(displaySymbolIds);
+  const pinyin = detail?.pinyin ?? "";
+  const displayChar = detail?.displayChar;
+  const isTraditionalPair =
+    item.ruleId === "abscission" &&
+    Boolean(displayChar && displayChar !== char);
+  const isCompositionWord =
+    isWordItem &&
+    [...char].length > 1;
   const level = data!.levels.get(char);
   const themeClass = !item.ok
     ? "is-error"
@@ -2772,22 +3081,70 @@ function trialReviewCardMarkup(
       : level === 2
         ? "is-level-2"
         : "";
-  const hasWidePart = displaySymbolIds.some((symbolId) => {
+  const hasWidePart = reviewCards.some((card) => {
+    if (card.displayMode === "compound") {
+      return false;
+    }
+    const symbolId = card.symbolId;
     const component = data!.component(symbolId);
     return !component.assetUrl && [...component.name].length > 1;
   });
+  const displayLabel = reviewCards
+    .map((card) =>
+      card.displayMode === "wildcard"
+        ? "通配部件"
+        : card.displayMode === "quantity"
+        ? `${data!.component(card.symbolId).name} ×${
+            card.remainingQuantity ??
+            card.quantity ??
+            card.components?.length ??
+            1
+          }`
+        : card.displayMode === "compound"
+        ? card.displayGlyph ?? ""
+        : data!.component(card.symbolId).name,
+    )
+    .join(" ");
   const showIndex = item.kind !== "boss" || detailIndex === 0;
   return `
-    <li class="review-card trial-review-card ${themeClass}" style="--review-index:${index}" data-review-char="${escapeHtml(char)}" role="button" tabindex="0" aria-label="查看「${escapeHtml(char)}」的释义">
+    <li class="review-card trial-review-card ${themeClass} ${isCompositionWord ? "is-composition-word" : ""}" style="--review-index:${index}" ${isCompositionWord ? `aria-label="词语 ${escapeHtml(char)}"` : `data-review-char="${escapeHtml(char)}" role="button" tabindex="0" aria-label="查看「${escapeHtml(char)}」的释义"`}>
       ${showIndex ? `<span class="review-index" aria-hidden="true">${String(slot).padStart(2, "0")}</span>` : ""}
       <span class="review-result ${item.ok ? "is-correct" : "is-wrong"}" aria-label="${item.ok ? "正确" : "错误"}"></span>
-      <div class="review-answer"><span>${escapeHtml(char)}</span></div>
-      <div class="review-meta">${escapeHtml((detail?.meta ?? item.meta).replace(/[（）]/g, ""))}</div>
-      <div class="review-parts ${displayParts.length >= 5 ? "is-many" : ""} ${hasWidePart ? "is-wide" : ""}" aria-label="答案部件 ${escapeHtml(answerWay.map((symbolId) => data!.component(symbolId).name).join(" "))}">
-        ${displaySymbolIds
-          .map(
-            (symbolId) =>
-              `<span class="review-part">${renderComponent(data!.component(symbolId)).html}</span>`,
+      <div class="review-answer ${pinyin ? "has-pinyin" : ""} ${isTraditionalPair ? "is-traditional-pair" : ""} ${isCompositionWord ? "is-composition-word" : ""}">
+        ${pinyin ? `<small class="review-pinyin">${escapeHtml(pinyin)}</small>` : ""}
+        ${
+          isCompositionWord
+            ? `<span class="trial-review-word-chars ${[...char].length === 4 ? "is-four" : [...char].length === 3 ? "is-three" : "is-two"}">${[...char]
+                .map(
+                  (wordChar) =>
+                    `<button class="trial-review-word-char" type="button" data-review-char="${escapeHtml(wordChar)}" aria-label="查看「${escapeHtml(wordChar)}」的释义"><strong>${escapeHtml(wordChar)}</strong></button>`,
+                )
+                .join("")}</span>`
+            : isTraditionalPair
+            ? `<span class="review-answer-pair" aria-label="${escapeHtml(displayChar!)}—${escapeHtml(char)}">
+                <span class="review-answer-pair-char is-traditional">${escapeHtml(displayChar!)}</span>
+                <i class="review-answer-pair-divider" aria-hidden="true"></i>
+                <span class="review-answer-pair-char is-simplified">${escapeHtml(char)}</span>
+              </span>`
+            : `<span>${escapeHtml(char)}</span>`
+        }
+      </div>
+      ${isCompositionWord ? "" : `<div class="review-meta">${escapeHtml((detail?.meta ?? item.meta).replace(/[（）]/g, ""))}</div>`}
+      <div class="review-parts ${reviewCards.length >= 5 ? "is-many" : ""} ${hasWidePart ? "is-wide" : ""}" aria-label="答案部件 ${escapeHtml(displayLabel)}">
+        ${reviewCards
+          .map((card) =>
+            card.displayMode === "wildcard"
+              ? `<span class="review-part is-wildcard">${crisIconMarkup()}</span>`
+              : card.displayMode === "quantity"
+              ? `<span class="review-part is-quantity">${renderComponent(data!.component(card.symbolId)).html}<small>×${
+                  card.remainingQuantity ??
+                  card.quantity ??
+                  card.components?.length ??
+                  1
+                }</small></span>`
+              : card.displayMode === "compound"
+              ? `<span class="review-part is-prefabricated">${escapeHtml(card.displayGlyph ?? "")}</span>`
+              : `<span class="review-part">${renderComponent(data!.component(card.symbolId)).html}</span>`,
           )
           .join("")}
       </div>
@@ -2826,10 +3183,14 @@ function renderTrialResults(trial: TrialSession): void {
           <ol class="review-list trial-review-list">
             ${items
               .flatMap((item) => {
-                const detailCount = Math.max(
-                  1,
-                  item.answerDetails.length,
-                );
+                const detailCount =
+                  (item.ruleId === "composition" ||
+                    item.ruleId === "assonance")
+                    ? 1
+                    : Math.max(
+                        1,
+                        item.answerDetails.length,
+                      );
                 return Array.from(
                   { length: detailCount },
                   (_, detailIndex) => {
@@ -3060,6 +3421,11 @@ function startTrial(settings: GameSettings): void {
     },
     cris,
     trialRules,
+    pinyinData,
+    traditionalData,
+    gestaltData,
+    compositionData,
+    assonanceData,
   );
   renderTrialStageIntro(trialSession);
 }

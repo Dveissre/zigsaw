@@ -12,7 +12,18 @@
   - 适合 GitHub、编辑器和跨平台工具直接查看。
 - `trial-rules-opinion-initial.csv`
   - 更早的三条规则草案，仅作历史参考。
+- `trial-rule-opinion-1105.csv`
+  - 2026-11-05 三条补充规则的原始文件，编码为 UTF-8 with BOM。
+  - 保持原始字节不变，不转换、不改写。
+- `trial-rule-opinion-1105.utf8.csv`
+  - 2026-11-05 原件的 UTF-8 with BOM 安全副本。
 
 两份 2026-11-03 文件解码后的字段和文本已经逐项核对一致。正式维护版本是
 `docs/trial-rules-plan.md`，运行时规则则是
 `public/data/trial-rules.json`；归档 CSV 不再作为运行数据源。
+
+2026-11-05 原件与安全副本的 SHA-256 相同：
+`10DF3208F6F7FBC0D578F35DBA96A2347236EAB8914605F35FC1BFCFB8EDFB7A`。
+
+归档原件保留提交时的英文名 `Recherché`；正式计划中该规则已改名为
+`Selcouth`，稳定 ID 为 `selcouth`。

@@ -1,7 +1,16 @@
+import type { Level } from "./data";
+
 export type TrialRulePromptMode =
   | "answer-components"
+  | "assonance-components"
   | "displayed-cards"
+  | "gestalt-components"
+  | "overlay-components"
+  | "prefabricated-components"
+  | "repetend-components"
+  | "reduction-components"
   | "traditional-components"
+  | "wildcard-components"
   | "word-components";
 
 export interface TrialRuleDescription {
@@ -33,6 +42,7 @@ export interface TrialBossSelection {
 
 export interface TrialRuleSelection {
   excludedComponents?: string[];
+  levels?: Level[];
   normal: TrialNormalSelection;
   boss: TrialBossSelection;
 }
@@ -82,6 +92,9 @@ export interface TrialCardsPolicy {
   obscureCount?: number | "all";
   decoyCount?: number;
   decoyComponents?: string[];
+  decoyRarity?: "N";
+  decoyWeighting?: "usage";
+  decoyUnique?: boolean;
 }
 
 export interface TrialRulePolicy {
@@ -207,8 +220,15 @@ function validatePolicy(
       !isRecord(prompt[kind]) ||
       ![
         "answer-components",
+        "assonance-components",
         "displayed-cards",
+        "gestalt-components",
+        "overlay-components",
+        "prefabricated-components",
+        "repetend-components",
+        "reduction-components",
         "traditional-components",
+        "wildcard-components",
         "word-components",
       ].includes(String(prompt[kind].mode))
     ) {
@@ -244,6 +264,7 @@ function validatePolicy(
         "component",
         "compound",
         "quantity",
+        "overlay",
         "obscured",
         "wildcard",
       ].includes(String(cards[kind].display))
@@ -290,6 +311,30 @@ function validatePolicy(
     ) {
       throw new Error(
         `data/trial-rules.json: ${ruleId}.policy.cards.${kind}.decoyComponents is invalid`,
+      );
+    }
+    if (
+      cards[kind].decoyRarity !== undefined &&
+      cards[kind].decoyRarity !== "N"
+    ) {
+      throw new Error(
+        `data/trial-rules.json: ${ruleId}.policy.cards.${kind}.decoyRarity is invalid`,
+      );
+    }
+    if (
+      cards[kind].decoyWeighting !== undefined &&
+      cards[kind].decoyWeighting !== "usage"
+    ) {
+      throw new Error(
+        `data/trial-rules.json: ${ruleId}.policy.cards.${kind}.decoyWeighting is invalid`,
+      );
+    }
+    if (
+      cards[kind].decoyUnique !== undefined &&
+      typeof cards[kind].decoyUnique !== "boolean"
+    ) {
+      throw new Error(
+        `data/trial-rules.json: ${ruleId}.policy.cards.${kind}.decoyUnique is invalid`,
       );
     }
   }
@@ -357,6 +402,21 @@ function validateRule(
   ) {
     throw new Error(
       `data/trial-rules.json: ${id}.selection.excludedComponents is invalid`,
+    );
+  }
+  if (
+    selection.levels !== undefined &&
+    (!Array.isArray(selection.levels) ||
+      selection.levels.length === 0 ||
+      !selection.levels.every(
+        (level) =>
+          Number.isInteger(level) &&
+          level >= 1 &&
+          level <= 3,
+      ))
+  ) {
+    throw new Error(
+      `data/trial-rules.json: ${id}.selection.levels is invalid`,
     );
   }
   if (

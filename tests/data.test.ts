@@ -1,4 +1,5 @@
 import { existsSync, readFileSync, readdirSync } from "node:fs";
+import { createHash } from "node:crypto";
 import { resolve } from "node:path";
 import { describe, expect, it } from "vitest";
 import { externalCharacterMeta, GameData } from "../src/game/data";
@@ -27,6 +28,42 @@ type ComponentAssetTable = {
 type AnswerCompatibilityTable = {
   format: string;
   expansions: Record<string, number[][]>;
+};
+
+type GestaltPairsTable = {
+  format: string;
+  sourceHash: string;
+  answerCompatibilityHash: string;
+  excludedComponents: string[];
+  pairs: Array<{
+    components: [number, number];
+    answers: Array<{ char: string; level: number }>;
+  }>;
+};
+
+type CompositionWordsTable = {
+  format: string;
+  sourceHash: string;
+  symbolHash: string;
+  answerCompatibilityHash: string;
+  words: Record<"2" | "3" | "4", string[]>;
+  normal: Array<{
+    word: string;
+    weight: number;
+    recipes: number[][][];
+  }>;
+  boss: Array<{
+    word: string;
+    weight: number;
+    recipes: number[][][];
+  }>;
+};
+
+type AssonanceWordsTable = Omit<
+  CompositionWordsTable,
+  "format"
+> & {
+  format: "zigsaw-assonance-words/1";
 };
 
 type CharDetailTable = Array<{
@@ -98,6 +135,322 @@ const readJson = <T>(path: string): T =>
   JSON.parse(readFileSync(resolve(process.cwd(), path), "utf8")) as T;
 
 describe("static game data", () => {
+  it("keeps the generated composition pool synchronized with words and decompositions", () => {
+    const composition = readJson<CompositionWordsTable>(
+      "public/data/composition-words.json",
+    );
+    expect(composition.format).toBe(
+      "zigsaw-composition-words/1",
+    );
+    expect(composition.sourceHash).toBe(
+      createHash("sha256")
+        .update(
+          readFileSync(
+            resolve(process.cwd(), "docs/words_2to4.txt"),
+          ),
+        )
+        .digest("hex"),
+    );
+    expect(composition.symbolHash).toBe(
+      createHash("sha256")
+        .update(
+          readFileSync(
+            resolve(process.cwd(), "public/data/char_sym.json"),
+          ),
+        )
+        .digest("hex"),
+    );
+    expect(composition.answerCompatibilityHash).toBe(
+      createHash("sha256")
+        .update(
+          readFileSync(
+            resolve(
+              process.cwd(),
+              "public/data/char_sym_answer_compat.json",
+            ),
+          ),
+        )
+        .digest("hex"),
+    );
+    expect(composition.normal).toHaveLength(3531);
+    expect(composition.boss).toHaveLength(6252);
+    expect(composition.words["2"]).toHaveLength(16735);
+    expect(composition.words["3"]).toHaveLength(6731);
+    expect(composition.words["4"]).toHaveLength(8278);
+    expect(
+      composition.normal.every(
+        (entry) =>
+          entry.weight > 0 &&
+          entry.recipes.every(
+            (recipe) =>
+              recipe.reduce(
+                (sum, way) => sum + way.length,
+                0,
+              ) === 4,
+          ),
+      ),
+    ).toBe(true);
+    expect(
+      composition.boss.every((entry) =>
+        entry.recipes.every((recipe) => {
+          const cards = recipe.reduce(
+            (sum, way) => sum + way.length,
+            0,
+          );
+          return cards >= 6 && cards <= 8;
+        }),
+      ),
+    ).toBe(true);
+    for (const pool of [
+      composition.normal,
+      composition.boss,
+    ]) {
+      const frequency = new Map<string, number>();
+      for (const entry of pool) {
+        for (const char of entry.word) {
+          frequency.set(
+            char,
+            (frequency.get(char) ?? 0) + 1,
+          );
+        }
+      }
+      for (const entry of pool.slice(0, 50)) {
+        const chars = [...entry.word];
+        const expectedWeight =
+          1 /
+          Math.exp(
+            chars.reduce(
+              (sum, char) =>
+                sum +
+                Math.log(frequency.get(char) ?? 1),
+              0,
+            ) / chars.length,
+          );
+        expect(entry.weight).toBeCloseTo(
+          expectedWeight,
+          10,
+        );
+      }
+    }
+  });
+
+  it("keeps the assonance pool restricted to cross-character repeated components", () => {
+    const assonance = readJson<AssonanceWordsTable>(
+      "public/data/assonance-words.json",
+    );
+    expect(assonance.format).toBe(
+      "zigsaw-assonance-words/1",
+    );
+    expect(assonance.sourceHash).toBe(
+      createHash("sha256")
+        .update(
+          readFileSync(
+            resolve(process.cwd(), "docs/words_2to4.txt"),
+          ),
+        )
+        .digest("hex"),
+    );
+    expect(assonance.symbolHash).toBe(
+      createHash("sha256")
+        .update(
+          readFileSync(
+            resolve(process.cwd(), "public/data/char_sym.json"),
+          ),
+        )
+        .digest("hex"),
+    );
+    expect(assonance.answerCompatibilityHash).toBe(
+      createHash("sha256")
+        .update(
+          readFileSync(
+            resolve(
+              process.cwd(),
+              "public/data/char_sym_answer_compat.json",
+            ),
+          ),
+        )
+        .digest("hex"),
+    );
+    expect(assonance.normal).toHaveLength(958);
+    expect(assonance.boss).toHaveLength(708);
+    expect(assonance.words["2"]).toHaveLength(16685);
+    expect(assonance.words["3"]).toHaveLength(6459);
+    expect(assonance.words["4"]).toHaveLength(7550);
+    for (const words of Object.values(assonance.words)) {
+      expect(
+        words.every(
+          (word) =>
+            new Set([...word]).size === [...word].length,
+        ),
+      ).toBe(true);
+    }
+    const displayedShape = (recipe: number[][]) => {
+      const counts = new Map<number, number>();
+      for (const way of recipe) {
+        for (const symbolId of way) {
+          counts.set(
+            symbolId,
+            (counts.get(symbolId) ?? 0) + 1,
+          );
+        }
+      }
+      const cross = [...counts.keys()].filter(
+        (symbolId) =>
+          recipe.filter((way) =>
+            way.includes(symbolId),
+          ).length >= 2,
+      );
+      return {
+        cards:
+          cross.length +
+          [...counts.entries()].reduce(
+            (sum, [symbolId, count]) =>
+              sum +
+              (cross.includes(symbolId) ? 0 : count),
+            0,
+          ),
+        cross: cross.length,
+      };
+    };
+    expect(
+      assonance.normal.every((entry) =>
+        entry.recipes.every((recipe) => {
+          const shape = displayedShape(recipe);
+          return (
+            shape.cards >= 4 &&
+            shape.cards <= 5 &&
+            shape.cross >= 1
+          );
+        }),
+      ),
+    ).toBe(true);
+    expect(
+      assonance.boss.every((entry) =>
+        entry.recipes.every((recipe) => {
+          const shape = displayedShape(recipe);
+          return (
+            shape.cards >= 6 &&
+            shape.cards <= 10 &&
+            shape.cross >= 2
+          );
+        }),
+      ),
+    ).toBe(true);
+  });
+
+  it("keeps generated Gestalt pairs free of direct-answer and compatibility-only seeds", () => {
+    const symTable = readJson<SymTable>(
+      "public/data/char_sym.json",
+    );
+    const levelTable = readJson<LevelTable>(
+      "public/data/tongyong_hanzi.json",
+    );
+    const answerCompatibility =
+      readJson<AnswerCompatibilityTable>(
+        "public/data/char_sym_answer_compat.json",
+      );
+    const gestalt = readJson<GestaltPairsTable>(
+      "public/data/gestalt-pairs.json",
+    );
+    const allowedChars = new Set([
+      ...levelTable.levels.一级,
+      ...levelTable.levels.二级,
+    ]);
+    const directPairSeeds = new Set<string>();
+    const directTwoPartAnswers = new Set<string>();
+    for (const [char, ways] of Object.entries(symTable.chars)) {
+      if (!allowedChars.has(char)) {
+        continue;
+      }
+      for (const way of ways) {
+        for (let left = 0; left < way.length; left += 1) {
+          for (
+            let right = left + 1;
+            right < way.length;
+            right += 1
+          ) {
+            const pair = [way[left], way[right]].sort(
+              (first, second) => first - second,
+            );
+            directPairSeeds.add(`${pair[0]}|${pair[1]}`);
+            if (way.length === 2) {
+              directTwoPartAnswers.add(
+                `${pair[0]}|${pair[1]}`,
+              );
+            }
+          }
+        }
+      }
+    }
+
+    expect(gestalt.format).toBe(
+      "zigsaw-gestalt-pairs/1",
+    );
+    expect(gestalt.sourceHash).toBe(
+      createHash("sha256")
+        .update(
+          readFileSync(
+            resolve(process.cwd(), "public/data/char_sym.json"),
+          ),
+        )
+        .digest("hex"),
+    );
+    expect(gestalt.answerCompatibilityHash).toBe(
+      createHash("sha256")
+        .update(
+          readFileSync(
+            resolve(
+              process.cwd(),
+              "public/data/char_sym_answer_compat.json",
+            ),
+          ),
+        )
+        .digest("hex"),
+    );
+    expect(gestalt.excludedComponents).toContain("𰀁");
+    expect(gestalt.pairs).toHaveLength(4534);
+    expect(
+      gestalt.pairs.find(
+        (pair) =>
+          pair.components[0] === 91 &&
+          pair.components[1] === 148,
+      )?.answers.map((answer) => answer.char),
+    ).toEqual(["圄"]);
+    const game = new GameData(
+      symTable,
+      levelTable,
+      null,
+      "",
+      answerCompatibility,
+    );
+    const accepted = game.acceptedContaining([91, 148]);
+    expect(accepted.has("圄")).toBe(true);
+    expect(accepted.has("晤")).toBe(true);
+    expect(
+      gestalt.pairs.some(
+        (pair) =>
+          pair.components.includes(91) &&
+          pair.components.includes(164),
+      ),
+    ).toBe(false);
+    for (const pair of gestalt.pairs) {
+      const key = `${pair.components[0]}|${pair.components[1]}`;
+      expect(directPairSeeds.has(key)).toBe(true);
+      expect(directTwoPartAnswers.has(key)).toBe(false);
+      expect(pair.answers.length).toBeGreaterThanOrEqual(1);
+      expect(pair.answers.length).toBeLessThanOrEqual(3);
+      for (const answer of pair.answers) {
+        expect(
+          symTable.chars[answer.char]?.some((way) =>
+            pair.components.every((symbolId) =>
+              way.includes(symbolId),
+            ),
+          ),
+        ).toBe(true);
+      }
+    }
+  });
+
   it("keeps the expected sym table shape", () => {
     const data = readJson<SymTable>("public/data/char_sym.json");
 
@@ -281,7 +634,7 @@ describe("static game data", () => {
 
     expect(usage.format).toBe("zigsaw-component-usage/1");
     expect(usage.characterCount).toBe(8105);
-    expect(usage.decompositionCount).toBe(9163);
+    expect(usage.decompositionCount).toBe(9269);
     expect(usage.componentCount).toBe(usage.symbols.length);
     expect(new Set(ids).size).toBe(ids.length);
     expect(usage.totalUsageCount).toBe(
@@ -300,7 +653,7 @@ describe("static game data", () => {
     expect(usage.symbols[0]).toMatchObject({
       symbolId: 90,
       name: "口",
-      count: 1840,
+      count: 1864,
     });
     expect(
       usage.symbols.find((symbol) => symbol.symbolId === 425)
@@ -320,9 +673,9 @@ describe("static game data", () => {
     expect(atlas.xrCount).toBe(15);
     expect(atlas.characterCount).toBe(8105);
     expect(atlas.byRarity).toEqual({
-      N: 73,
-      R: 140,
-      SR: 110,
+      N: 75,
+      R: 139,
+      SR: 109,
       SSR: 35,
       UR: 40,
       XR: 15,

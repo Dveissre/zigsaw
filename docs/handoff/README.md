@@ -36,10 +36,18 @@ git log --name-status -1 -- docs/handoff
 
 | 日期 | 类型 | 内容 | 文档 |
 | --- | --- | --- | --- |
+| 2026-11-05 | bugfix | 修复格式塔 BOSS 多解展示、重复答案字与四卡 BOSS 排布；完善配对检查 | [trial-mode.md](features/trial-mode.md) |
+| 2026-11-05 | feature | 实装格式塔；两卡与四卡线索、直接拆法种子和 BOSS 替代配对检查 | [trial-mode.md](features/trial-mode.md) |
+| 2026-11-05 | feature | 实装茁轧；双重曝光完成验证后因定位重复转为隐藏废案 | [trial-mode.md](features/trial-mode.md) |
+| 2026-11-05 | plan | 整理三条补充制限：赋格曲、双重曝光、茁轧；归档原始意见与 UTF-8 安全副本 | [trial-rules-plan.md](../trial-rules-plan.md) |
+| 2026-11-05 | feature | 实装枝指；N 级部件按关联字数加权，干扰卡经唯一答案检查 | [trial-mode.md](features/trial-mode.md) |
+| 2026-11-05 | feature | 实装通配符；唯一答案筛选、BOSS 每答案一张 Cris 白板 | [trial-mode.md](features/trial-mode.md) |
+| 2026-11-05 | feature | 三秋树图鉴同时收录简繁；实装预制件及候选池分析 | [trial-mode.md](features/trial-mode.md)、[trial-rules-plan.md](../trial-rules-plan.md) |
+| 2026-11-05 | feature | 实装化约论；兼容部件展开、展示卡替代答案与整幕来源去重 | [trial-mode.md](features/trial-mode.md) |
 | 2026-11-04 | feature | 新增紧凑存档码 beta，支持复制与二次确认导入；`.zsave` 仍为主要方案 | [save-code.md](features/save-code.md) |
 | 2026-11-04 | feature | 写字台结算按钮移位；多部件组字奖励 Cris 并增加卡片槽位与结算反馈 | [gacha-rewards.md](features/gacha-rewards.md) |
 | 2026-11-04 | feature | 合并试炼主线；新增可迁移的加密存档；练习无尽改为题数行单键开关 | [save-archive.md](features/save-archive.md)、[bugfix.md](bugfix.md) |
-| 2026-11-04 | feature | 实装失与得、拾级、五个奇境变体、短视、心盲症并统一试炼文案 | [trial-mode.md](features/trial-mode.md) |
+| 2026-11-04 | feature | 实装指差确认、三秋树；迁移拼音和繁简运行数据 | [trial-mode.md](features/trial-mode.md) |
 | 2026-11-03 | feature | 试炼规则数据层升级 v2；实装四分法并同步急板显示名 | [trial-mode.md](features/trial-mode.md) |
 | 2026-11-03 | data | 同步字表修正；新增 `12`（㇈）和 `342`（叀）SVG | [bugfix.md](bugfix.md) |
 | 2026-11-03 | plan | 正式整理制限规则计划；归档 GBK 意见表并生成三类候选池报告 | [trial-rules-plan.md](../trial-rules-plan.md) |
@@ -58,15 +66,16 @@ git log --name-status -1 -- docs/handoff
 | 2026-11-01 | bugfix | 囗注记、换题揭示、教程计数、写字台方点、Cris 不足按钮、新增 SVG | [bugfix.md](bugfix.md) |
 | 2026-11-01 | feature | 汉字释义浮窗的静态分片和按需加载方案 | [char-detail.md](features/char-detail.md) |
 
-## 当前状态（2026-11-04）
+## 当前状态（2026-11-05）
 
-- `origin/main` 已更新到 `21cce3e` 的试炼模式版本。
+- `feature/trial-mode` 已同步到 `origin/main` 的 `e5d3903`，并保留指差确认等未提交工作。
 - `bugfix/internal` 已在工作区合入该版本，但按约定没有创建 merge commit；
   后续提交、推送和 `main` 合并由用户执行。
 - `/test/` 提供挑战、试炼与练习入口；正式 `/` 仍只提供挑战与练习。
 - 练习模式下的“无尽”已改为题数行右侧单键开关；开启时题数控件置灰禁用。
 - Bug worktree 的开发端口仍为 `5174`，试炼主线 worktree 为 `5173`。
-- 试炼已接入四分法、急板、失与得、增稠、五个奇境、极简主义、短视、繁缛
-  与心盲症。
+- 试炼已接入四分法、急板、失与得、拾级、五个奇境、指差确认、三秋树、
+  化约论、预制件、通配符、枝指、茁轧、格式塔、极简主义、短视、繁缛与
+  心盲症。
 - 完整制限规则目录与实装批次见 `docs/trial-rules-plan.md`。
 - 未提交或合并任务仍以 `git status`、`git diff` 的实际结果为准。

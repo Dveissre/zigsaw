@@ -17,6 +17,16 @@ const atlasData = readJson("component-atlas.json");
 const answerCompatibility = readJson(
   "char_sym_answer_compat.json",
 );
+const sourceHash = createHash("sha256")
+  .update(readFileSync(resolve(dataDir, "char_sym.json")))
+  .digest("hex");
+const answerCompatibilityHash = createHash("sha256")
+  .update(
+    readFileSync(
+      resolve(dataDir, "char_sym_answer_compat.json"),
+    ),
+  )
+  .digest("hex");
 
 const componentNames = new Map(
   Object.entries(symData.symbols).map(([id, name]) => [
@@ -149,64 +159,202 @@ writeCsv(
   inspissationRows,
 );
 
-// Gestalt: expand each answer downward through the answer-compatibility layer
-// before testing whether a pair is covered. Multiple decompositions of the
-// same answer still contribute only one answer to a pair.
-const answerExpansions = new Map(
-  Object.entries(answerCompatibility.expansions ?? {}).map(
-    ([symbolId, alternatives]) => [
-      Number(symbolId),
-      alternatives.map((parts) => [...parts]),
-    ],
-  ),
-);
-const expansionCache = new Map();
-const expandBag = (way) => {
-  const initial = [...way].sort((left, right) => left - right);
-  const initialKey = initial.join(",");
-  const cached = expansionCache.get(initialKey);
-  if (cached) {
-    return cached;
+// Prefabrication: an ordinary question is usable when one pair of cards in
+// its answer decomposition can directly form another renderable character.
+const directPairTargets = new Map();
+for (const item of allRenderableWays) {
+  if (item.way.length !== 2) {
+    continue;
   }
-  const expanded = new Set([initialKey]);
-  const pending = [initial];
-  while (pending.length > 0) {
-    const current = pending.pop();
-    for (const symbolId of new Set(current)) {
-      for (const alternative of answerExpansions.get(symbolId) ?? []) {
-        const next = [...current];
-        next.splice(next.indexOf(symbolId), 1, ...alternative);
-        next.sort((left, right) => left - right);
-        const key = next.join(",");
-        if (expanded.has(key)) {
-          continue;
-        }
-        expanded.add(key);
-        pending.push(next);
+  const key = [...item.way]
+    .sort((left, right) => left - right)
+    .join(",");
+  const targets = directPairTargets.get(key) ?? new Set();
+  targets.add(item.char);
+  directPairTargets.set(key, targets);
+}
+const prefabricationRows = [];
+const prefabricationCharacters = new Set();
+let prefabricationWayCount = 0;
+const prefabricationPairs = new Set();
+const prefabricationHints = new Set();
+const symbolIdBagKey = (symbolIds) =>
+  [...symbolIds].sort((left, right) => left - right).join(",");
+const prefabricationSymbolIdsByName = new Map();
+for (const ways of Object.values(symData.chars)) {
+  for (const way of ways) {
+    for (const symbolId of way) {
+      const name = componentNames.get(symbolId);
+      if (
+        name &&
+        !prefabricationSymbolIdsByName.has(name)
+      ) {
+        prefabricationSymbolIdsByName.set(name, symbolId);
       }
     }
   }
-  const result = [...expanded].map((key) =>
-    key.split(",").map(Number),
+}
+const prefabricationMatchesExistingWay = (
+  char,
+  way,
+  left,
+  right,
+  glyph,
+) => {
+  const groupedSymbolId =
+    prefabricationSymbolIdsByName.get(glyph);
+  if (groupedSymbolId === undefined) {
+    return false;
+  }
+  const displayedSymbolIds = [...way];
+  displayedSymbolIds.splice(right, 1);
+  displayedSymbolIds.splice(left, 1);
+  displayedSymbolIds.push(groupedSymbolId);
+  const target = symbolIdBagKey(displayedSymbolIds);
+  return (symData.chars[char] ?? []).some(
+    (candidate) =>
+      symbolIdBagKey(candidate) === target,
   );
-  expansionCache.set(initialKey, result);
-  return result;
 };
-
-const pairAnswers = new Map();
-for (const item of eligibleWays) {
-  for (const parts of expandBag(item.way)) {
-    for (let left = 0; left < parts.length; left += 1) {
+for (let length = 3; length <= 10; length += 1) {
+  const chars = new Set();
+  const levelOne = new Set();
+  const levelTwo = new Set();
+  const lengthPairs = new Set();
+  const lengthHints = new Set();
+  let wayCount = 0;
+  for (const item of eligibleWays) {
+    if (item.way.length !== length) {
+      continue;
+    }
+    let usable = false;
+    for (let left = 0; left < item.way.length; left += 1) {
       for (
-        let right = left;
-        right < parts.length;
+        let right = left + 1;
+        right < item.way.length;
         right += 1
       ) {
-        const key = `${parts[left]}|${parts[right]}`;
-        const answers = pairAnswers.get(key) ?? new Map();
-        answers.set(item.char, item.level);
-        pairAnswers.set(key, answers);
+        const key = [item.way[left], item.way[right]]
+          .sort((first, second) => first - second)
+          .join(",");
+        const targets = [
+          ...(directPairTargets.get(key) ?? []),
+        ].filter(
+          (char) =>
+            char !== item.char &&
+            !prefabricationMatchesExistingWay(
+              item.char,
+              item.way,
+              left,
+              right,
+              char,
+            ),
+        );
+        if (targets.length === 0) {
+          continue;
+        }
+        usable = true;
+        lengthPairs.add(key);
+        prefabricationPairs.add(key);
+        for (const target of targets) {
+          lengthHints.add(target);
+          prefabricationHints.add(target);
+        }
       }
+    }
+    if (!usable) {
+      continue;
+    }
+    wayCount += 1;
+    prefabricationWayCount += 1;
+    chars.add(item.char);
+    prefabricationCharacters.add(item.char);
+    if (item.level === 1) {
+      levelOne.add(item.char);
+    } else {
+      levelTwo.add(item.char);
+    }
+  }
+  prefabricationRows.push({
+    部件数: length,
+    可出题汉字数: chars.size,
+    一级字数: levelOne.size,
+    二级字数: levelTwo.size,
+    拆法数: wayCount,
+    可用提示对数: lengthPairs.size,
+    可用提示字数: lengthHints.size,
+  });
+}
+writeCsv(
+  "prefabrication-part-counts.csv",
+  [
+    "部件数",
+    "可出题汉字数",
+    "一级字数",
+    "二级字数",
+    "拆法数",
+    "可用提示对数",
+    "可用提示字数",
+  ],
+  prefabricationRows,
+);
+
+// Gestalt: both clue components must occur together in a direct answer
+// decomposition. Compatibility may not introduce either clue by itself.
+const excludedGestaltComponentNames = new Set([
+  "一",
+  "丨",
+  "丿",
+  "丶",
+  "㇏",
+  "乚",
+  "亅",
+  "㇆",
+  "𠃊",
+  "𰀁",
+  "乛",
+  "二",
+  "十",
+  "冂",
+  "口",
+]);
+const directlyComposablePairs = new Set();
+for (const item of eligibleWays) {
+  if (item.way.length === 2) {
+    const pair = [...item.way].sort(
+      (first, second) => first - second,
+    );
+    directlyComposablePairs.add(`${pair[0]}|${pair[1]}`);
+  }
+}
+const pairAnswers = new Map();
+for (const item of eligibleWays) {
+  for (let left = 0; left < item.way.length; left += 1) {
+    for (
+      let right = left + 1;
+      right < item.way.length;
+      right += 1
+    ) {
+      const leftName =
+        componentNames.get(item.way[left]) ?? "?";
+      const rightName =
+        componentNames.get(item.way[right]) ?? "?";
+      if (
+        excludedGestaltComponentNames.has(leftName) ||
+        excludedGestaltComponentNames.has(rightName)
+      ) {
+        continue;
+      }
+      const pair = [item.way[left], item.way[right]].sort(
+        (first, second) => first - second,
+      );
+      const key = `${pair[0]}|${pair[1]}`;
+      if (directlyComposablePairs.has(key)) {
+        continue;
+      }
+      const answers = pairAnswers.get(key) ?? new Map();
+      answers.set(item.char, item.level);
+      pairAnswers.set(key, answers);
     }
   }
 }
@@ -242,11 +390,43 @@ writeCsv(
   ["部件1id", "部件1", "部件2id", "部件2", "答案数", "可行答案"],
   gestaltRows,
 );
-const compatibilityExample = [
-  ...(pairAnswers.get("1|171") ?? new Map()).entries(),
-]
+const gestaltDataPath = resolve(dataDir, "gestalt-pairs.json");
+writeFileSync(
+  gestaltDataPath,
+  `${JSON.stringify(
+    {
+      format: "zigsaw-gestalt-pairs/1",
+      sourceHash,
+      answerCompatibilityHash,
+      excludedComponents: [
+        ...excludedGestaltComponentNames,
+      ],
+      pairs: gestaltRows.map((row) => {
+        const key = `${row.部件1id}|${row.部件2id}`;
+        return {
+          components: [row.部件1id, row.部件2id],
+          answers: [...(pairAnswers.get(key) ?? new Map())]
+            .map(([char, level]) => ({ char, level }))
+            .sort((left, right) =>
+              left.char.localeCompare(right.char, "zh-CN"),
+            ),
+        };
+      }),
+    },
+    null,
+    2,
+  )}\n`,
+  "utf8",
+);
+const gestaltExampleEntry =
+  [...pairAnswers.entries()].find(
+    ([, answers]) => answers.size > 1,
+  ) ?? [...pairAnswers.entries()][0];
+const gestaltExample = gestaltExampleEntry
+  ? [...gestaltExampleEntry[1].entries()]
   .sort(([left], [right]) => left.localeCompare(right, "zh-CN"))
-  .map(([char, level]) => `${char}(${formatLevel(level)})`);
+  .map(([char, level]) => `${char}(${formatLevel(level)})`)
+  : [];
 
 // Outland: find characters made from one base component plus a non-empty
 // combination of components from each environmental distractor class.
@@ -365,34 +545,45 @@ const summary = {
     selectableCharacterRule:
       "任一拆法包含不可渲染部件时排除整字",
   },
-  sourceHash: createHash("sha256")
-    .update(readFileSync(resolve(dataDir, "char_sym.json")))
-    .digest("hex"),
-  answerCompatibilityHash: createHash("sha256")
-    .update(
-      readFileSync(
-        resolve(dataDir, "char_sym_answer_compat.json"),
-      ),
-    )
-    .digest("hex"),
+  sourceHash,
+  answerCompatibilityHash,
   eligible: {
     characters: characterWays.size,
     decompositionWays: eligibleWays.length,
   },
   inspissation: inspissationRows,
+  prefabrication: {
+    eligibility:
+      "答案至少三部件，同一拆法中至少一对卡能直接组成另一个可渲染汉字，且预组后的 symbol ID 组合不对应答案的任何既有拆法",
+    characters: prefabricationCharacters.size,
+    decompositionWays: prefabricationWayCount,
+    usablePairs: prefabricationPairs.size,
+    hintCharacters: prefabricationHints.size,
+    byPartCount: prefabricationRows,
+  },
   gestalt: {
-    totalPairsObserved: pairAnswers.size,
+    directPairSeeds: pairAnswers.size,
+    pairPoolsWithAnswers: pairAnswers.size,
+    excludedComponents: [
+      ...excludedGestaltComponentNames,
+    ],
     pairsWithAtMostThreeAnswers: gestaltRows.length,
+    directlyComposablePairsExcluded: true,
     byAnswerCount: Object.fromEntries(
       [1, 2, 3].map((count) => [
         count,
         gestaltRows.filter((row) => row.答案数 === count).length,
       ]),
     ),
-    compatibilityExample: {
-      components: "一 + 斤",
-      answerCount: compatibilityExample.length,
-      answers: compatibilityExample,
+    example: {
+      components: gestaltExampleEntry
+        ? gestaltExampleEntry[0]
+            .split("|")
+            .map((id) => componentNames.get(Number(id)) ?? "?")
+            .join(" + ")
+        : "",
+      answerCount: gestaltExample.length,
+      answers: gestaltExample,
     },
   },
   outland: Object.fromEntries(
