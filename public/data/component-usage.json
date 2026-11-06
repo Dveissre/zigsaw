@@ -3,7 +3,7 @@
   "source": "tongyong_hanzi.json + char_sym.json",
   "characterCount": 8105,
   "decompositionCount": 9269,
-  "totalUsageCount": 32415,
+  "totalUsageCount": 32410,
   "componentCount": 374,
   "symbols": [
     {
@@ -69,14 +69,14 @@
     {
       "symbolId": 5,
       "name": "丶",
-      "count": 516,
-      "charCount": 403
+      "count": 510,
+      "charCount": 399
     },
     {
       "symbolId": 49,
       "name": "丷",
-      "count": 494,
-      "charCount": 417
+      "count": 496,
+      "charCount": 419
     },
     {
       "symbolId": 17,
@@ -141,8 +141,8 @@
     {
       "symbolId": 4,
       "name": "丿",
-      "count": 323,
-      "charCount": 287
+      "count": 321,
+      "charCount": 285
     },
     {
       "symbolId": 119,
@@ -166,8 +166,8 @@
     {
       "symbolId": 108,
       "name": "宀",
-      "count": 307,
-      "charCount": 286
+      "count": 310,
+      "charCount": 289
     },
     {
       "symbolId": 413,
@@ -219,16 +219,16 @@
       "charCount": 216
     },
     {
-      "symbolId": 51,
-      "name": "冖",
-      "count": 231,
-      "charCount": 227
-    },
-    {
       "symbolId": 186,
       "name": "火",
       "count": 231,
       "charCount": 184
+    },
+    {
+      "symbolId": 51,
+      "name": "冖",
+      "count": 228,
+      "charCount": 224
     },
     {
       "symbolId": 289,
@@ -473,13 +473,6 @@
       "asset": "component_svg/121N.svg"
     },
     {
-      "symbolId": 14,
-      "name": "乛",
-      "count": 104,
-      "charCount": 98,
-      "asset": "component_svg/14.svg"
-    },
-    {
       "symbolId": 71,
       "name": "𰀁",
       "count": 104,
@@ -491,6 +484,13 @@
       "name": "车",
       "count": 104,
       "charCount": 100
+    },
+    {
+      "symbolId": 14,
+      "name": "乛",
+      "count": 103,
+      "charCount": 97,
+      "asset": "component_svg/14.svg"
     },
     {
       "symbolId": 169,
@@ -513,8 +513,8 @@
     {
       "symbolId": 75,
       "name": "工",
-      "count": 96,
-      "charCount": 92
+      "count": 97,
+      "charCount": 93
     },
     {
       "symbolId": 99,
@@ -1381,6 +1381,12 @@
       "asset": "component_svg/419.svg"
     },
     {
+      "symbolId": 429,
+      "name": "ス",
+      "count": 19,
+      "charCount": 18
+    },
+    {
       "symbolId": 152,
       "name": "牙",
       "count": 18,
@@ -1403,12 +1409,6 @@
       "name": "聿",
       "count": 18,
       "charCount": 18
-    },
-    {
-      "symbolId": 429,
-      "name": "ス",
-      "count": 18,
-      "charCount": 17
     },
     {
       "symbolId": 105,

@@ -27,6 +27,7 @@ export interface GameSettings {
   exEnabled: boolean;
   includeSupplementaryChars: boolean;
   difficulty: ChallengeDifficulty;
+  trialDifficulty: number;
 }
 
 export interface ChallengeBounds {

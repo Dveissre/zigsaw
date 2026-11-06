@@ -1,0 +1,66 @@
+{
+  "id": "multiexposure",
+  "name": "双重曝光",
+  "english": "Multiexposure",
+  "description": {
+    "public": "两个部件会叠印在同一张卡上，两个部件都必须使用。",
+    "debug": "道中 1 张叠印卡；守幕 2 张。守幕原始 8–10 个部件，叠印后显示 6–8 张；可跨两个答案消费。",
+    "internal": "道中题从答案拆法中选取两个部件，在同一张标准卡内沿左上到右下错位显示。普通题复用预制件的 3–9 部件范围和 30:45:17:6:1.5:0.4:0.1 长度权重。BOSS 原始拆法合计 8–10 张，从两个答案的全部来源部件中选择两组互不重叠的部件叠印，最终显示 6–8 张。叠印卡内部保留两个组件；普通题按整卡消费，BOSS 中跨答案使用的叠印卡允许按内部组件分别消费，全部耗尽后卡片消失。"
+  },
+  "stars": 2,
+  "icon": "multiexposure.svg",
+  "timing": {
+    "normalSeconds": 30,
+    "bossSeconds": 90,
+    "normalMultiplier": 1,
+    "bossMultiplier": 1
+  },
+  "selection": {
+    "normal": {
+      "partLengths": [3, 4, 5, 6, 7, 8, 9],
+      "partWeights": {
+        "3": 30,
+        "4": 45,
+        "5": 17,
+        "6": 6,
+        "7": 1.5,
+        "8": 0.4,
+        "9": 0.1
+      }
+    },
+    "boss": {
+      "answerCount": 2,
+      "partLengths": [2, 3, 4, 5, 6],
+      "totalParts": [8, 10]
+    }
+  },
+  "policy": {
+    "prompt": {
+      "normal": { "mode": "overlay-components" },
+      "boss": { "mode": "overlay-components" }
+    },
+    "answer": {
+      "normal": {
+        "input": "character",
+        "acceptance": "answer-compatibility",
+        "unique": false
+      },
+      "boss": {
+        "input": "character",
+        "acceptance": "answer-compatibility",
+        "unique": false,
+        "distinct": true
+      }
+    },
+    "cards": {
+      "normal": {
+        "sources": ["answer"],
+        "display": "overlay"
+      },
+      "boss": {
+        "sources": ["answer"],
+        "display": "overlay"
+      }
+    }
+  }
+}

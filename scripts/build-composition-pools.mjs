@@ -169,11 +169,18 @@ for (const word of words) {
             (crossSymbols.includes(symbolId) ? 0 : count),
           0,
         );
+      const everyCharacterHasVisibleCard =
+        charCounts.every((current) =>
+          [...current.keys()].some(
+            (symbolId) => !crossSymbols.includes(symbolId),
+          ),
+        );
       if (
         chars.length === 2 &&
         displayedCardCount >= 4 &&
-        displayedCardCount <= 5 &&
-        crossSymbols.length >= 1
+        displayedCardCount <= 6 &&
+        crossSymbols.length >= 1 &&
+        everyCharacterHasVisibleCard
       ) {
         assonanceNormal.push({
           ...entry,

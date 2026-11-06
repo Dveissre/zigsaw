@@ -17,6 +17,8 @@
   - 保持原始字节不变，不转换、不改写。
 - `trial-rule-opinion-1105.utf8.csv`
   - 2026-11-05 原件的 UTF-8 with BOM 安全副本。
+- `trial-rules/trial-rules-opinion-2026-11-07.csv`
+  - 2026-11-07 规则文案 opinion，UTF-8 with BOM。
 
 两份 2026-11-03 文件解码后的字段和文本已经逐项核对一致。正式维护版本是
 `docs/trial-rules-plan.md`，运行时规则则是
@@ -27,3 +29,12 @@
 
 归档原件保留提交时的英文名 `Recherché`；正式计划中该规则已改名为
 `Selcouth`，稳定 ID 为 `selcouth`。
+
+## 退役的试炼制限
+
+所有已经从运行时规则表移除、但需要保留实现或设计历史的制限规则，统一存放于
+[trial-rules/](trial-rules/README.md)。每项规则均使用相同的规则快照、说明文档
+和图标结构，并由 `registry.json` 统一登记。
+
+当前包括赋格曲与双重曝光。`public/data/trial-rules.json` 是唯一运行时规则
+来源，归档目录不得被游戏直接加载。

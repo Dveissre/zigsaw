@@ -1,0 +1,57 @@
+{
+  "id": "fugue",
+  "name": "赋格曲",
+  "english": "Fugue",
+  "description": {
+    "public": "同一幕中同时进行左右两道题，两侧分别计时，并各自进入守幕关卡。",
+    "debug": "本幕 8 道道中题由两侧共享；道中每题 3–4 部件。提交自动判断属于哪一侧；两侧守幕各为两个不同汉字、合计 6–8 张卡，两侧都完成才进入下一幕。",
+    "internal": "左右题槽共享 8 道普通题队列。提交同时检查两侧当前题或 BOSS：恰好一侧可接受时自动归属；两侧都可接受时整次提交拒绝，不消耗卡片。普通题答对后从队列补入该侧；队列耗尽后该侧进入独立 BOSS。BOSS 左右各自 6–8 张、两个答案，分别计时和记录。生成时枚举每侧全部完整通关解：任一侧某个完整解的任一答案字，都不能成为另一侧 BOSS 的任意合法单字提交；最后三道普通题的任一合法答案，也不能成为任一侧 BOSS 的任意合法单字提交。不能耗尽 BOSS 的局部提交不参与该生成筛选，只在运行时参与双侧歧义拒绝。"
+  },
+  "stars": 2,
+  "icon": "fugue.svg",
+  "timing": {
+    "normalSeconds": 30,
+    "bossSeconds": 90,
+    "normalMultiplier": 1,
+    "bossMultiplier": 1
+  },
+  "selection": {
+    "normal": {
+      "partLengths": [3, 4]
+    },
+    "boss": {
+      "answerCount": 2,
+      "partLengths": [2, 3, 4, 5, 6],
+      "totalParts": [6, 8]
+    }
+  },
+  "policy": {
+    "prompt": {
+      "normal": { "mode": "answer-components" },
+      "boss": { "mode": "answer-components" }
+    },
+    "answer": {
+      "normal": {
+        "input": "character",
+        "acceptance": "answer-compatibility",
+        "unique": false
+      },
+      "boss": {
+        "input": "character",
+        "acceptance": "answer-compatibility",
+        "unique": false,
+        "distinct": true
+      }
+    },
+    "cards": {
+      "normal": {
+        "sources": ["answer"],
+        "display": "component"
+      },
+      "boss": {
+        "sources": ["answer"],
+        "display": "component"
+      }
+    }
+  }
+}

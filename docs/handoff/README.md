@@ -36,9 +36,16 @@ git log --name-status -1 -- docs/handoff
 
 | 日期 | 类型 | 内容 | 文档 |
 | --- | --- | --- | --- |
+| 2026-11-07 | feature | 规则数据升级 v3；七幕制限按 0/1/1/2/2/2或3/3 星级池随机抽取，同局避免重复；进入幕前按规则加载依赖 | [trial-mode.md](features/trial-mode.md) |
+| 2026-11-07 | feature | 试炼换题改为全流程累计预算且原地换题；首页增加 1–7 Center-focus Carousel 与说明 | [trial-mode.md](features/trial-mode.md) |
+| 2026-11-07 | feature | 试炼增加换题预算、失败后继续、阶段间主动结算与新结果标题；调试覆写按星级排序 | [trial-mode.md](features/trial-mode.md) |
+| 2026-11-07 | copy | 应用规则文案 opinion；新增试炼专用调试密钥、调试参数文案与简化覆写控件；归档原始 opinion | [trial-mode.md](features/trial-mode.md) |
+| 2026-11-07 | copy | 规则文案拆为显示/调试/内部三层；调试模式显示红色参数说明；`trial-rules.csv` 升级为六列审阅表 | [trial-rules.csv](../trial-rules.csv) |
+| 2026-11-07 | refactor | 抽离试炼运行时数据加载与规则行为查询；退役样式迁入归档；新增规则/归档一致性与分组测试命令 | [trial-architecture.md](../trial-architecture.md) |
+| 2026-11-07 | archive | 统一试炼退役规则目录；赋格曲与双重曝光均从运行时移除并保存规则快照、图标与休眠代码索引 | [registry.json](../archive/trial-rules/registry.json) |
 | 2026-11-05 | bugfix | 修复格式塔 BOSS 多解展示、重复答案字与四卡 BOSS 排布；完善配对检查 | [trial-mode.md](features/trial-mode.md) |
 | 2026-11-05 | feature | 实装格式塔；两卡与四卡线索、直接拆法种子和 BOSS 替代配对检查 | [trial-mode.md](features/trial-mode.md) |
-| 2026-11-05 | feature | 实装茁轧；双重曝光完成验证后因定位重复转为隐藏废案 | [trial-mode.md](features/trial-mode.md) |
+| 2026-11-05 | feature | 实装茁轧；双重曝光完成验证后因定位重复退役 | [trial-mode.md](features/trial-mode.md) |
 | 2026-11-05 | plan | 整理三条补充制限：赋格曲、双重曝光、茁轧；归档原始意见与 UTF-8 安全副本 | [trial-rules-plan.md](../trial-rules-plan.md) |
 | 2026-11-05 | feature | 实装枝指；N 级部件按关联字数加权，干扰卡经唯一答案检查 | [trial-mode.md](features/trial-mode.md) |
 | 2026-11-05 | feature | 实装通配符；唯一答案筛选、BOSS 每答案一张 Cris 白板 | [trial-mode.md](features/trial-mode.md) |
@@ -66,7 +73,7 @@ git log --name-status -1 -- docs/handoff
 | 2026-11-01 | bugfix | 囗注记、换题揭示、教程计数、写字台方点、Cris 不足按钮、新增 SVG | [bugfix.md](bugfix.md) |
 | 2026-11-01 | feature | 汉字释义浮窗的静态分片和按需加载方案 | [char-detail.md](features/char-detail.md) |
 
-## 当前状态（2026-11-05）
+## 当前状态（2026-11-07）
 
 - `feature/trial-mode` 已同步到 `origin/main` 的 `e5d3903`，并保留指差确认等未提交工作。
 - `bugfix/internal` 已在工作区合入该版本，但按约定没有创建 merge commit；
@@ -74,8 +81,8 @@ git log --name-status -1 -- docs/handoff
 - `/test/` 提供挑战、试炼与练习入口；正式 `/` 仍只提供挑战与练习。
 - 练习模式下的“无尽”已改为题数行右侧单键开关；开启时题数控件置灰禁用。
 - Bug worktree 的开发端口仍为 `5174`，试炼主线 worktree 为 `5173`。
-- 试炼已接入四分法、急板、失与得、拾级、五个奇境、指差确认、三秋树、
-  化约论、预制件、通配符、枝指、茁轧、格式塔、极简主义、短视、繁缛与
-  心盲症。
+- 试炼已接入四分法、急板、失与得、拾级、五个奇境、五个厄境、指差确认、三秋树、
+  化约论、预制件、通配符、枝指、茁轧、格式塔、极简主义、短视、繁缛、
+  心盲症与回声室。赋格曲与双重曝光已统一归档，代码与测试保留但不再可进入。
 - 完整制限规则目录与实装批次见 `docs/trial-rules-plan.md`。
 - 未提交或合并任务仍以 `git status`、`git diff` 的实际结果为准。

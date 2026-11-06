@@ -2,6 +2,18 @@ const SESSION_KEY = "zigsaw.debug.unlocked";
 const SALT = "zigsaw.debug.access.v1";
 const EXPECTED_SHA256 =
   "4c1f495952d4c0d9d11485af6b9a32d276ff4b471cb55ad1ec9110f4ce06186c";
+const TRIAL_EXPECTED_SHA256 =
+  "14c8fd0085490c0c61658d10640b725aee1c456202cc2ed2b93129b3ce021188";
+
+export type DebugAccessLevel = "full" | "trial";
+export type DebugAccessDecision =
+  | DebugAccessLevel
+  | "invalid"
+  | "trial-unavailable";
+
+export interface DebugAccessOptions {
+  allowTrialScoped?: boolean;
+}
 
 let unlockedInMemory = false;
 
@@ -31,6 +43,21 @@ export function isDebugUnlocked(): boolean {
   }
 }
 
+export function debugAccessDecision(
+  digest: string,
+  options: DebugAccessOptions = {},
+): DebugAccessDecision {
+  if (digest === EXPECTED_SHA256) {
+    return "full";
+  }
+  if (digest === TRIAL_EXPECTED_SHA256) {
+    return options.allowTrialScoped
+      ? "trial"
+      : "trial-unavailable";
+  }
+  return "invalid";
+}
+
 export function revokeDebugAccess(): void {
   unlockedInMemory = false;
   try {
@@ -49,9 +76,11 @@ function grantDebugAccess(): void {
   }
 }
 
-export function requestDebugAccess(): Promise<boolean> {
+export function requestDebugAccess(
+  options: DebugAccessOptions = {},
+): Promise<DebugAccessLevel | null> {
   if (isDebugUnlocked()) {
-    return Promise.resolve(true);
+    return Promise.resolve("full");
   }
 
   return new Promise((resolve) => {
@@ -83,7 +112,9 @@ export function requestDebugAccess(): Promise<boolean> {
     `;
 
     let settled = false;
-    const finish = (allowed: boolean): void => {
+    const finish = (
+      access: DebugAccessLevel | null,
+    ): void => {
       if (settled) {
         return;
       }
@@ -92,7 +123,7 @@ export function requestDebugAccess(): Promise<boolean> {
         dialog.close();
       }
       dialog.remove();
-      resolve(allowed);
+      resolve(access);
     };
     const form = dialog.querySelector("form");
     const input = dialog.querySelector<HTMLInputElement>("input");
@@ -102,30 +133,41 @@ export function requestDebugAccess(): Promise<boolean> {
 
     dialog.addEventListener("cancel", (event) => {
       event.preventDefault();
-      finish(false);
+      finish(null);
     });
     dialog.addEventListener("click", (event) => {
       if (event.target === dialog) {
-        finish(false);
+        finish(null);
       }
     });
     dialog
       .querySelector<HTMLButtonElement>("[data-debug-cancel]")
-      ?.addEventListener("click", () => finish(false));
+      ?.addEventListener("click", () => finish(null));
     form?.addEventListener("submit", (event) => {
       event.preventDefault();
       const value = input?.value.trim() ?? "";
       void passwordDigest(value)
         .then((digest) => {
-          if (digest !== EXPECTED_SHA256) {
-            if (error) {
-              error.textContent = "口令错误";
-            }
-            input?.select();
+          const decision = debugAccessDecision(
+            digest,
+            options,
+          );
+          if (decision === "full") {
+            grantDebugAccess();
+            finish("full");
             return;
           }
-          grantDebugAccess();
-          finish(true);
+          if (decision === "trial") {
+            finish("trial");
+            return;
+          }
+          if (error) {
+            error.textContent =
+              decision === "trial-unavailable"
+                ? "此口令仅在试炼模式游戏中有效"
+                : "口令错误";
+          }
+          input?.select();
         })
         .catch(() => {
           if (error) {

@@ -207,8 +207,8 @@ describe("static game data", () => {
         )
         .digest("hex"),
     );
-    expect(composition.normal).toHaveLength(7538);
-    expect(composition.boss).toHaveLength(6351);
+    expect(composition.normal).toHaveLength(7558);
+    expect(composition.boss).toHaveLength(6388);
     expect(composition.words["2"]).toHaveLength(36947);
     expect(composition.words["3"]).toHaveLength(6858);
     expect(composition.words["4"]).toHaveLength(8341);
@@ -309,7 +309,7 @@ describe("static game data", () => {
         )
         .digest("hex"),
     );
-    expect(assonance.normal).toHaveLength(2220);
+    expect(assonance.normal).toHaveLength(3111);
     expect(assonance.boss).toHaveLength(722);
     expect(assonance.words["2"]).toHaveLength(36717);
     expect(assonance.words["3"]).toHaveLength(6586);
@@ -348,6 +348,7 @@ describe("static game data", () => {
             0,
           ),
         cross: cross.length,
+        crossSymbols: cross,
       };
     };
     expect(
@@ -356,8 +357,14 @@ describe("static game data", () => {
           const shape = displayedShape(recipe);
           return (
             shape.cards >= 4 &&
-            shape.cards <= 5 &&
-            shape.cross >= 1
+            shape.cards <= 6 &&
+            shape.cross >= 1 &&
+            recipe.every((way) =>
+              way.some(
+                (symbolId) =>
+                  !shape.crossSymbols.includes(symbolId),
+              ),
+            )
           );
         }),
       ),
@@ -480,7 +487,7 @@ describe("static game data", () => {
         .digest("hex"),
     );
     expect(gestalt.excludedComponents).toContain("𰀁");
-    expect(gestalt.pairs).toHaveLength(4534);
+    expect(gestalt.pairs).toHaveLength(4535);
     expect(
       gestalt.pairs.find(
         (pair) =>
@@ -1040,6 +1047,7 @@ describe("static game data", () => {
       exEnabled: true,
       includeSupplementaryChars: true,
       difficulty: "standard" as const,
+      trialDifficulty: 1,
     };
     const boundary = game.challengeBounds(settings, (24 - 1) * 5 + 1);
     const ex = game.challengeBounds(settings, (25 - 1) * 5 + 1);

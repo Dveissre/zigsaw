@@ -16,6 +16,7 @@ export type TrialRulePromptMode =
 
 export interface TrialRuleDescription {
   public: string;
+  debug: string;
   internal: string;
 }
 
@@ -91,6 +92,7 @@ export interface TrialCardsPolicy {
   quantity?: boolean;
   obscureAfterMs?: number;
   obscureCount?: number | "all";
+  decoyMode?: "separate" | "attached";
   decoyCount?: number;
   decoyComponents?: string[];
   decoyRarity?: "N";
@@ -120,6 +122,7 @@ export interface TrialRuleDefinition {
   description: TrialRuleDescription;
   stars: number;
   icon: string;
+  allowSkip?: boolean;
   family?: TrialRuleFamily;
   timing: TrialRuleTiming;
   selection: TrialRuleSelection;
@@ -127,9 +130,85 @@ export interface TrialRuleDefinition {
 }
 
 export interface TrialRulesData {
-  version: 2;
-  stageAssignments: string[];
+  version: 3;
+  stageStars: number[][];
   rules: Record<string, TrialRuleDefinition>;
+}
+
+export type TrialRulePhase = "normal" | "boss";
+
+export function trialRulePromptMode(
+  rule: TrialRuleDefinition | null | undefined,
+  phase: TrialRulePhase,
+): TrialRulePromptMode | null {
+  return rule?.policy.prompt[phase].mode ?? null;
+}
+
+export function trialRuleAnswerInput(
+  rule: TrialRuleDefinition | null | undefined,
+  phase: TrialRulePhase,
+): TrialAnswerPolicy["input"] | null {
+  return rule?.policy.answer[phase].input ?? null;
+}
+
+export function trialRuleUsesWordAnswer(
+  rule: TrialRuleDefinition | null | undefined,
+): boolean {
+  return (
+    trialRuleAnswerInput(rule, "normal") === "word" ||
+    trialRuleAnswerInput(rule, "boss") === "word"
+  );
+}
+
+export function trialRuleUsesPrompt(
+  rule: TrialRuleDefinition | null | undefined,
+  mode: TrialRulePromptMode,
+): boolean {
+  return (
+    trialRulePromptMode(rule, "normal") === mode ||
+    trialRulePromptMode(rule, "boss") === mode
+  );
+}
+
+export function sortTrialRulesByStars(
+  rules: Iterable<TrialRuleDefinition>,
+): TrialRuleDefinition[] {
+  return [...rules].sort(
+    (left, right) =>
+      left.stars - right.stars ||
+      left.name.localeCompare(right.name, "zh-CN"),
+  );
+}
+
+export function chooseTrialStageRuleIds(
+  rulesData: TrialRulesData,
+  random: () => number,
+): string[] {
+  const used = new Set<string>();
+  const rules = sortTrialRulesByStars(
+    Object.values(rulesData.rules),
+  );
+  return rulesData.stageStars.map((stars) => {
+    const star =
+      stars[Math.floor(random() * stars.length)] ??
+      stars[0];
+    const candidates = rules.filter(
+      (rule) => rule.stars === star,
+    );
+    const unused = candidates.filter(
+      (rule) => !used.has(rule.id),
+    );
+    const pool = unused.length > 0 ? unused : candidates;
+    if (pool.length === 0) {
+      throw new Error(
+        `No trial rule available for star rating ${star}`,
+      );
+    }
+    const selected =
+      pool[Math.floor(random() * pool.length)];
+    used.add(selected.id);
+    return selected.id;
+  });
 }
 
 const READY_TIMING: TrialRuleTiming = {
@@ -169,6 +248,8 @@ export const FALLBACK_TRIAL_RULE: TrialRuleDefinition = {
   english: "Unbound",
   description: {
     public: "不附加额外规则。",
+    debug:
+      "标准试炼结构：道中 30 秒，守幕 90 秒；守幕为两个不同汉字、合计 6–8 张卡。",
     internal: "使用试炼模式默认题库、时限与 BOSS 结构。",
   },
   stars: 0,
@@ -239,6 +320,15 @@ function validatePolicy(
       );
     }
     if (
+      prompt[kind].inheritedCards !== undefined &&
+      (!Number.isInteger(prompt[kind].inheritedCards) ||
+        Number(prompt[kind].inheritedCards) < 0)
+    ) {
+      throw new Error(
+        `data/trial-rules.json: ${ruleId}.policy.prompt.${kind}.inheritedCards is invalid`,
+      );
+    }
+    if (
       !isRecord(answer) ||
       !isRecord(answer[kind]) ||
       !["character", "word", "pinyin"].includes(
@@ -292,6 +382,16 @@ function validatePolicy(
     ) {
       throw new Error(
         `data/trial-rules.json: ${ruleId}.policy.cards.${kind}.obscureCount is invalid`,
+      );
+    }
+    if (
+      cards[kind].decoyMode !== undefined &&
+      !["separate", "attached"].includes(
+        String(cards[kind].decoyMode),
+      )
+    ) {
+      throw new Error(
+        `data/trial-rules.json: ${ruleId}.policy.cards.${kind}.decoyMode is invalid`,
       );
     }
     if (
@@ -354,7 +454,9 @@ function validateRule(
     typeof value.name !== "string" ||
     typeof value.english !== "string" ||
     typeof value.stars !== "number" ||
-    typeof value.icon !== "string"
+    typeof value.icon !== "string" ||
+    (value.allowSkip !== undefined &&
+      typeof value.allowSkip !== "boolean")
   ) {
     throw new Error(
       `data/trial-rules.json: rule ${id} has invalid display data`,
@@ -363,6 +465,8 @@ function validateRule(
   if (
     !isRecord(value.description) ||
     typeof value.description.public !== "string" ||
+    typeof value.description.debug !== "string" ||
+    value.description.debug.trim().length === 0 ||
     typeof value.description.internal !== "string"
   ) {
     throw new Error(
@@ -486,42 +590,41 @@ function validateRule(
 export function parseTrialRulesData(value: unknown): TrialRulesData {
   if (
     !isRecord(value) ||
-    value.version !== 2 ||
-    !Array.isArray(value.stageAssignments) ||
-    value.stageAssignments.length !== 7 ||
-    !value.stageAssignments.every(
-      (ruleId) => typeof ruleId === "string",
+    value.version !== 3 ||
+    !Array.isArray(value.stageStars) ||
+    value.stageStars.length !== 7 ||
+    !value.stageStars.every(
+      (stars) =>
+        Array.isArray(stars) &&
+        stars.length > 0 &&
+        stars.every(
+          (star) =>
+            Number.isInteger(star) &&
+            star >= 0 &&
+            star <= 3,
+        ),
     ) ||
     !isRecord(value.rules)
   ) {
-    throw new Error("data/trial-rules.json: invalid v2 document");
+    throw new Error("data/trial-rules.json: invalid v3 document");
   }
   for (const [id, rule] of Object.entries(value.rules)) {
     validateRule(id, rule);
   }
-  const invalidAssignment = value.stageAssignments.find(
-    (ruleId) =>
-      typeof ruleId !== "string" ||
-      !isRecord(value.rules) ||
-      !value.rules[ruleId],
-  );
-  if (invalidAssignment !== undefined) {
-    throw new Error(
-      `data/trial-rules.json: invalid stage rule ${invalidAssignment}`,
-    );
+  for (const stars of value.stageStars) {
+    for (const star of stars) {
+      const hasRule = Object.values(value.rules).some(
+        (rule) =>
+          isRecord(rule) && rule.stars === star,
+      );
+      if (!hasRule) {
+        throw new Error(
+          `data/trial-rules.json: no rule for stage star ${star}`,
+        );
+      }
+    }
   }
   return value as unknown as TrialRulesData;
-}
-
-export function trialRuleForStage(
-  rules: TrialRulesData | null,
-  stage: number,
-): TrialRuleDefinition {
-  const ruleId = rules?.stageAssignments[stage - 1];
-  return (
-    (ruleId ? rules?.rules[ruleId] : null) ??
-    FALLBACK_TRIAL_RULE
-  );
 }
 
 export async function loadTrialRules(

@@ -1,0 +1,233 @@
+/* Archived Fugue two-lane UI. Not loaded by the runtime. */
+.fugue-play-screen {
+  width: 100%;
+}
+
+.fugue-surface {
+  width: min(100%, 1040px);
+}
+
+.fugue-stage-line {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 18px;
+  padding: 0 4px 10px;
+  border-bottom: 1px solid var(--line);
+}
+
+.fugue-stage-line .progress-stack {
+  padding-left: 12px;
+}
+
+.fugue-stage-line .question-progress {
+  white-space: nowrap;
+}
+
+.fugue-stage-line.is-paused .question-progress {
+  color: var(--muted);
+}
+
+.fugue-stage-line small {
+  color: var(--muted);
+  font-size: 12px;
+  letter-spacing: 0.04em;
+  white-space: nowrap;
+}
+
+.fugue-layout {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: clamp(18px, 3vw, 36px);
+  align-items: start;
+}
+
+.fugue-slot {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.fugue-slot-heading {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  width: 100%;
+  min-height: 72px;
+  align-items: center;
+  gap: 12px;
+  padding: 0 4px 8px;
+  border: 0;
+  border-bottom: 1px solid var(--line);
+  color: var(--ink);
+  background: transparent;
+  text-align: left;
+}
+
+.fugue-slot-heading .progress-stack {
+  padding-left: 10px;
+}
+
+.fugue-slot-heading .question-progress {
+  overflow: hidden;
+  font-size: clamp(17px, 1.8vw, 21px);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.fugue-slot-heading .timer-ring {
+  width: clamp(54px, 6vw, 64px);
+  padding: 0;
+  border: 0;
+  color: var(--ink);
+  background: transparent;
+  cursor: pointer;
+}
+
+.fugue-slot-heading .timer-ring:disabled {
+  cursor: default;
+  opacity: 0.45;
+}
+
+.fugue-parts {
+  min-height: 0;
+  flex: 1 1 auto;
+  padding: 24px 0 20px;
+}
+
+.fugue-boss-records {
+  padding: 0 4px 12px;
+}
+
+.fugue-slot-answer {
+  min-height: 66px;
+  padding: 0 4px 12px;
+}
+
+.fugue-slot-answer .reveal {
+  min-height: 54px;
+  padding-top: 0;
+}
+
+.fugue-slot-answer.is-correct .reveal strong,
+.fugue-slot-answer.is-correct .reveal small {
+  color: var(--correct);
+}
+
+.fugue-slot-answer .trial-boss-reveal-chars {
+  gap: 16px;
+}
+
+.fugue-slot-answer .trial-boss-reveal-chars > span {
+  min-width: 0;
+}
+
+.fugue-slot-answer .trial-boss-reveal-chars small {
+  overflow-wrap: anywhere;
+  text-align: center;
+}
+
+@media (max-width: 720px) {
+  .fugue-stage-line {
+    gap: 8px;
+    padding-bottom: 7px;
+  }
+
+  .fugue-stage-line .progress-stack {
+    padding-left: 8px;
+  }
+
+  .fugue-stage-line .question-progress {
+    font-size: 16px;
+  }
+
+  .fugue-stage-line small {
+    font-size: 10px;
+  }
+
+  .fugue-layout {
+    gap: 8px;
+  }
+
+  .fugue-slot-heading {
+    grid-template-columns: minmax(0, 1fr) 44px;
+    min-height: 56px;
+    gap: 4px;
+    padding: 0 0 6px;
+  }
+
+  .fugue-slot-heading .progress-stack {
+    padding-left: 7px;
+    border-left-width: 2px;
+  }
+
+  .fugue-slot-heading .question-progress {
+    font-size: 13px;
+  }
+
+  .fugue-slot-heading .trial-mode-caption {
+    font-size: 9px;
+    letter-spacing: 0.03em;
+  }
+
+  .fugue-slot-heading .timer-ring {
+    width: 44px;
+  }
+
+  .fugue-parts {
+    padding: 12px 0;
+    --card-gap: 6px;
+  }
+
+  .fugue-slot .fugue-parts .part-row {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    width: 100%;
+    justify-items: center;
+    gap: 6px;
+  }
+
+  .fugue-slot .fugue-parts .part-row .part-card {
+    width: min(100%, 58px);
+    box-shadow: 2px 2px 0 #d9d5ca;
+  }
+
+  .fugue-slot .fugue-parts .part-row .part {
+    font-size: clamp(27px, 9vw, 38px);
+  }
+
+  .fugue-slot .fugue-parts .part-row .part.is-long {
+    font-size: clamp(17px, 5.5vw, 22px);
+  }
+
+  .fugue-boss-records {
+    padding-inline: 0;
+  }
+
+  .fugue-boss-records .trial-boss-record {
+    flex-wrap: wrap;
+    gap: 5px;
+  }
+
+  .fugue-boss-records .trial-boss-used-part {
+    width: 26px;
+    font-size: 17px;
+  }
+
+  .fugue-slot-answer {
+    min-height: 58px;
+    padding-inline: 0;
+  }
+
+  .fugue-slot-answer .trial-boss-reveal-chars {
+    gap: 8px;
+  }
+
+  .fugue-slot-answer .trial-reveal.is-boss strong {
+    font-size: clamp(27px, 8vw, 34px);
+  }
+
+  .fugue-slot-answer .trial-reveal.is-boss small {
+    max-width: 74px;
+    font-size: 9px;
+  }
+}

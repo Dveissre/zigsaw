@@ -23,6 +23,7 @@ const challenge: GameSettings = {
   exEnabled: true,
   includeSupplementaryChars: true,
   difficulty: "standard",
+  trialDifficulty: 1,
 };
 
 describe("record keys", () => {

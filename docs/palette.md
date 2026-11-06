@@ -31,22 +31,23 @@ settlement cards. Check it before introducing a new card color.
 
 | Rule | Accent | Fill |
 | --- | --- | --- |
-| Prefabrication | `#9b7b36` | `#f8f0d7` |
+| Prefab | `#9b7b36` | `#f8f0d7` |
 | Overlay / Repetend family | `#356767` | `#e5efed` |
 | Wildcard | `#20231f` Cris mark | Neutral card surface |
 
 ## Dissonance Groups
 
 `Dissonance` uses CSS variables so future palette changes stay centralized.
-The assignment priority when an answer character has no visible component is:
-blue, red, olive, silver.
+Colors identify groups without expressing answer-character order. When no
+character is fully hidden they use red, blue, olive, silver; with an empty
+group they use blue, red, olive, silver by non-empty group order.
 
 | Group | Accent | Fill | Ink |
 | --- | --- | --- | --- |
 | Red | `#9d503f` | `#f8ebe7` | `#4f211a` |
 | Blue | `#4f6598` | `#edf0f8` | `#273757` |
 | Olive | `#747733` | `#f4f3e8` | `#3b3e17` |
-| Silver | `#7f8589` | `#f2f3f4` | `#34383a` |
+| Silver | `#5d6467` | `#e8eaeb` | `#25292a` |
 
 ## Rules for New Card Colors
 

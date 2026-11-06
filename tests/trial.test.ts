@@ -1,4 +1,9 @@
+import { existsSync, readFileSync } from "node:fs";
+import { resolve } from "node:path";
 import { afterEach, describe, expect, it, vi } from "vitest";
+import archivedFugueRuleJson from "../docs/archive/trial-rules/fugue.rule.json";
+import archivedMultiexposureRuleJson from "../docs/archive/trial-rules/multiexposure.rule.json";
+import archivedRulesRegistryJson from "../docs/archive/trial-rules/registry.json";
 import trialRuleDataJson from "../public/data/trial-rules.json";
 import { GameData, type GameSettings } from "../src/game/data";
 import {
@@ -9,8 +14,10 @@ import {
   TRIAL_BOSS_MIN_PARTS,
   TRIAL_BOSS_SECONDS,
   TRIAL_NORMAL_SECONDS,
+  TRIAL_OUTLAND_PART_WEIGHTS,
   TrialSession,
   orderedBossAnswerChars,
+  trialSkipBudgetWithoutSpending,
   type TrialCard,
   type TrialQuestionState,
   type TrialSessionEvent,
@@ -33,6 +40,14 @@ import type { WordAnswerData } from "../src/game/word-answers";
 
 const trialRulesData =
   trialRuleDataJson as unknown as TrialRulesData;
+const archivedFugueRulesData: TrialRulesData = {
+  ...trialRulesData,
+  rules: {
+    ...trialRulesData.rules,
+    fugue:
+      archivedFugueRuleJson as unknown as TrialRulesData["rules"][string],
+  },
+};
 
 const settings: GameSettings = {
   levels: [1, 2],
@@ -47,6 +62,7 @@ const settings: GameSettings = {
   exEnabled: true,
   includeSupplementaryChars: true,
   difficulty: "standard",
+  trialDifficulty: 1,
 };
 
 function seededRandom(seed: number): () => number {
@@ -146,6 +162,103 @@ function createBylandData(): GameData {
   };
   return new GameData(
     { symbols, chars },
+    {
+      levels: {
+        一级: Object.keys(chars),
+        二级: [],
+        三级: [],
+      },
+    },
+  );
+}
+
+function createOutlandData(): GameData {
+  const chars: Record<string, number[][]> = {
+    杏: [[5, 6]],
+    呆: [[6, 5]],
+    沐: [[2, 5]],
+    霂: [[2, 4, 5]],
+    霖: [[2, 3, 4, 5]],
+    明: [[7, 8]],
+    旪: [[7, 8]],
+    木: [[5]],
+  };
+  return new GameData(
+    {
+      symbols: {
+        "1": "水",
+        "2": "氵",
+        "3": "冫",
+        "4": "雨",
+        "5": "木",
+        "6": "口",
+        "7": "日",
+        "8": "月",
+      },
+      chars,
+    },
+    {
+      levels: {
+        一级: Object.keys(chars),
+        二级: [],
+        三级: [],
+      },
+    },
+  );
+}
+
+function createHallraumUniquenessData(): GameData {
+  const chars: Record<string, number[][]> = {
+    甲: [[1, 2, 3]],
+    乙: [[2, 4, 5]],
+    丙: [[3, 4, 5]],
+    丁: [[3, 4, 6]],
+    戊: [[3, 6, 4]],
+  };
+  return new GameData(
+    {
+      symbols: {
+        "1": "A",
+        "2": "B",
+        "3": "C",
+        "4": "X",
+        "5": "Y",
+        "6": "Z",
+      },
+      chars,
+    },
+    {
+      levels: {
+        一级: Object.keys(chars),
+        二级: [],
+        三级: [],
+      },
+    },
+  );
+}
+
+function createHallraumBossData(): GameData {
+  const chars: Record<string, number[][]> = {
+    甲: [[1, 4]],
+    乙: [[2, 5]],
+    丙: [[1, 2]],
+    丁: [[4, 5]],
+    戊: [[1, 4, 2]],
+    壬: [[2, 4]],
+    癸: [[5, 5]],
+  };
+  return new GameData(
+    {
+      symbols: {
+        "1": "A",
+        "2": "B",
+        "3": "C",
+        "4": "X",
+        "5": "Y",
+        "6": "Z",
+      },
+      chars,
+    },
     {
       levels: {
         一级: Object.keys(chars),
@@ -961,13 +1074,25 @@ describe("trial session", () => {
 
   it("parses v2 rule data with public and internal policy text", () => {
     const parsed = parseTrialRulesData(trialRuleDataJson);
-    expect(parsed.version).toBe(2);
+    expect(parsed.version).toBe(3);
+    expect(parsed.stageStars).toEqual([
+      [0],
+      [1],
+      [1],
+      [2],
+      [2],
+      [2, 3],
+      [3],
+    ]);
     expect(parsed.rules.tetrarchy.description.public).toContain(
-      "四部件",
+      "四个部件",
     );
     expect(parsed.rules.tetrarchy.description.internal).toContain(
       "8 张卡",
     );
+    expect(
+      parsed.rules.tetrarchy.description.debug,
+    ).toContain("8 张卡");
     expect(parsed.rules.tetrarchy.policy.answer.boss.distinct).toBe(
       true,
     );
@@ -981,11 +1106,58 @@ describe("trial session", () => {
     expect(parsed.rules["byland-herb"].english).toBe("Verdure");
     expect(parsed.rules["byland-mount"].english).toBe("Cairn");
     expect(parsed.rules["byland-people"].english).toBe(
-      "Multitude",
+      "Oost",
     );
     expect(parsed.rules["byland-speech"].english).toBe(
       "Whobub",
     );
+    expect(parsed.rules["outland-water"].english).toBe(
+      "Pelagus",
+    );
+    expect(parsed.rules["outland-herb"].english).toBe(
+      "Boscage",
+    );
+    expect(parsed.rules["outland-mount"].english).toBe(
+      "Massif",
+    );
+    expect(parsed.rules["outland-people"].english).toBe(
+      "Middangeard",
+    );
+    expect(parsed.rules["outland-speech"].english).toBe(
+      "Babel",
+    );
+    expect(parsed.rules["outland-mount"].icon).toBe(
+      "outland-mount.svg",
+    );
+    expect(parsed.rules.hallraum.name).toBe(
+      "回声室",
+    );
+    expect(parsed.rules.hallraum.stars).toBe(2);
+    expect(parsed.rules.hallraum.allowSkip).toBe(false);
+    expect(parsed.rules).not.toHaveProperty("fugue");
+    expect(parsed.rules).not.toHaveProperty(
+      "multiexposure",
+    );
+    const parsedArchived = parseTrialRulesData({
+      ...trialRuleDataJson,
+      rules: {
+        ...trialRuleDataJson.rules,
+        fugue: archivedFugueRuleJson,
+        multiexposure: archivedMultiexposureRuleJson,
+      },
+    });
+    expect(parsedArchived.rules.fugue.name).toBe("赋格曲");
+    expect(parsedArchived.rules.multiexposure.name).toBe(
+      "双重曝光",
+    );
+    expect(
+      parsed.rules.hallraum.policy.prompt.normal
+        .inheritedCards,
+    ).toBe(1);
+    expect(
+      parsed.rules.hallraum.policy.prompt.boss
+        .inheritedCards,
+    ).toBe(2);
     expect(
       parsed.rules.nuncupation.policy.answer.normal.input,
     ).toBe("pinyin");
@@ -995,6 +1167,9 @@ describe("trial session", () => {
     expect(
       parsed.rules.prefabrication.policy.prompt.normal.mode,
     ).toBe("prefabricated-components");
+    expect(parsed.rules.prefabrication.english).toBe(
+      "Prefab",
+    );
     expect(
       parsed.rules.composition.policy.prompt.normal.mode,
     ).toBe("word-components");
@@ -1038,6 +1213,43 @@ describe("trial session", () => {
           !/普通题|BOSS/.test(rule.description.public),
       ),
     ).toBe(true);
+    expect(
+      Object.values(parsed.rules).every(
+        (rule) =>
+          rule.description.debug.trim().length > 0 &&
+          !/data-source|\.json|symbolId|DOM|activeRule|兼容层/.test(
+            rule.description.debug,
+          ) &&
+          rule.description.debug !==
+            rule.description.internal,
+      ),
+    ).toBe(true);
+  });
+
+  it("keeps retired trial rules exclusively in the archive registry", () => {
+    const parsed = parseTrialRulesData(trialRuleDataJson);
+    const archiveRoot = resolve(
+      "docs/archive/trial-rules",
+    );
+    for (const entry of archivedRulesRegistryJson.rules) {
+      expect(parsed.rules).not.toHaveProperty(entry.id);
+      for (const file of [
+        entry.snapshot,
+        entry.documentation,
+        entry.icon,
+      ]) {
+        expect(existsSync(resolve(archiveRoot, file))).toBe(
+          true,
+        );
+      }
+      const snapshot = JSON.parse(
+        readFileSync(
+          resolve(archiveRoot, entry.snapshot),
+          "utf8",
+        ),
+      ) as { id?: string };
+      expect(snapshot.id).toBe(entry.id);
+    }
   });
 
   it("starts stages from a blocking intro and uses thirty-second questions", () => {
@@ -1060,6 +1272,84 @@ describe("trial session", () => {
     expect(trial.state.current).not.toBeNull();
   });
 
+  it("keeps one cumulative skip budget across the trial", () => {
+    expect(
+      [1, 2, 3, 4, 5, 6, 7].map(
+        trialSkipBudgetWithoutSpending,
+      ),
+    ).toEqual([3, 3, 3, 4, 4, 4, 5]);
+
+    const trial = new TrialSession(
+      createData(),
+      settings,
+      () => {},
+      seededRandom(31),
+    );
+    trial.beginStage();
+    const original = trial.state.current?.char;
+    trial.skipQuestion();
+
+    expect(trial.state.skipsRemaining).toBe(2);
+    expect(trial.state.questionInStage).toBe(1);
+    expect(trial.state.current?.char).not.toBe(original);
+    expect(trial.state.history).toHaveLength(0);
+  });
+
+  it("disables question skipping for inherited-card rules", () => {
+    const trial = new TrialSession(
+      createData(),
+      settings,
+      () => {},
+      seededRandom(32),
+      false,
+      () => {},
+      null,
+      trialRulesData,
+    );
+    trial.setRuleOverride("hallraum");
+    trial.state.phase = "playing";
+    trial.state.questionInStage = 1;
+    trial.state.skipsRemaining = 3;
+    trial.skipQuestion();
+
+    expect(trial.state.skipsRemaining).toBe(3);
+    expect(trial.state.questionInStage).toBe(1);
+  });
+
+  it("carries used skips forward and grants one after stages three and six", () => {
+    const trial = new TrialSession(
+      createData(),
+      settings,
+      () => {},
+      seededRandom(33),
+    );
+    trial.beginStage();
+    trial.skipQuestion();
+    (
+      trial as unknown as { startBoss: () => void }
+    ).startBoss();
+    trial.surrender();
+    trial.continueAfterMiss();
+    expect(trial.state.stage).toBe(2);
+    expect(trial.state.skipsRemaining).toBe(2);
+
+    const stageThree = new TrialSession(
+      createData(),
+      settings,
+      () => {},
+      seededRandom(34),
+    );
+    stageThree.state.stage = 3;
+    stageThree.beginStage();
+    (
+      stageThree as unknown as { startBoss: () => void }
+    ).startBoss();
+    stageThree.surrender();
+    stageThree.continueAfterMiss();
+    expect(stageThree.state.stage).toBe(4);
+    expect(stageThree.state.skipsRemaining).toBe(4);
+  });
+
   it("applies Tetrarchy to four-part questions and its two four-part boss answers", () => {
     vi.useFakeTimers();
     const trial = new TrialSession(
@@ -1073,9 +1363,12 @@ describe("trial session", () => {
       trialRulesData,
     );
     trial.state.stage = 2;
+    trial.setRuleOverride("tetrarchy");
     trial.beginStage();
 
-    expect(trial.state.ruleId).toBe("tetrarchy");
+    expect(
+      trialRulesData.rules[trial.state.ruleId].stars,
+    ).toBe(1);
     expect(trial.state.timeLimit).toBe(30);
     expect(trial.state.current?.answerWay).toHaveLength(4);
     expect(trial.state.current?.displayCards).toHaveLength(4);
@@ -1127,7 +1420,9 @@ describe("trial session", () => {
     expect(trial.state.stage).toBe(2);
     expect(trial.state.phase).toBe("stage-intro");
     expect(trial.state.forcedRuleId).toBeNull();
-    expect(trial.state.ruleId).toBe("tetrarchy");
+    expect(
+      trialRulesData.rules[trial.state.ruleId].stars,
+    ).toBe(1);
   });
 
   it("can clear a debug rule override before entering the stage", () => {
@@ -1195,6 +1490,7 @@ describe("trial session", () => {
           source: "answer" | "decoy";
           mustIgnore?: boolean;
         }>,
+        answerWays?: readonly number[][],
       ) => boolean;
       assignBossAnswers: (
         answers: string[],
@@ -1266,6 +1562,552 @@ describe("trial session", () => {
     ).toBeNull();
   });
 
+  it("attaches Outland components without changing their answer identities", () => {
+    const data = createOutlandData();
+    const trial = new TrialSession(
+      data,
+      settings,
+      () => {},
+      seededRandom(34),
+      false,
+      () => {},
+      null,
+      trialRulesData,
+    );
+    trial.setRuleOverride("outland-water");
+    const helpers = trial as unknown as {
+      addRuleDecoy: (
+        kind: "normal" | "boss",
+        cards: TrialCard[],
+        answerWays?: readonly number[][],
+      ) => boolean;
+    };
+    const normalTotals: number[] = [];
+    for (let index = 0; index < 120; index += 1) {
+      const cards: TrialCard[] = [
+        { uid: index * 2, symbolId: 5, source: "answer" },
+        {
+          uid: index * 2 + 1,
+          symbolId: 5,
+          source: "answer",
+        },
+      ];
+      expect(
+        helpers.addRuleDecoy(
+          "normal",
+          cards,
+          [[5, 5]],
+        ),
+      ).toBe(true);
+      expect(cards).toHaveLength(2);
+      const total = cards.reduce(
+        (sum, card) =>
+          sum + (card.attachedComponents?.length ?? 0),
+        0,
+      );
+      normalTotals.push(total);
+      expect(total).toBeGreaterThanOrEqual(1);
+      expect(total).toBeLessThanOrEqual(3);
+      for (const card of cards) {
+        expect(card.symbolId).toBe(5);
+        expect(card.source).toBe("answer");
+        expect(card.mustIgnore).not.toBe(true);
+        if (card.displayGlyph) {
+          expect(card.displayMode).toBe("attached");
+          expect(data.ways.has(card.displayGlyph)).toBe(
+            true,
+          );
+        }
+      }
+    }
+    expect(
+      normalTotals.reduce(
+        (sum, total) => sum + total,
+        0,
+      ) / normalTotals.length,
+    ).toBeCloseTo(2, 0);
+    expect(new Set(normalTotals).size).toBeGreaterThan(1);
+
+    const bossTotals: number[] = [];
+    for (let index = 0; index < 120; index += 1) {
+      const bossCards: TrialCard[] = [
+        {
+          uid: 1000 + index * 2,
+          symbolId: 5,
+          source: "answer",
+        },
+        {
+          uid: 1001 + index * 2,
+          symbolId: 5,
+          source: "answer",
+        },
+      ];
+      expect(
+        helpers.addRuleDecoy(
+          "boss",
+          bossCards,
+          [[5], [5]],
+        ),
+      ).toBe(true);
+      expect(bossCards).toHaveLength(2);
+      bossTotals.push(
+        bossCards.reduce(
+          (sum, card) =>
+            sum +
+            (card.attachedComponents?.length ?? 0),
+          0,
+        ),
+      );
+    }
+    expect(
+      bossTotals.reduce(
+        (sum, total) => sum + total,
+        0,
+      ) / bossTotals.length,
+    ).toBeCloseTo(4, 0);
+    expect(new Set(bossTotals).size).toBeGreaterThan(1);
+  });
+
+  it("keeps two-part Outland questions near the challenge baseline", () => {
+    const total = Object.values(
+      TRIAL_OUTLAND_PART_WEIGHTS,
+    ).reduce((sum, weight) => sum + weight, 0);
+    expect(
+      TRIAL_OUTLAND_PART_WEIGHTS[2] / total,
+    ).toBeCloseTo(0.15, 2);
+    expect(
+      (TRIAL_OUTLAND_PART_WEIGHTS[3] +
+        TRIAL_OUTLAND_PART_WEIGHTS[4]) /
+        total,
+    ).toBeCloseTo(0.65, 2);
+  });
+
+  it("accepts an unexpected BOSS answer made from Outland attached cards", () => {
+    const data = createOutlandData();
+    const trial = new TrialSession(
+      data,
+      settings,
+      () => {},
+      seededRandom(35),
+      false,
+      () => {},
+      null,
+      trialRulesData,
+    );
+    trial.setRuleOverride("outland-water");
+    const attachedCard: TrialCard = {
+      uid: 1,
+      symbolId: 5,
+      source: "answer",
+      displayGlyph: "沐",
+      displayMode: "attached",
+      attachedComponents: [2],
+    };
+    const cards: TrialCard[] = [
+      attachedCard,
+      { uid: 2, symbolId: 6, source: "answer" },
+      { uid: 3, symbolId: 7, source: "answer" },
+      { uid: 4, symbolId: 8, source: "answer" },
+    ];
+    trial.state.phase = "boss";
+    trial.state.questionInStage = 9;
+    trial.state.boss = {
+      cards: cards.map((card) => ({ ...card })),
+      initialCards: cards.map((card) => ({ ...card })),
+      expectedAnswers: ["杏", "明"],
+      expectedDisplayChars: ["杏", "明"],
+      expectedPinyin: ["", ""],
+      expectedWays: [
+        [5, 6],
+        [7, 8],
+      ],
+      displayWays: [
+        [5, 6],
+        [7, 8],
+      ],
+      expandedComponents: [],
+      pendingAnswers: [],
+      pendingSubmissions: [],
+      pendingAnswer: "",
+      pendingCardIds: [],
+      consumedCardIds: [],
+      submissionCount: 0,
+    };
+    trial.state.timeLimit = 90;
+    trial.state.remaining = 90;
+
+    trial.setDraft("呆");
+    trial.submit();
+
+    expect(trial.state.feedback).toBe("partial");
+    expect(trial.state.boss.pendingAnswers).toEqual(["呆"]);
+    expect(
+      trial.state.boss.pendingSubmissions[0].cardIds,
+    ).toEqual([1, 2]);
+    trial.setDraft("旪");
+    trial.submit();
+    expect(trial.state.feedback).toBe("correct");
+    expect(trial.state.boss.pendingAnswers).toEqual([
+      "呆",
+      "旪",
+    ]);
+  });
+
+  it("accepts a one-card unexpected answer from an Outland attached card", () => {
+    const data = createOutlandData();
+    const trial = new TrialSession(
+      data,
+      settings,
+      () => {},
+      seededRandom(36),
+      false,
+      () => {},
+      null,
+      trialRulesData,
+    );
+    trial.setRuleOverride("outland-water");
+    const attachedCard: TrialCard = {
+      uid: 1,
+      symbolId: 5,
+      source: "answer",
+      displayGlyph: "沐",
+      displayMode: "attached",
+      attachedComponents: [2],
+    };
+    trial.state.phase = "boss";
+    trial.state.questionInStage = 9;
+    trial.state.boss = {
+      cards: [
+        attachedCard,
+        { uid: 2, symbolId: 6, source: "answer" },
+        { uid: 3, symbolId: 7, source: "answer" },
+        { uid: 4, symbolId: 8, source: "answer" },
+      ],
+      initialCards: [
+        { ...attachedCard },
+        { uid: 2, symbolId: 6, source: "answer" },
+        { uid: 3, symbolId: 7, source: "answer" },
+        { uid: 4, symbolId: 8, source: "answer" },
+      ],
+      expectedAnswers: ["杏", "明"],
+      expectedDisplayChars: ["杏", "明"],
+      expectedPinyin: ["", ""],
+      expectedWays: [
+        [5, 6],
+        [7, 8],
+      ],
+      displayWays: [
+        [5, 6],
+        [7, 8],
+      ],
+      expandedComponents: [],
+      pendingAnswers: [],
+      pendingSubmissions: [],
+      pendingAnswer: "",
+      pendingCardIds: [],
+      consumedCardIds: [],
+      submissionCount: 0,
+    };
+    trial.state.timeLimit = 90;
+    trial.state.remaining = 90;
+
+    trial.setDraft("木");
+    trial.submit();
+
+    expect(trial.state.feedback).toBe("partial");
+    expect(trial.state.boss.pendingAnswers).toEqual(["木"]);
+    expect(
+      trial.state.boss.pendingSubmissions[0].cardIds,
+    ).toEqual([1]);
+  });
+
+  it("uses the inherited card's possible identities for Hallraum uniqueness", () => {
+    const trial = new TrialSession(
+      createHallraumUniquenessData(),
+      settings,
+      () => {},
+      seededRandom(37),
+      false,
+      () => {},
+      null,
+      trialRulesData,
+    );
+    trial.setRuleOverride("hallraum");
+    const helpers = trial as unknown as {
+      buildHallraumCatalog: () => void;
+      hallraumPossibleInheritedSymbols: (
+        visibleComponents: readonly number[],
+        inheritedSources: ReadonlySet<number> | null,
+      ) => number[];
+      hallraumUnknownInheritedSymbols: (
+        visibleComponents: readonly number[],
+      ) => number[];
+      hallraumCandidateBags: (
+        length: number,
+        inheritedSymbol: number | null,
+        inheritedSources: ReadonlySet<number> | null,
+        usedChars: ReadonlySet<string>,
+        rule: TrialRulesData["rules"][string],
+      ) => Array<{ components: number[] }>;
+      hallraumLengthOrder: (
+        questionIndex: number,
+      ) => number[];
+      hallraumBagsByLength: Map<
+        number,
+        Array<{
+          directAnswers: string[];
+          acceptedAnswers: string[];
+        }>
+      >;
+    };
+    helpers.buildHallraumCatalog();
+
+    expect(
+      helpers
+        .hallraumUnknownInheritedSymbols([4, 5])
+        .sort((left, right) => left - right),
+    ).toEqual([2, 3]);
+    expect(
+      helpers.hallraumUnknownInheritedSymbols([4, 6]),
+    ).toEqual([3]);
+    expect(
+      helpers
+        .hallraumPossibleInheritedSymbols(
+          [4, 5],
+          new Set([1, 2, 3]),
+        )
+        .sort((left, right) => left - right),
+    ).toEqual([2, 3]);
+    expect(
+      helpers.hallraumPossibleInheritedSymbols(
+        [4, 6],
+        new Set([1, 2, 3]),
+      ),
+    ).toEqual([3]);
+    expect(
+      helpers.hallraumCandidateBags(
+        3,
+        3,
+        new Set([2, 3]),
+        new Set(),
+        trialRulesData.rules.hallraum,
+      ).filter((entry) =>
+        entry.components.includes(4) &&
+        entry.components.includes(5),
+      ),
+    ).toHaveLength(0);
+    expect(
+      helpers.hallraumCandidateBags(
+        3,
+        3,
+        new Set([3]),
+        new Set(),
+        trialRulesData.rules.hallraum,
+      ).filter((entry) =>
+        entry.components.includes(4) &&
+        entry.components.includes(5),
+      ).length,
+    ).toBeGreaterThan(0);
+    expect(
+      helpers.hallraumCandidateBags(
+        3,
+        3,
+        new Set([3]),
+        new Set(),
+        trialRulesData.rules.hallraum,
+      ).filter((entry) =>
+        entry.components.includes(4) &&
+        entry.components.includes(6),
+      ).length,
+    ).toBe(0);
+    for (let question = 0; question < 7; question += 1) {
+      expect(helpers.hallraumLengthOrder(question)).toEqual([
+        3,
+      ]);
+    }
+    expect(helpers.hallraumLengthOrder(7)).toEqual([4]);
+    for (const entries of helpers.hallraumBagsByLength.values()) {
+      expect(
+        entries.every(
+          (entry) => entry.directAnswers.length > 0,
+        ),
+      ).toBe(true);
+    }
+  });
+
+  it("assigns one inherited Hallraum card to each boss answer", () => {
+    const trial = new TrialSession(
+      createHallraumBossData(),
+      settings,
+      () => {},
+      seededRandom(38),
+      false,
+      () => {},
+      null,
+      trialRulesData,
+    );
+    trial.setRuleOverride("hallraum");
+    const cards: TrialCard[] = [
+      {
+        uid: 1,
+        symbolId: 1,
+        source: "inherited",
+        displayMode: "obscured",
+        obscured: true,
+      },
+      { uid: 2, symbolId: 4, source: "answer" },
+      {
+        uid: 3,
+        symbolId: 2,
+        source: "inherited",
+        displayMode: "obscured",
+        obscured: true,
+      },
+      { uid: 4, symbolId: 5, source: "answer" },
+    ];
+    trial.state.phase = "boss";
+    trial.state.questionInStage = 9;
+    trial.state.boss = {
+      cards: cards.map((card) => ({ ...card })),
+      initialCards: cards.map((card) => ({ ...card })),
+      expectedAnswers: ["甲", "乙"],
+      expectedDisplayChars: ["甲", "乙"],
+      expectedPinyin: ["", ""],
+      expectedWays: [
+        [1, 4],
+        [2, 5],
+      ],
+      displayWays: [
+        [1, 4],
+        [2, 5],
+      ],
+      expandedComponents: [],
+      inheritedSources: [1, 2, 4, 5],
+      pendingAnswers: [],
+      pendingSubmissions: [],
+      pendingAnswer: "",
+      pendingCardIds: [],
+      consumedCardIds: [],
+      submissionCount: 0,
+    };
+    trial.state.timeLimit = 90;
+    trial.state.remaining = 90;
+    const helpers = trial as unknown as {
+      assignBossAnswers: (answers: string[]) =>
+        | {
+            submissions: Array<{
+              cardIds: number[];
+              componentUses: Array<{
+                inherited?: boolean;
+                sourceIndex?: number;
+              }>;
+            }>;
+          }
+        | null;
+    };
+
+    const assignment = helpers.assignBossAnswers([
+      "甲",
+      "乙",
+    ]);
+    expect(assignment).not.toBeNull();
+    expect(
+      assignment?.submissions.map((submission) =>
+        submission.cardIds.filter((uid) => uid === 1 || uid === 3),
+      ),
+    ).toEqual([[1], [3]]);
+    expect(
+      helpers.assignBossAnswers(["丙", "丁"]),
+    ).toBeNull();
+    const unexpected = helpers.assignBossAnswers([
+      "壬",
+      "癸",
+    ]);
+    expect(unexpected).not.toBeNull();
+    expect(
+      unexpected?.submissions.flatMap((submission) =>
+        submission.componentUses
+          .filter((use) => use.inherited)
+          .map((use) => use.sourceIndex),
+      ),
+    ).toEqual([1, 3]);
+  });
+
+  it("reveals only a correct boss pair and preserves a correct submitted part", () => {
+    const trial = new TrialSession(
+      createHallraumBossData(),
+      settings,
+      () => {},
+      seededRandom(39),
+      false,
+      () => {},
+      null,
+      trialRulesData,
+    );
+    trial.setRuleOverride("hallraum");
+    const cards: TrialCard[] = [
+      {
+        uid: 1,
+        symbolId: 1,
+        source: "inherited",
+        displayMode: "obscured",
+        obscured: true,
+      },
+      { uid: 2, symbolId: 4, source: "answer" },
+      {
+        uid: 3,
+        symbolId: 2,
+        source: "inherited",
+        displayMode: "obscured",
+        obscured: true,
+      },
+      { uid: 4, symbolId: 5, source: "answer" },
+    ];
+    trial.state.phase = "boss";
+    trial.state.questionInStage = 9;
+    trial.state.boss = {
+      cards: cards.map((card) => ({ ...card })),
+      initialCards: cards.map((card) => ({ ...card })),
+      expectedAnswers: ["甲", "乙"],
+      expectedDisplayChars: ["甲", "乙"],
+      expectedPinyin: ["", ""],
+      expectedWays: [
+        [1, 4],
+        [2, 5],
+      ],
+      displayWays: [
+        [1, 4],
+        [2, 5],
+      ],
+      expandedComponents: [],
+      inheritedSources: [1, 2, 4, 5],
+      pendingAnswers: ["戊"],
+      pendingSubmissions: [],
+      pendingAnswer: "戊",
+      pendingCardIds: [1, 2, 3],
+      consumedCardIds: [],
+      submissionCount: 1,
+    };
+    const resolver = trial as unknown as {
+      resolveBossRevealAnswers: () => string[];
+    };
+
+    expect(resolver.resolveBossRevealAnswers()).toEqual([
+      "甲",
+      "乙",
+    ]);
+    trial.state.boss.pendingAnswers = ["甲"];
+    trial.state.boss.pendingAnswer = "甲";
+    expect(resolver.resolveBossRevealAnswers()).toEqual([
+      "甲",
+      "乙",
+    ]);
+    trial.state.boss.revealAnswers = ["甲", "乙"];
+    expect(
+      orderedBossAnswerChars(trial.state.boss),
+    ).toEqual(["甲", "乙"]);
+  });
+
   it("normalizes pinyin case and ü/v variants", () => {
     expect(normalizePinyinInput("  NÜ  ")).toBe("nv");
     expect(normalizePinyinInput("LvE")).toBe("lve");
@@ -1275,6 +2117,120 @@ describe("trial session", () => {
     expect(displayPinyinFor(pinyinFixture, "行")).toBe(
       "xíng / háng",
     );
+  });
+
+  it("builds two Fugue lanes and refills only the answering lane", async () => {
+    vi.useFakeTimers();
+    const trial = new TrialSession(
+      createData(),
+      settings,
+      () => {},
+      seededRandom(40),
+      true,
+      () => {},
+      null,
+      archivedFugueRulesData,
+    );
+    trial.setRuleOverride("fugue");
+    trial.beginStage();
+    const fugue = trial.state.fugue!;
+    const generation = trial as unknown as {
+      fugueQuestions: Array<{
+        accepted: string[];
+      }>;
+      fugueBossPlans: Array<{
+        acceptedPairs: Set<string>;
+        submissionChars: Set<string>;
+      }>;
+    };
+
+    expect(fugue.slots).toHaveLength(2);
+    expect(
+      fugue.slots
+        .map((slot) => slot.current?.answerWay.length)
+        .every((length) => length === 3 || length === 4),
+    ).toBe(true);
+    trial.togglePause();
+    expect(
+      trial.state.fugue?.slots.map(
+        (slot) => slot.remaining,
+      ),
+    ).toEqual([15, 15]);
+    trial.togglePause();
+    const originalLeft =
+      fugue.slots[0].current?.accepted ?? [];
+    const originalRight =
+      fugue.slots[1].current?.accepted ?? [];
+    fugue.slots[0].current!.accepted = ["同"];
+    fugue.slots[1].current!.accepted = ["同"];
+    trial.setDraft("同");
+    trial.submit();
+    expect(trial.state.feedback).toBe("wrong");
+    expect(
+      trial.state.fugue?.slots.map(
+        (slot) => slot.questionNumber,
+      ),
+    ).toEqual([1, 2]);
+    fugue.slots[0].current!.accepted = originalLeft;
+    fugue.slots[1].current!.accepted = originalRight;
+    const rightAnswers = new Set(
+      fugue.slots[1].current?.accepted ?? [],
+    );
+    const answer = fugue.slots[0].current?.accepted.find(
+      (candidate) => !rightAnswers.has(candidate),
+    );
+    expect(answer).toBeTruthy();
+    const rightBefore = fugue.slots[1].current?.char;
+
+    trial.setDraft(answer!);
+    trial.submit();
+    await vi.advanceTimersByTimeAsync(700);
+
+    expect(
+      trial.state.fugue?.slots[0].questionNumber,
+    ).toBe(3);
+    expect(
+      trial.state.fugue?.slots[1].questionNumber,
+    ).toBe(2);
+    expect(trial.state.fugue?.slots[1].current?.char).toBe(
+      rightBefore,
+    );
+    const lastThreeAnswers = new Set(
+      generation.fugueQuestions
+        .slice(-3)
+        .flatMap((question) => question.accepted),
+    );
+    expect(
+      [...lastThreeAnswers].some(
+        (char) =>
+          generation.fugueBossPlans[0].submissionChars.has(
+            char,
+          ) ||
+          generation.fugueBossPlans[1].submissionChars.has(
+            char,
+          ),
+      ),
+    ).toBe(false);
+    expect(
+      [...generation.fugueBossPlans[0].acceptedPairs].some(
+        (key) =>
+          key.split("|").some((char) =>
+            generation.fugueBossPlans[1].submissionChars.has(
+              char,
+            ),
+          ),
+      ),
+    ).toBe(false);
+    expect(
+      [...generation.fugueBossPlans[1].acceptedPairs].some(
+        (key) =>
+          key.split("|").some((char) =>
+            generation.fugueBossPlans[0].submissionChars.has(
+              char,
+            ),
+          ),
+      ),
+    ).toBe(false);
   });
 
   it("accepts any pinyin reading and stores tone-marked reveal data", () => {
@@ -2753,8 +3709,13 @@ describe("trial session", () => {
         { symbolId: 3, groupColor: 1, displayMode: undefined },
       ]),
     );
-    expect(question.accepted).toContain("上台");
-    expect(question.accepted).toContain("卜也");
+    expect(question.accepted).toEqual(["上台"]);
+    expect(
+      helpers.dissonanceAcceptedWords(
+        question.displayCards,
+        [2],
+      ),
+    ).toContain("上台");
 
     const eliminatedGroupCards =
       helpers.dissonanceCards([
@@ -2780,7 +3741,7 @@ describe("trial session", () => {
     trial.state.current = question;
     trial.state.timeLimit = 30;
     trial.state.remaining = 30;
-    trial.setDraft("上台");
+    trial.setDraft("卜也");
     trial.submit();
     expect(trial.state.feedback).toBe("correct");
 
@@ -3414,6 +4375,7 @@ describe("trial session", () => {
           componentUses: [],
         },
       ],
+      revealAnswers: ["丙", "丁"],
     } as unknown as Parameters<
       typeof orderedBossAnswerChars
     >[0];
@@ -3421,8 +4383,6 @@ describe("trial session", () => {
     expect(orderedBossAnswerChars(boss)).toEqual([
       "丙",
       "丁",
-      "甲",
-      "乙",
     ]);
     expect(orderedBossAnswerChars(boss, true)).toEqual([
       "丙",
@@ -3657,6 +4617,7 @@ describe("trial session", () => {
       trialRulesData,
     );
     trial.state.stage = 3;
+    trial.setRuleOverride("presto");
     trial.beginStage();
 
     expect(trial.state.ruleId).toBe("presto");
@@ -3684,6 +4645,7 @@ describe("trial session", () => {
       trialRulesData,
     );
     trial.state.stage = 5;
+    trial.setRuleOverride("myopia");
     trial.beginStage();
     const current = trial.state.current;
 
@@ -3718,6 +4680,7 @@ describe("trial session", () => {
       trialRulesData,
     );
     bossTrial.state.stage = 5;
+    bossTrial.setRuleOverride("myopia");
     bossTrial.beginStage();
     (
       bossTrial as unknown as { startBoss: () => void }
@@ -3742,6 +4705,7 @@ describe("trial session", () => {
       trialRulesData,
     );
     trial.state.stage = 5;
+    trial.setRuleOverride("myopia");
     trial.beginStage();
     const cards = trial.state.current?.displayCards ?? [];
 
@@ -3771,6 +4735,7 @@ describe("trial session", () => {
       trialRulesData,
     );
     normal.state.stage = 7;
+    normal.setRuleOverride("aphantasia");
     normal.beginStage();
     const normalCards = normal.state.current?.displayCards ?? [];
     expect(
@@ -3793,6 +4758,7 @@ describe("trial session", () => {
       trialRulesData,
     );
     boss.state.stage = 7;
+    boss.setRuleOverride("aphantasia");
     boss.beginStage();
     (
       boss as unknown as { startBoss: () => void }
@@ -3820,6 +4786,7 @@ describe("trial session", () => {
       trialRulesData,
     );
     trial.state.stage = 4;
+    trial.setRuleOverride("minimalism");
     trial.beginStage();
 
     expect(trial.state.ruleId).toBe("minimalism");
@@ -3863,6 +4830,7 @@ describe("trial session", () => {
       trialRulesData,
     );
     trial.state.stage = 6;
+    trial.setRuleOverride("compages");
     trial.beginStage();
 
     expect(trial.state.ruleId).toBe("compages");
@@ -3905,6 +4873,7 @@ describe("trial session", () => {
       trialRulesData,
     );
     trial.state.stage = 4;
+    trial.setRuleOverride("minimalism");
     trial.beginStage();
     (
       trial as unknown as { startBoss: () => void }
@@ -3944,6 +4913,7 @@ describe("trial session", () => {
         trialRulesData,
       );
       minimalism.state.stage = 4;
+      minimalism.setRuleOverride("minimalism");
       minimalism.beginStage();
       const minimalismLength =
         minimalism.state.current?.answerWay.length ?? 0;
@@ -3964,6 +4934,7 @@ describe("trial session", () => {
         trialRulesData,
       );
       compages.state.stage = 6;
+      compages.setRuleOverride("compages");
       compages.beginStage();
       const compagesLength =
         compages.state.current?.answerWay.length ?? 0;
@@ -4294,6 +5265,7 @@ describe("trial session", () => {
 
     expect(trial.state.phase).toBe("results");
     expect(trial.state.result?.cleared).toBe(true);
+    expect(trial.state.result?.title).toBe("知我梦中");
     expect(trial.state.result?.crisEarned).toBe(0);
   });
 
@@ -4320,6 +5292,63 @@ describe("trial session", () => {
     expect(trial.state.history[0].ok).toBe(false);
     trial.settleAfterMiss();
     expect(trial.state.phase).toBe("results");
+    expect(trial.state.result?.cleared).toBe(false);
+    expect(trial.state.result?.title).toBe("覆鹿遗蕉");
+  });
+
+  it("continues with the next question after a timeout", async () => {
+    vi.useFakeTimers();
+    const trial = new TrialSession(
+      createData(),
+      settings,
+      () => {},
+      seededRandom(15),
+    );
+    trial.beginStage();
+    await vi.advanceTimersByTimeAsync(
+      (TRIAL_NORMAL_SECONDS + 1) * 1000,
+    );
+    trial.continueAfterMiss();
+
+    expect(trial.state.phase).toBe("playing");
+    expect(trial.state.revealing).toBe(false);
+    expect(trial.state.questionInStage).toBe(2);
+    expect(trial.state.remaining).toBe(TRIAL_NORMAL_SECONDS);
+    expect(trial.state.history).toHaveLength(1);
+    expect(trial.state.history[0].ok).toBe(false);
+  });
+
+  it("continues to the next stage after a missed boss", () => {
+    const trial = new TrialSession(
+      createData(),
+      settings,
+      () => {},
+      seededRandom(16),
+    );
+    trial.beginStage();
+    (
+      trial as unknown as { startBoss: () => void }
+    ).startBoss();
+    trial.surrender();
+    trial.continueAfterMiss();
+
+    expect(trial.state.phase).toBe("stage-intro");
+    expect(trial.state.stage).toBe(2);
+    expect(trial.state.skipsRemaining).toBe(3);
+  });
+
+  it("can settle from a later stage intro", () => {
+    const trial = new TrialSession(
+      createData(),
+      settings,
+      () => {},
+      seededRandom(17),
+    );
+    trial.state.stage = 2;
+    trial.settleAtStageIntro();
+
+    expect(trial.state.phase).toBe("results");
+    expect(trial.state.result?.title).toBe("临歧何返");
     expect(trial.state.result?.cleared).toBe(false);
   });
 

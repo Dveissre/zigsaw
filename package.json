@@ -21,8 +21,13 @@
     "analyze:trial-rule-pools": "node scripts/analyze-trial-rule-pools.mjs",
     "build:composition-pools": "node scripts/build-composition-pools.mjs",
     "preview": "vite preview",
+    "pretest": "npm run check:trial-rules",
     "test": "vitest run",
+    "pretest:trial": "npm run check:trial-rules",
+    "test:trial": "vitest run tests/trial.test.ts tests/trial-runtime-data.test.ts tests/trial-rule-helpers.test.ts tests/debug-auth.test.ts tests/data.test.ts",
     "test:watch": "vitest",
+    "check:trial-rules": "node scripts/check-trial-rules.mjs",
+    "apply:trial-rules-opinion": "node scripts/apply-trial-rule-opinion.mjs",
     "check:viewports": "node scripts/check-viewports.mjs",
     "smoke": "node scripts/smoke.mjs"
   },

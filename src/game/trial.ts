@@ -4,8 +4,9 @@ import type {
 } from "./data";
 import type { CrisLedger } from "./cris";
 import {
+  chooseTrialStageRuleIds,
   FALLBACK_TRIAL_RULE,
-  trialRuleForStage,
+  trialRulePromptMode,
   type TrialRuleDefinition,
   type TrialRulesData,
 } from "./trial-rules";
@@ -58,6 +59,32 @@ export const TRIAL_BASE_PART_PROBABILITIES = {
   longer: 0.2,
 } as const;
 
+export const TRIAL_NORMAL_PART_WEIGHTS: Record<number, number> = {
+  2: 15,
+  3: 42,
+  4: 23,
+  5: 8,
+  6: 6,
+  7: 3,
+  8: 2,
+  9: 1,
+  10: 0.5,
+};
+
+export const TRIAL_OUTLAND_PART_WEIGHTS =
+  TRIAL_NORMAL_PART_WEIGHTS;
+
+export const TRIAL_INITIAL_SKIPS = 3;
+
+export function trialSkipBudgetWithoutSpending(
+  stage: number,
+): number {
+  return (
+    TRIAL_INITIAL_SKIPS +
+    Math.floor((Math.max(1, stage) - 1) / 3)
+  );
+}
+
 export type TrialPhase =
   | "stage-intro"
   | "playing"
@@ -90,9 +117,11 @@ export interface TrialCard {
   obscured?: boolean;
   mustIgnore?: boolean;
   displayGlyph?: string;
+  attachedComponents?: number[];
   displayMode?:
     | "component"
     | "compound"
+    | "attached"
     | "overlay"
     | "quantity"
     | "obscured"
@@ -146,6 +175,8 @@ export interface TrialBossState {
   expectedWays: number[][];
   displayWays: number[][];
   expandedComponents: number[];
+  inheritedSources?: number[];
+  revealAnswers?: string[];
   gestaltGroups?: Array<{
     cardIds: number[];
     answers: string[];
@@ -159,10 +190,29 @@ export interface TrialBossState {
   submissionCount: number;
 }
 
+export interface FugueSlotState {
+  id: "left" | "right";
+  mode: "normal" | "boss" | "done";
+  current: TrialQuestionState | null;
+  boss: TrialBossState | null;
+  remaining: number;
+  timeLimit: number;
+  feedback: TrialFeedback;
+  revealing: boolean;
+  questionNumber: number | null;
+}
+
+export interface FugueState {
+  slots: [FugueSlotState, FugueSlotState];
+  queueRemaining: number;
+}
+
 export interface TrialCardComponentUse {
   cardUid: number;
   symbolId: number;
   wildcard?: boolean;
+  inherited?: boolean;
+  sourceIndex?: number;
 }
 
 interface TrialBossSubmission {
@@ -176,6 +226,48 @@ interface TrialBossAssignment {
   submissions: TrialBossSubmission[];
 }
 
+interface OutlandCompositeOption {
+  glyph: string;
+  attached: number[];
+}
+
+interface OutlandAttachment {
+  cardIndex: number;
+  option: OutlandCompositeOption;
+}
+
+interface HallraumBagEntry {
+  components: number[];
+  directAnswers: string[];
+  acceptedAnswers: string[];
+}
+
+interface HallraumStep {
+  char: string;
+  way: number[];
+  inheritedSlot: number | null;
+  acceptedAnswers: string[];
+}
+
+interface HallraumBossPlan {
+  chars: [string, string];
+  ways: [number[], number[]];
+  inheritedSlots: [number, number];
+}
+
+interface FugueQuestionPlan {
+  char: string;
+  way: number[];
+  accepted: string[];
+}
+
+interface FugueBossPlan {
+  chars: [string, string];
+  ways: [number[], number[]];
+  acceptedPairs: Set<string>;
+  submissionChars: Set<string>;
+}
+
 export function orderedBossAnswerChars(
   boss: TrialBossState,
   submittedOnly = false,
@@ -186,12 +278,10 @@ export function orderedBossAnswerChars(
   if (submittedOnly) {
     return submitted;
   }
-  return [
-    ...submitted,
-    ...boss.expectedAnswers.filter(
-      (char) => !submitted.includes(char),
-    ),
-  ];
+  if (boss.revealAnswers?.length) {
+    return [...boss.revealAnswers];
+  }
+  return [...boss.expectedAnswers];
 }
 
 export interface TrialPoolAvailabilityOptions {
@@ -238,7 +328,7 @@ export interface TrialPoolAvailability {
 }
 
 export interface TrialResultState {
-  title: "试炼完成" | "试炼结束";
+  title: "知我梦中" | "覆鹿遗蕉" | "临歧何返";
   cleared: boolean;
   reachedStage: number;
   correctCount: number;
@@ -253,6 +343,7 @@ export interface TrialState {
   forcedRuleId: string | null;
   partLengthPlan: number[];
   questionInStage: number;
+  skipsRemaining: number;
   timeLimit: number;
   remaining: number;
   paused: boolean;
@@ -261,6 +352,7 @@ export interface TrialState {
   draft: string;
   current: TrialQuestionState | null;
   boss: TrialBossState | null;
+  fugue?: FugueState;
   revealAnswer: string;
   revealPinyin: string[];
   revealMeta: string;
@@ -305,7 +397,10 @@ interface TrialChoice {
   dissonance?: {
     word: string;
     recipes: number[][][];
-    acceptedWords: string[];
+    acceptedWords?: string[];
+  };
+  hallraum?: {
+    inheritedSlot: number | null;
   };
   gestaltPair?: GestaltPair;
   wildcardIndex?: number;
@@ -402,6 +497,7 @@ export class TrialSession {
   private readonly pausePenalty: boolean;
   private readonly crisLedger: CrisLedger | null;
   private readonly rules: TrialRulesData | null;
+  private readonly stageRuleIds: string[];
   private pinyin: PinyinData | null;
   private traditional: TraditionalData | null;
   private gestalt: GestaltData | null;
@@ -458,6 +554,40 @@ export class TrialSession {
     string[]
   >();
   private readonly answerCharacters = new Set<string>();
+  private readonly outlandCompositeIndexes = new Map<
+    string,
+    Map<string, OutlandCompositeOption[]>
+  >();
+  private hallraumBagsByLength: Map<
+    number,
+    HallraumBagEntry[]
+  > | null = null;
+  private hallraumBagsByLengthAndSymbol = new Map<
+    string,
+    HallraumBagEntry[]
+  >();
+  private hallraumAcceptedAnswerBags = new Map<
+    string,
+    Set<string>
+  >();
+  private hallraumUnknownBlackCache = new Map<
+    string,
+    number[]
+  >();
+  private hallraumSteps: HallraumStep[] = [];
+  private hallraumBossPlan: HallraumBossPlan | null = null;
+  private fugueQuestions: FugueQuestionPlan[] = [];
+  private fugueQuestionIndex = 0;
+  private fugueBossPlans: [FugueBossPlan, FugueBossPlan] | null =
+    null;
+  private fugueDeadlines: [number, number] = [0, 0];
+  private fugueAdvanceIds: [
+    ReturnType<typeof setTimeout> | null,
+    ReturnType<typeof setTimeout> | null,
+  ] = [null, null];
+  private fugueStageAdvanceId:
+    | ReturnType<typeof setTimeout>
+    | null = null;
   private timerId: ReturnType<typeof setInterval> | null = null;
   private advanceId: ReturnType<typeof setTimeout> | null = null;
   private deadline = 0;
@@ -498,6 +628,12 @@ export class TrialSession {
     this.onEncounter = onEncounter;
     this.crisLedger = crisLedger;
     this.rules = rules;
+    this.stageRuleIds = rules
+      ? chooseTrialStageRuleIds(rules, this.random)
+      : Array.from(
+          { length: TRIAL_STAGE_COUNT },
+          () => FALLBACK_TRIAL_RULE.id,
+        );
     this.pinyin = pinyin;
     this.traditional = traditional;
     this.gestalt = gestalt;
@@ -520,10 +656,11 @@ export class TrialSession {
     this.state = {
       phase: "stage-intro",
       stage: 1,
-      ruleId: trialRuleForStage(rules, 1).id,
+      ruleId: this.stageRuleIds[0],
       forcedRuleId: null,
       partLengthPlan: [],
       questionInStage: 0,
+      skipsRemaining: TRIAL_INITIAL_SKIPS,
       timeLimit: 0,
       remaining: 0,
       paused: false,
@@ -559,6 +696,15 @@ export class TrialSession {
     this.usedStageBags.clear();
     this.usedReductionSources.clear();
     this.usedPrefabricationHints.clear();
+    this.hallraumSteps = [];
+    this.hallraumBossPlan = null;
+    this.clearFugueTimers();
+    this.fugueQuestions = [];
+    this.fugueQuestionIndex = 0;
+    this.fugueBossPlans = null;
+    if ((rule.policy.prompt.normal.inheritedCards ?? 0) > 0) {
+      this.buildHallraumChain();
+    }
     this.sharedTimeRemaining =
       rule.timing.sharedBudgetSeconds ?? null;
     this.state.partLengthPlan =
@@ -566,6 +712,17 @@ export class TrialSession {
     this.state.ruleId = rule.id;
     this.state.phase = "playing";
     this.state.questionInStage = 1;
+    if (rule.id === "fugue") {
+      this.buildFugueStage();
+      this.state.current = null;
+      this.state.boss = null;
+      this.state.revealing = false;
+      this.state.feedback = "";
+      this.state.draft = "";
+      this.startFugueTimer();
+      this.emit();
+      return;
+    }
     this.showNormalQuestion();
   }
 
@@ -573,6 +730,13 @@ export class TrialSession {
     this.state.draft = value;
     if (this.state.feedback === "wrong") {
       this.state.feedback = "";
+    }
+    if (this.state.fugue) {
+      for (const slot of this.state.fugue.slots) {
+        if (slot.feedback === "wrong") {
+          slot.feedback = "";
+        }
+      }
     }
   }
 
@@ -613,8 +777,7 @@ export class TrialSession {
     }
     if (ruleId === null) {
       this.state.forcedRuleId = null;
-      this.state.ruleId = trialRuleForStage(
-        this.rules,
+      this.state.ruleId = this.activeRule(
         this.state.stage,
       ).id;
       this.emit("rule");
@@ -635,6 +798,32 @@ export class TrialSession {
       this.state.phase === "results" ||
       this.state.revealing
     ) {
+      return;
+    }
+    if (this.state.fugue) {
+      if (!this.state.paused) {
+        this.freezeFugueTimers();
+        if (this.pausePenalty) {
+          for (const slot of this.state.fugue.slots) {
+            if (
+              slot.mode !== "done" &&
+              !slot.revealing
+            ) {
+              slot.remaining = Math.max(
+                1,
+                Math.ceil(slot.remaining / 2),
+              );
+            }
+          }
+        }
+        this.state.paused = true;
+        this.state.feedback = "paused";
+      } else {
+        this.resumeFugueTimers();
+        this.state.paused = false;
+        this.state.feedback = "";
+      }
+      this.emit();
       return;
     }
     if (!this.state.paused) {
@@ -673,9 +862,13 @@ export class TrialSession {
   submit(): void {
     if (
       this.state.paused ||
-      this.state.revealing ||
+      (!this.state.fugue && this.state.revealing) ||
       !this.state.draft.trim()
     ) {
+      return;
+    }
+    if (this.state.fugue) {
+      this.submitFugue();
       return;
     }
     if (this.state.phase === "playing") {
@@ -755,12 +948,76 @@ export class TrialSession {
     this.finish(false);
   }
 
+  continueAfterMiss(): void {
+    if (
+      !this.state.revealing ||
+      this.state.feedback !== "wrong" ||
+      (this.state.phase !== "playing" &&
+        this.state.phase !== "boss")
+    ) {
+      return;
+    }
+    if (this.state.phase === "playing") {
+      if (
+        this.state.questionInStage >=
+        TRIAL_QUESTIONS_PER_STAGE
+      ) {
+        this.startBoss();
+      } else {
+        this.state.questionInStage += 1;
+        this.showNormalQuestion();
+      }
+      return;
+    }
+    this.advanceFromBoss(false);
+  }
+
+  settleAtStageIntro(): void {
+    if (
+      this.state.phase !== "stage-intro" ||
+      this.state.stage <= 1
+    ) {
+      return;
+    }
+    this.finish(false, "临歧何返");
+  }
+
+  skipQuestion(): void {
+    if (
+      (this.state.phase !== "playing" &&
+        this.state.phase !== "boss") ||
+      this.state.paused ||
+      this.state.revealing ||
+      this.state.skipsRemaining <= 0 ||
+      this.activeRule().allowSkip === false
+    ) {
+      return;
+    }
+    this.state.skipsRemaining -= 1;
+    if (this.state.phase === "playing") {
+      if (
+        this.state.questionInStage >=
+        TRIAL_QUESTIONS_PER_STAGE
+      ) {
+        this.startBoss();
+      } else {
+        this.showNormalQuestion();
+      }
+      return;
+    }
+    this.startBoss();
+  }
+
   surrender(): void {
     if (
       this.state.phase === "stage-intro" ||
       this.state.phase === "results" ||
       this.state.revealing
     ) {
+      return;
+    }
+    if (this.state.fugue) {
+      this.surrenderFugue();
       return;
     }
     if (this.state.phase === "playing") {
@@ -772,6 +1029,7 @@ export class TrialSession {
   }
 
   destroy(): void {
+    this.clearFugueTimers();
     this.clearTimers();
   }
 
@@ -1200,6 +1458,27 @@ export class TrialSession {
     );
   }
 
+  private hallraumCards(
+    components: readonly number[],
+    inheritedSlot: number | null,
+  ): TrialCard[] {
+    return shuffle(
+      components.map((symbolId, index) => {
+        const inherited = index === inheritedSlot;
+        const card = this.makeCard(
+          symbolId,
+          inherited ? "inherited" : "answer",
+        );
+        if (inherited) {
+          card.displayMode = "obscured";
+          card.obscured = true;
+        }
+        return card;
+      }),
+      this.random,
+    );
+  }
+
   private assonanceCards(
     recipe: number[][],
   ): TrialCard[] {
@@ -1275,7 +1554,7 @@ export class TrialSession {
       );
     });
     const cards: TrialCard[] = [];
-    recipe.forEach((way, groupColor) => {
+    recipe.forEach((way, characterIndex) => {
       for (const symbolId of way) {
         if (crossSymbols.has(symbolId)) {
           continue;
@@ -1283,7 +1562,7 @@ export class TrialSession {
         cards.push({
           ...this.makeCard(symbolId),
           groupColor:
-            colorByCharacter.get(groupColor) ?? 0,
+            colorByCharacter.get(characterIndex) ?? 0,
         });
       }
     });
@@ -1388,6 +1667,32 @@ export class TrialSession {
   ): boolean {
     return (
       this.dissonanceGroupAssignment(word, cards) !== null
+    );
+  }
+
+  private dissonanceNormalWordCanUseCards(
+    word: string,
+    cards: TrialCard[],
+  ): boolean {
+    const chars = [...word];
+    if (
+      chars.length !== 2 ||
+      new Set(chars).size !== chars.length
+    ) {
+      return false;
+    }
+    const known = this.wordAnswers
+      ? (
+          this.answerWordFirstIndex.get(
+            `2|${chars[0]}`,
+          ) ?? []
+        ).includes(word)
+      : (
+          this.assonance?.words["2"] ?? []
+        ).includes(word);
+    return (
+      known &&
+      this.dissonanceWordCanUseCards(word, cards)
     );
   }
 
@@ -1869,21 +2174,34 @@ export class TrialSession {
     length: number,
     usedChars: Set<string>,
   ): TrialChoice[] {
-    const available = this.availableChoices(
+    let available = this.availableChoices(
       length,
       usedChars,
     );
+    const rule = this.activeRule();
     if (
-      this.activeRule().policy.prompt.normal.mode !==
+      rule.policy.cards.normal.decoyMode === "attached"
+    ) {
+      available = available.filter((choice) =>
+        choice.ways.some((way) =>
+          this.outlandWayCanAttach(
+            way,
+            rule.policy.cards.normal,
+          ),
+        ),
+      );
+    }
+    if (
+      rule.policy.prompt.normal.mode ===
       "repetend-components"
     ) {
-      return available;
+      available = available.filter((choice) =>
+        choice.ways.some((way) =>
+          this.repetendWayAllowed(way),
+        ),
+      );
     }
-    return available.filter((choice) =>
-      choice.ways.some((way) =>
-        this.repetendWayAllowed(way),
-      ),
-    );
+    return available;
   }
 
   private cardComponents(card: TrialCard): number[] {
@@ -1904,9 +2222,21 @@ export class TrialSession {
     ) {
       return this.rules.rules[this.state.forcedRuleId];
     }
-    return this.rules
-      ? trialRuleForStage(this.rules, stage)
-      : FALLBACK_TRIAL_RULE;
+    const selectedId = this.stageRuleIds[stage - 1];
+    return (
+      (selectedId
+        ? this.rules?.rules[selectedId]
+        : null) ?? FALLBACK_TRIAL_RULE
+    );
+  }
+
+  private ruleInheritsCards(
+    phase: "normal" | "boss",
+  ): boolean {
+    return (
+      (this.activeRule().policy.prompt[phase]
+        .inheritedCards ?? 0) > 0
+    );
   }
 
   private wayAllowedByRule(
@@ -2727,6 +3057,19 @@ export class TrialSession {
     const usesRepetition =
       this.activeRule().policy.prompt.normal.mode ===
       "repetend-components";
+    const usesOutland =
+      this.activeRule().policy.cards.normal.decoyMode ===
+      "attached";
+    if (usesOutland) {
+      available = available.filter((candidate) =>
+        candidate.ways.some((candidateWay) =>
+          this.outlandWayCanAttach(
+            candidateWay,
+            this.activeRule().policy.cards.normal,
+          ),
+        ),
+      );
+    }
     let choice: TrialChoice | null = null;
     let way: number[] | null = null;
     let wildcard: {
@@ -2778,7 +3121,15 @@ export class TrialSession {
       }
     } else {
       choice = pickRandom(available, this.random);
-      way = pickRandom(choice.ways, this.random);
+      const allowedWays = usesOutland
+        ? choice.ways.filter((candidateWay) =>
+            this.outlandWayCanAttach(
+              candidateWay,
+              this.activeRule().policy.cards.normal,
+            ),
+          )
+        : choice.ways;
+      way = pickRandom(allowedWays, this.random);
     }
     if (!choice || !way) {
       throw new Error(
@@ -3041,6 +3392,9 @@ export class TrialSession {
   }
 
   private pickNormalChoice(): TrialChoice {
+    if (this.ruleInheritsCards("normal")) {
+      return this.pickHallraumNormalChoice();
+    }
     if (
       this.activeRule().policy.prompt.normal.mode ===
       "gestalt-components"
@@ -3124,20 +3478,21 @@ export class TrialSession {
         "No unused trial questions remain in this stage.",
       );
     }
-    if (normalEffect.partWeights) {
+    const partWeights =
+      normalEffect.partWeights ??
+      (this.activeRule().family?.id === "outland"
+        ? TRIAL_OUTLAND_PART_WEIGHTS
+        : undefined);
+    if (partWeights) {
       const weightedLengths = availableLengths.filter(
         (length) =>
-          (normalEffect.partWeights?.[String(length)] ?? 0) >
-          0,
+          (partWeights[length] ?? 0) > 0,
       );
       const length =
         weightedLengths.length > 0
           ? pickWeighted(
               weightedLengths,
-              (candidate) =>
-                normalEffect.partWeights?.[
-                  String(candidate)
-                ] ?? 0,
+              (candidate) => partWeights[candidate] ?? 0,
               this.random,
             )
           : pickRandom(availableLengths, this.random);
@@ -3237,6 +3592,25 @@ export class TrialSession {
       )
         : category.length;
     return this.takeNormalChoice(selectedLength);
+  }
+
+  private pickHallraumNormalChoice(): TrialChoice {
+    const step =
+      this.hallraumSteps[
+        this.state.questionInStage - 1
+      ];
+    if (!step) {
+      throw new Error(
+        "Hallraum question chain is not ready.",
+      );
+    }
+    return {
+      char: step.char,
+      ways: [[...step.way]],
+      hallraum: {
+        inheritedSlot: step.inheritedSlot,
+      },
+    };
   }
 
   private pickGestaltNormalChoice(): TrialChoice {
@@ -3406,15 +3780,6 @@ export class TrialSession {
       if (cards.length === 0) {
         continue;
       }
-      const acceptedWords = this.dissonanceAcceptedWords(
-        cards,
-        [2],
-      );
-      if (
-        !acceptedWords.includes(picked.entry.word)
-      ) {
-        continue;
-      }
       for (const char of picked.entry.word) {
         this.usedStageChars.add(char);
       }
@@ -3427,7 +3792,6 @@ export class TrialSession {
         dissonance: {
           word: picked.entry.word,
           recipes: [picked.recipe],
-          acceptedWords,
         },
       };
     }
@@ -3449,6 +3813,11 @@ export class TrialSession {
         : choice.assonance
         ? this.assonanceCards(
             choice.assonance.recipes[0],
+          )
+        : choice.hallraum
+        ? this.hallraumCards(
+            answerWay,
+            choice.hallraum.inheritedSlot,
           )
         : choice.composition
         ? this.compositionCards(
@@ -3493,7 +3862,7 @@ export class TrialSession {
       accepted: choice.displayChar
         ? [choice.char]
         : choice.dissonance
-          ? choice.dissonance.acceptedWords
+          ? choice.dissonance.acceptedWords ?? [choice.char]
         : choice.assonance
           ? choice.assonance.acceptedWords
         : choice.composition
@@ -3618,7 +3987,18 @@ export class TrialSession {
       inputMode === "pinyin"
         ? normalizePinyinInput(given)
         : given;
-    if (!accepted.includes(answer)) {
+    const acceptedAnswer =
+      accepted.includes(answer) ||
+      (inputMode !== "pinyin" &&
+        trialRulePromptMode(
+          this.activeRule(),
+          "normal",
+        ) === "dissonance-components" &&
+        this.dissonanceNormalWordCanUseCards(
+          answer,
+          this.state.current.displayCards,
+        ));
+    if (!acceptedAnswer) {
       this.state.feedback = "wrong";
       this.emit();
       return;
@@ -3662,6 +4042,10 @@ export class TrialSession {
     this.currentRecorded = false;
     this.questionElapsedMs = 0;
     const rule = this.activeRule();
+    if ((rule.policy.prompt.boss.inheritedCards ?? 0) > 0) {
+      this.startHallraumBoss(rule);
+      return;
+    }
     if (
       rule.policy.prompt.boss.mode ===
       "gestalt-components"
@@ -3719,6 +4103,8 @@ export class TrialSession {
     const usesRepetition =
       rule.policy.prompt.boss.mode ===
       "repetend-components";
+    const usesOutland =
+      rule.policy.cards.boss.decoyMode === "attached";
     let choices: TrialChoice[] | null = null;
     let ways: number[][] = [];
     let prefabricationGroups: Array<{
@@ -3732,6 +4118,8 @@ export class TrialSession {
       ? 64
       : usesRepetition
         ? 128
+        : usesOutland
+          ? 64
         : 1;
     for (
       let attempt = 0;
@@ -3756,6 +4144,22 @@ export class TrialSession {
       if (!choices) {
         continue;
       }
+      if (usesOutland) {
+        choices = choices
+          .map((choice) => ({
+            ...choice,
+            ways: choice.ways.filter((way) =>
+              this.outlandWayCanAttach(
+                way,
+                rule.policy.cards.boss,
+              ),
+            ),
+          }))
+          .filter((choice) => choice.ways.length > 0);
+        if (choices.length !== selectedLengths.length) {
+          continue;
+        }
+      }
       ways = usesRepetition
         ? this.pickRepetendBossWays(choices) ?? []
         : choices.map((choice) =>
@@ -3774,7 +4178,14 @@ export class TrialSession {
         (!usesPrefabrication ||
           prefabricationGroups.length === 2) &&
         (!usesRepetition ||
-          ways.length === choices.length)
+          ways.length === choices.length) &&
+        (!usesOutland ||
+          ways.every((way) =>
+            this.outlandWayCanAttach(
+              way,
+              rule.policy.cards.boss,
+            ),
+          ))
       ) {
         break;
       }
@@ -3783,7 +4194,14 @@ export class TrialSession {
       !choices ||
       (usesRepetition && ways.length !== choices.length) ||
       (usesPrefabrication &&
-        prefabricationGroups.length !== 2)
+        prefabricationGroups.length !== 2) ||
+      (usesOutland &&
+        !ways.every((way) =>
+          this.outlandWayCanAttach(
+            way,
+            rule.policy.cards.boss,
+          ),
+        ))
     ) {
       throw new Error("Unable to generate a trial boss answer set.");
     }
@@ -3893,6 +4311,75 @@ export class TrialSession {
         ways[index],
         choice.displayChar,
       );
+    });
+    this.startTimer();
+    this.emit();
+  }
+
+  private startHallraumBoss(
+    rule: TrialRuleDefinition,
+  ): void {
+    const plan = this.hallraumBossPlan;
+    if (!plan) {
+      throw new Error(
+        "Hallraum boss plan is not ready.",
+      );
+    }
+    const groups = plan.ways.map((way, index) =>
+      this.hallraumCards(
+        way,
+        plan.inheritedSlots[index],
+      ),
+    );
+    const cards = shuffle(
+      groups.flat(),
+      this.random,
+    );
+    this.state.phase = "boss";
+    this.state.questionInStage =
+      TRIAL_QUESTIONS_PER_STAGE + 1;
+    this.state.current = null;
+    this.state.boss = {
+      cards,
+      initialCards: cards.map((card) => ({ ...card })),
+      expectedAnswers: [...plan.chars],
+      expectedDisplayChars: [...plan.chars],
+      expectedPinyin: plan.chars.map((char) =>
+        displayPinyinFor(this.pinyin, char),
+      ),
+      expectedWays: [
+        [...plan.ways[0]],
+        [...plan.ways[1]],
+      ],
+      displayWays: [
+        [...plan.ways[0]],
+        [...plan.ways[1]],
+      ],
+      expandedComponents: [],
+      inheritedSources: [
+        ...(this.hallraumSteps[
+          this.hallraumSteps.length - 1
+        ]?.way ?? []),
+      ],
+      pendingAnswers: [],
+      pendingSubmissions: [],
+      pendingAnswer: "",
+      pendingCardIds: [],
+      consumedCardIds: [],
+      submissionCount: 0,
+    };
+    this.state.revealing = false;
+    this.state.feedback = "";
+    this.state.draft = "";
+    this.state.revealAnswer = "";
+    this.state.revealPinyin = [];
+    this.state.revealMeta = "BOSS";
+    this.setQuestionTiming(
+      TRIAL_BOSS_SECONDS,
+      rule.timing.bossMultiplier,
+    );
+    plan.chars.forEach((char, index) => {
+      this.recordEncounter(char, plan.ways[index]);
     });
     this.startTimer();
     this.emit();
@@ -5066,6 +5553,9 @@ export class TrialSession {
     if (!this.state.boss) {
       return null;
     }
+    if (this.ruleInheritsCards("boss")) {
+      return this.assignHallraumBossAnswers(answers);
+    }
     if (
       this.activeRule().policy.prompt.boss.mode ===
       "gestalt-components"
@@ -5097,6 +5587,8 @@ export class TrialSession {
     const allowedLengths = new Set(
       this.activeRule().selection.boss.partLengths,
     );
+    const allowsUnexpectedOutlandAnswer =
+      this.activeRule().family?.id === "outland";
     const submissions: TrialBossSubmission[] = [];
     let fallback: TrialBossAssignment | null = null;
     const search = (
@@ -5131,7 +5623,10 @@ export class TrialSession {
       const limit = 1 << answerCards.length;
       for (let mask = 1; mask < limit; mask += 1) {
         const selected = cardsForMask(answerCards, mask);
-        if (!allowedLengths.has(selected.length)) {
+        if (
+          !allowsUnexpectedOutlandAnswer &&
+          !allowedLengths.has(selected.length)
+        ) {
           continue;
         }
         if (
@@ -5165,6 +5660,452 @@ export class TrialSession {
       return null;
     };
     return search(0, this.state.boss.cards) ?? fallback;
+  }
+
+  private bossAnswerCandidatesForCards(
+    cards: TrialCard[],
+  ): Set<string> {
+    const mode =
+      this.activeRule().policy.prompt.boss.mode;
+    const playable = cards.filter(
+      (card) => !card.mustIgnore,
+    );
+    if (
+      !this.activeRule().selection.boss.partLengths.includes(
+        playable.length,
+      )
+    ) {
+      return new Set();
+    }
+    if (mode === "gestalt-components") {
+      return this.data.acceptedContaining(
+        playable.map((card) => card.symbolId),
+      );
+    }
+    if (mode === "wildcard-components") {
+      const wildcards = playable.filter(
+        (card) => card.displayMode === "wildcard",
+      );
+      if (wildcards.length !== 1) {
+        return new Set();
+      }
+      return this.wildcardAcceptedAnswers(
+        playable
+          .filter((card) => card !== wildcards[0])
+          .map((card) => card.symbolId),
+      );
+    }
+    if (mode === "repetend-components") {
+      return new Set(
+        Object.keys(
+          this.repetendAcceptedForCards(playable),
+        ),
+      );
+    }
+    if (
+      this.ruleInheritsCards("boss") &&
+      playable.filter(
+        (card) => card.source === "inherited",
+      ).length !== 1
+    ) {
+      return new Set();
+    }
+    return this.acceptedAnswersForCards(playable);
+  }
+
+  private resolveBossRevealAnswers(): string[] {
+    if (!this.state.boss) {
+      return [];
+    }
+    const boss = this.state.boss;
+    const expected = [...boss.expectedAnswers];
+    const submitted = [
+      ...new Set(boss.pendingAnswers),
+    ];
+    if (boss.acceptedWords?.length) {
+      const submittedPrefix = boss.pendingAnswer;
+      const word =
+        boss.acceptedWords.find((candidate) =>
+          candidate.startsWith(submittedPrefix),
+        ) ?? boss.acceptedWords[0];
+      return [...word];
+    }
+    const completesFromInitial = (
+      sequence: string[],
+    ): boolean => {
+      if (
+        sequence.length !== expected.length ||
+        new Set(sequence).size !== sequence.length
+      ) {
+        return false;
+      }
+      const currentCards = boss.cards;
+      boss.cards = boss.initialCards.map((card) => ({
+        ...card,
+        ...(card.components
+          ? {
+              remainingComponents: [...card.components],
+              ...(card.displayMode === "quantity"
+                ? {
+                    remainingQuantity:
+                      card.components.length,
+                  }
+                : {}),
+            }
+          : {}),
+      }));
+      const assignment = this.assignBossAnswers(sequence);
+      boss.cards = currentCards;
+      return (
+        assignment !== null &&
+        assignment.remainingCards.length === 0
+      );
+    };
+    if (submitted.length >= expected.length) {
+      const sequence = submitted.slice(0, expected.length);
+      if (completesFromInitial(sequence)) {
+        return sequence;
+      }
+    }
+    for (const submittedChar of submitted) {
+      const sequence = [
+        submittedChar,
+        ...expected.filter(
+          (char) => char !== submittedChar,
+        ),
+      ].slice(0, expected.length);
+      if (completesFromInitial(sequence)) {
+        return sequence;
+      }
+    }
+    if (expected.length !== 2) {
+      return expected;
+    }
+    const playable = boss.initialCards.filter(
+      (card) => !card.mustIgnore,
+    );
+    const limit = 1 << playable.length;
+    const partitions: Array<{
+      first: Set<string>;
+      second: Set<string>;
+    }> = [];
+    for (let mask = 1; mask < limit - 1; mask += 1) {
+      const firstCards = cardsForMask(playable, mask);
+      const secondCards = playable.filter(
+        (_, index) => (mask & (1 << index)) === 0,
+      );
+      const first =
+        this.bossAnswerCandidatesForCards(firstCards);
+      if (first.size === 0) {
+        continue;
+      }
+      const second =
+        this.bossAnswerCandidatesForCards(secondCards);
+      if (second.size === 0) {
+        continue;
+      }
+      partitions.push({ first, second });
+    }
+    const chooseOther = (
+      candidates: Set<string>,
+      excluded: string,
+    ): string | null => {
+      const preferred = expected.find(
+        (char) =>
+          char !== excluded && candidates.has(char),
+      );
+      if (preferred) {
+        return preferred;
+      }
+      return (
+        [...candidates]
+          .filter((char) => char !== excluded)
+          .sort((left, right) =>
+            left.localeCompare(right, "zh-CN"),
+          )[0] ?? null
+      );
+    };
+    if (submitted.length >= 2) {
+      for (const partition of partitions) {
+        if (
+          partition.first.has(submitted[0]) &&
+          partition.second.has(submitted[1])
+        ) {
+          return [submitted[0], submitted[1]];
+        }
+        if (
+          partition.second.has(submitted[0]) &&
+          partition.first.has(submitted[1])
+        ) {
+          return [submitted[0], submitted[1]];
+        }
+      }
+    }
+    for (const submittedChar of submitted) {
+      for (const partition of partitions) {
+        if (partition.first.has(submittedChar)) {
+          const other = chooseOther(
+            partition.second,
+            submittedChar,
+          );
+          if (other) {
+            return [submittedChar, other];
+          }
+        }
+        if (partition.second.has(submittedChar)) {
+          const other = chooseOther(
+            partition.first,
+            submittedChar,
+          );
+          if (other) {
+            return [submittedChar, other];
+          }
+        }
+      }
+    }
+    return expected;
+  }
+
+  private assignHallraumBossAnswers(
+    answers: string[],
+  ): TrialBossAssignment | null {
+    if (!this.state.boss) {
+      return null;
+    }
+    const boss = this.state.boss;
+    const inheritedSources = boss.inheritedSources ?? [];
+    const usedSources = new Set(
+      boss.pendingSubmissions.flatMap((submission) =>
+        submission.componentUses
+          .filter((use) => use.inherited)
+          .map((use) => use.sourceIndex)
+          .filter(
+            (index): index is number =>
+              index !== undefined,
+          ),
+      ),
+    );
+    const allowedLengths = new Set(
+      this.activeRule().selection.boss.partLengths,
+    );
+    const submissions: TrialBossSubmission[] = [];
+    let fallback: TrialBossAssignment | null = null;
+    const search = (
+      answerIndex: number,
+      cards: TrialCard[],
+      reservedSources: Set<number>,
+    ): TrialBossAssignment | null => {
+      if (answerIndex >= answers.length) {
+        const assignment = {
+          remainingCards: cards,
+          submissions: submissions.map((submission) =>
+            this.cloneBossSubmission(submission),
+          ),
+        };
+        if (
+          this.remainingAnswerComponents(cards).length === 0
+        ) {
+          return assignment;
+        }
+        const remainingAnswerCount =
+          boss.expectedAnswers.length -
+          boss.pendingAnswers.length -
+          answers.length;
+        if (
+          remainingAnswerCount > 0 &&
+          this.canCompleteHallraumBossCards(
+            cards,
+            remainingAnswerCount,
+            reservedSources,
+            new Set([
+              ...boss.pendingAnswers,
+              ...answers,
+            ]),
+          )
+        ) {
+          return assignment;
+        }
+        fallback ??= assignment;
+        return null;
+      }
+      const inheritedCards = cards.filter(
+        (card) =>
+          !card.mustIgnore &&
+          card.source === "inherited",
+      );
+      const knownCards = cards.filter(
+        (card) =>
+          !card.mustIgnore &&
+          card.source !== "inherited",
+      );
+      for (const inheritedCard of inheritedCards) {
+        for (
+          let sourceIndex = 0;
+          sourceIndex < inheritedSources.length;
+          sourceIndex += 1
+        ) {
+          if (reservedSources.has(sourceIndex)) {
+            continue;
+          }
+          const sourceSymbol =
+            inheritedSources[sourceIndex];
+          const limit = 1 << knownCards.length;
+          for (let mask = 0; mask < limit; mask += 1) {
+            const selectedKnown = knownCards.filter(
+              (_, index) =>
+                (mask & (1 << index)) !== 0,
+            );
+            const selected = [
+              ...selectedKnown,
+              inheritedCard,
+            ];
+            if (
+              !allowedLengths.has(selected.length) ||
+              !this.data
+                .accepted([
+                  ...selectedKnown.map(
+                    (card) => card.symbolId,
+                  ),
+                  sourceSymbol,
+                ])
+                .has(answers[answerIndex])
+            ) {
+              continue;
+            }
+            const remaining = cards.filter(
+              (card) =>
+                !selected.some(
+                  (used) => used.uid === card.uid,
+                ),
+            );
+            submissions.push({
+              answer: answers[answerIndex],
+              cardIds: selected.map((card) => card.uid),
+              componentUses: [
+                ...selectedKnown.map((card) => ({
+                  cardUid: card.uid,
+                  symbolId: card.symbolId,
+                })),
+                {
+                  cardUid: inheritedCard.uid,
+                  symbolId: sourceSymbol,
+                  inherited: true,
+                  sourceIndex,
+                },
+              ],
+            });
+            const result = search(
+              answerIndex + 1,
+              remaining,
+              new Set([
+                ...reservedSources,
+                sourceIndex,
+              ]),
+            );
+            if (result) {
+              return result;
+            }
+            submissions.pop();
+          }
+        }
+      }
+      return null;
+    };
+    return (
+      search(
+        0,
+        this.state.boss.cards,
+        usedSources,
+      ) ?? fallback
+    );
+  }
+
+  private canCompleteHallraumBossCards(
+    cards: TrialCard[],
+    answerCount: number,
+    reservedSources: Set<number>,
+    reservedAnswers: Set<string>,
+  ): boolean {
+    if (answerCount === 0) {
+      return this.remainingAnswerComponents(cards).length === 0;
+    }
+    if (!this.state.boss) {
+      return false;
+    }
+    const allowedLengths = new Set(
+      this.activeRule().selection.boss.partLengths,
+    );
+    const inheritedSources =
+      this.state.boss.inheritedSources ?? [];
+    const inheritedCards = cards.filter(
+      (card) =>
+        !card.mustIgnore &&
+        card.source === "inherited",
+    );
+    const knownCards = cards.filter(
+      (card) =>
+        !card.mustIgnore &&
+        card.source !== "inherited",
+    );
+    for (const inheritedCard of inheritedCards) {
+      for (
+        let sourceIndex = 0;
+        sourceIndex < inheritedSources.length;
+        sourceIndex += 1
+      ) {
+        if (reservedSources.has(sourceIndex)) {
+          continue;
+        }
+        const limit = 1 << knownCards.length;
+        for (let mask = 0; mask < limit; mask += 1) {
+          const selectedKnown = knownCards.filter(
+            (_, index) => (mask & (1 << index)) !== 0,
+          );
+          if (
+            !allowedLengths.has(
+              selectedKnown.length + 1,
+            )
+          ) {
+            continue;
+          }
+          const candidates = this.data.accepted([
+            ...selectedKnown.map(
+              (card) => card.symbolId,
+            ),
+            inheritedSources[sourceIndex],
+          ]);
+          const selectedIds = new Set([
+            inheritedCard.uid,
+            ...selectedKnown.map((card) => card.uid),
+          ]);
+          const remaining = cards.filter(
+            (card) => !selectedIds.has(card.uid),
+          );
+          for (const candidate of candidates) {
+            if (reservedAnswers.has(candidate)) {
+              continue;
+            }
+            if (
+              this.canCompleteHallraumBossCards(
+                remaining,
+                answerCount - 1,
+                new Set([
+                  ...reservedSources,
+                  sourceIndex,
+                ]),
+                new Set([
+                  ...reservedAnswers,
+                  candidate,
+                ]),
+              )
+            ) {
+              return true;
+            }
+          }
+        }
+      }
+    }
+    return false;
   }
 
   private assignCompositionBossPrefix(
@@ -5889,6 +6830,9 @@ export class TrialSession {
     if (!this.state.boss) {
       return;
     }
+    this.state.boss.revealAnswers = [
+      ...this.state.boss.pendingAnswers,
+    ];
     const remainingBeforeBonus = this.remainingSeconds();
     this.clearTimer();
     this.applySharedCorrectBonus(remainingBeforeBonus);
@@ -5906,29 +6850,37 @@ export class TrialSession {
     this.recordBoss(true, answer);
     this.advanceId = setTimeout(() => {
       this.advanceId = null;
-      if (this.state.stage >= TRIAL_STAGE_COUNT) {
-        this.finish(true);
-        return;
-      }
-      this.state.forcedRuleId = null;
-      this.state.stage += 1;
-      this.state.partLengthPlan = [];
-      this.state.ruleId = this.activeRule(
-        this.state.stage,
-      ).id;
-      this.state.phase = "stage-intro";
-      this.state.questionInStage = 0;
-      this.state.timeLimit = 0;
-      this.state.remaining = 0;
-      this.state.paused = false;
-      this.state.revealing = false;
-      this.state.feedback = "";
-      this.state.draft = "";
-      this.state.revealPinyin = [];
-      this.state.current = null;
-      this.state.boss = null;
-      this.emit();
+      this.advanceFromBoss(true);
     }, 1200);
+    this.emit();
+  }
+
+  private advanceFromBoss(cleared: boolean): void {
+    if (this.state.stage >= TRIAL_STAGE_COUNT) {
+      this.finish(cleared);
+      return;
+    }
+    const completedStage = this.state.stage;
+    this.state.forcedRuleId = null;
+    this.state.stage += 1;
+    this.state.partLengthPlan = [];
+    this.state.ruleId = this.activeRule(
+      this.state.stage,
+    ).id;
+    this.state.phase = "stage-intro";
+    this.state.questionInStage = 0;
+    if (completedStage % 3 === 0) {
+      this.state.skipsRemaining += 1;
+    }
+    this.state.timeLimit = 0;
+    this.state.remaining = 0;
+    this.state.paused = false;
+    this.state.revealing = false;
+    this.state.feedback = "";
+    this.state.draft = "";
+    this.state.revealPinyin = [];
+    this.state.current = null;
+    this.state.boss = null;
     this.emit();
   }
 
@@ -6012,9 +6964,19 @@ export class TrialSession {
     const submitted =
       given ??
       `${this.state.boss.pendingAnswer}${this.state.draft}`;
-    const answer = ok
-      ? submitted
-      : this.state.boss.expectedAnswers.join("");
+    if (ok && !this.state.boss.revealAnswers) {
+      this.state.boss.revealAnswers = [
+        ...this.state.boss.pendingAnswers,
+      ];
+    } else if (!ok && !this.state.boss.revealAnswers) {
+      this.state.boss.revealAnswers =
+        this.resolveBossRevealAnswers();
+    }
+    const answer =
+      this.state.boss.revealAnswers?.join("") ??
+      (ok
+        ? submitted
+        : this.state.boss.expectedAnswers.join(""));
     const meta = [...answer]
       .map(
         (char) =>
@@ -6125,12 +7087,14 @@ export class TrialSession {
       const submitted = this.state.boss.pendingSubmissions.map(
         (submission) => submission.answer,
       );
-      const orderedAnswers = [
-        ...submitted,
-        ...this.state.boss.expectedAnswers.filter(
-          (char) => !submitted.includes(char),
-        ),
-      ];
+      const orderedAnswers =
+        this.state.boss.revealAnswers ??
+        [
+          ...submitted,
+          ...this.state.boss.expectedAnswers.filter(
+            (char) => !submitted.includes(char),
+          ),
+        ];
       const usedGroups = new Set<number>();
       const groupAccepts = (
         groupIndex: number,
@@ -6197,12 +7161,20 @@ export class TrialSession {
             : {}),
         }),
       );
-      return this.state.boss.expectedAnswers.map(
-        (char, answerIndex) => {
+      return (
+        this.state.boss.revealAnswers ??
+        this.state.boss.expectedAnswers
+      ).map((char) => {
+          const answerIndex =
+            this.state.boss?.expectedAnswers.indexOf(
+              char,
+            ) ?? -1;
           const way =
-            this.state.boss?.expectedWays[
-              answerIndex
-            ] ?? [];
+            answerIndex >= 0
+              ? this.state.boss?.expectedWays[
+                  answerIndex
+                ] ?? []
+              : [];
           const cards = new Map<number, TrialCard>();
           for (const symbolId of way) {
             const cardIndex = available.findIndex((card) =>
@@ -6240,19 +7212,20 @@ export class TrialSession {
             }
           }
           return { char, cards: [...cards.values()] };
-        },
-      );
+        });
     }
     const remaining = [...this.state.boss.initialCards];
     const submitted = this.state.boss.pendingSubmissions.map(
       (submission) => submission.answer,
     );
-    const orderedAnswers = [
-      ...submitted,
-      ...this.state.boss.expectedAnswers.filter(
-        (char) => !submitted.includes(char),
-      ),
-    ];
+    const orderedAnswers =
+      this.state.boss.revealAnswers ??
+      [
+        ...submitted,
+        ...this.state.boss.expectedAnswers.filter(
+          (char) => !submitted.includes(char),
+        ),
+      ];
     return orderedAnswers.map(
       (char) => {
         const answerIndex =
@@ -6281,7 +7254,10 @@ export class TrialSession {
     );
   }
 
-  private finish(cleared: boolean): void {
+  private finish(
+    cleared: boolean,
+    titleOverride?: TrialResultState["title"],
+  ): void {
     if (
       this.state.phase === "playing" &&
       !this.currentRecorded
@@ -6302,7 +7278,10 @@ export class TrialSession {
     const correctCount = this.state.history.filter(
       (item) => item.ok,
     ).length;
-    const clearedStages = cleared
+    const successful =
+      cleared &&
+      this.state.history.every((item) => item.ok);
+    const clearedStages = successful
       ? TRIAL_STAGE_COUNT
       : Math.max(0, this.state.stage - 1);
     const crisEarned = calculateTrialCrisReward(
@@ -6313,8 +7292,10 @@ export class TrialSession {
       this.crisLedger?.add(crisEarned);
     }
     this.state.result = {
-      title: cleared ? "试炼完成" : "试炼结束",
-      cleared,
+      title:
+        titleOverride ??
+        (successful ? "知我梦中" : "覆鹿遗蕉"),
+      cleared: successful,
       reachedStage: this.state.stage,
       correctCount,
       averageQuestionSeconds:
@@ -6373,12 +7354,1380 @@ export class TrialSession {
     }
   }
 
+  private buildHallraumCatalog(): void {
+    if (this.hallraumBagsByLength) {
+      return;
+    }
+    const grouped = new Map<
+      number,
+      Map<
+        string,
+        {
+          components: number[];
+          directAnswers: Set<string>;
+        }
+      >
+    >();
+    const acceptedByBag = new Map<string, Set<string>>();
+    this.hallraumBagsByLengthAndSymbol.clear();
+    this.hallraumAcceptedAnswerBags.clear();
+    this.hallraumUnknownBlackCache.clear();
+    for (const [char, ways] of this.data.ways) {
+      if (!this.data.isCharSelectable(char)) {
+        continue;
+      }
+      for (const way of this.data.expandedDecompositions(char)) {
+        if (way.length < 2 || way.length > 10) {
+          continue;
+        }
+        const components = [...way].sort(
+          (left, right) => left - right,
+        );
+        const key = this.symbolIdBagKey(components);
+        const answers =
+          acceptedByBag.get(key) ?? new Set<string>();
+        answers.add(char);
+        acceptedByBag.set(key, answers);
+      }
+      for (const way of ways) {
+        if (way.length < 2 || way.length > 10) {
+          continue;
+        }
+        const components = [...way].sort(
+          (left, right) => left - right,
+        );
+        const key = this.symbolIdBagKey(components);
+        const lengthGroups =
+          grouped.get(components.length) ?? new Map();
+        const entry = lengthGroups.get(key) ?? {
+          components,
+          directAnswers: new Set<string>(),
+        };
+        entry.directAnswers.add(char);
+        lengthGroups.set(key, entry);
+        grouped.set(components.length, lengthGroups);
+      }
+    }
+    this.hallraumAcceptedAnswerBags = acceptedByBag;
+    this.hallraumBagsByLength = new Map();
+    for (const [length, groups] of grouped) {
+      const entries = [...groups.values()]
+        .map((entry): HallraumBagEntry => ({
+          components: [...entry.components],
+          directAnswers: [...entry.directAnswers].sort(
+            (left, right) =>
+              left.localeCompare(right, "zh-CN"),
+          ),
+          acceptedAnswers: [
+            ...(acceptedByBag.get(
+              this.symbolIdBagKey(entry.components),
+            ) ?? []),
+          ].sort(
+            (left, right) =>
+              left.localeCompare(right, "zh-CN"),
+          ),
+        }))
+        .sort((left, right) =>
+          this.symbolIdBagKey(left.components).localeCompare(
+            this.symbolIdBagKey(right.components),
+          ),
+        );
+      this.hallraumBagsByLength.set(length, entries);
+      for (const entry of entries) {
+        for (const symbolId of new Set(entry.components)) {
+          const indexKey = `${length}|${symbolId}`;
+          const bucket =
+            this.hallraumBagsByLengthAndSymbol.get(
+              indexKey,
+            ) ?? [];
+          bucket.push(entry);
+          this.hallraumBagsByLengthAndSymbol.set(
+            indexKey,
+            bucket,
+          );
+        }
+      }
+    }
+  }
+
+  private hallraumLengthOrder(
+    questionIndex: number,
+  ): number[] {
+    return [
+      questionIndex === TRIAL_QUESTIONS_PER_STAGE - 1
+        ? 4
+        : 3,
+    ];
+  }
+
+  private hallraumCandidateBags(
+    length: number,
+    inheritedSymbol: number | null,
+    inheritedSources: ReadonlySet<number> | null,
+    usedChars: ReadonlySet<string>,
+    rule: TrialRuleDefinition,
+  ): HallraumBagEntry[] {
+    const entries =
+      inheritedSymbol === null
+        ? this.hallraumBagsByLength?.get(length) ?? []
+        : this.hallraumBagsByLengthAndSymbol.get(
+            `${length}|${inheritedSymbol}`,
+          ) ?? [];
+    const allowedLevels =
+      rule.selection.levels ?? [1, 2];
+    return entries.filter((entry) => {
+      if (
+        entry.acceptedAnswers.some((char) =>
+          usedChars.has(char),
+        )
+      ) {
+        return false;
+      }
+      if (
+        !entry.acceptedAnswers.some((char) => {
+          const level = this.data.levels.get(char);
+          return (
+            level !== undefined &&
+            allowedLevels.includes(level) &&
+            (this.includeSupplementaryChars ||
+              this.data.isBasicPlaneCharacter(char))
+          );
+        })
+      ) {
+        return false;
+      }
+      if (inheritedSymbol === null) {
+        return true;
+      }
+      const visible = [...entry.components];
+      visible.splice(
+        visible.indexOf(inheritedSymbol),
+        1,
+      );
+      const globalPossible =
+        this.hallraumUnknownInheritedSymbols(visible);
+      const possible = this.hallraumPossibleInheritedSymbols(
+        visible,
+        inheritedSources,
+      );
+      return (
+        globalPossible.length > 1 &&
+        globalPossible.includes(inheritedSymbol) &&
+        possible.length === 1 &&
+        possible[0] === inheritedSymbol
+      );
+    });
+  }
+
+  private hallraumPossibleInheritedSymbols(
+    visibleComponents: readonly number[],
+    inheritedSources: ReadonlySet<number> | null,
+  ): number[] {
+    if (!inheritedSources) {
+      return [];
+    }
+    return [...inheritedSources].filter(
+      (symbolId) =>
+        this.data.accepted([
+          ...visibleComponents,
+          symbolId,
+        ]).size > 0,
+    );
+  }
+
+  private hallraumUnknownInheritedSymbols(
+    visibleComponents: readonly number[],
+  ): number[] {
+    const key = this.symbolIdBagKey(visibleComponents);
+    const cached = this.hallraumUnknownBlackCache.get(key);
+    if (cached) {
+      return cached;
+    }
+    const possible = this.data
+      .componentIds()
+      .filter((symbolId) =>
+        this.hallraumAcceptedAnswerBags.has(
+          this.symbolIdBagKey([
+            ...visibleComponents,
+            symbolId,
+          ]),
+        ),
+      );
+    this.hallraumUnknownBlackCache.set(key, possible);
+    return possible;
+  }
+
+  private pickHallraumBossPlan(
+    finalStep: HallraumStep,
+    usedChars: ReadonlySet<string>,
+  ): HallraumBossPlan | null {
+    const sourceIndices = shuffle(
+      finalStep.way.map((_, index) => index),
+      this.random,
+    );
+    for (const firstIndex of sourceIndices) {
+      for (const secondIndex of shuffle(
+        finalStep.way.map((_, index) => index),
+        this.random,
+      )) {
+        if (firstIndex === secondIndex) {
+          continue;
+        }
+        const firstInherited =
+          finalStep.way[firstIndex];
+        const secondInherited =
+          finalStep.way[secondIndex];
+        for (let firstLength = 2; firstLength <= 6; firstLength += 1) {
+          const secondLengths = shuffle(
+            [6, 7, 8]
+              .map((total) => total - firstLength)
+              .filter(
+                (length) => length >= 2 && length <= 6,
+              ),
+            this.random,
+          );
+          const firstEntries =
+            this.hallraumBagsByLengthAndSymbol.get(
+              `${firstLength}|${firstInherited}`,
+            ) ?? [];
+          if (firstEntries.length === 0) {
+            continue;
+          }
+          for (const secondLength of secondLengths) {
+            const secondEntries =
+              this.hallraumBagsByLengthAndSymbol.get(
+                `${secondLength}|${secondInherited}`,
+              ) ?? [];
+            if (secondEntries.length === 0) {
+              continue;
+            }
+            for (const first of shuffle(
+              [...firstEntries].slice(0, 160),
+              this.random,
+            )) {
+              const firstAnswers =
+                first.directAnswers.filter((char) => {
+                  const level = this.data.levels.get(char);
+                  return (
+                    !usedChars.has(char) &&
+                    (level === 1 || level === 2) &&
+                    (this.includeSupplementaryChars ||
+                      this.data.isBasicPlaneCharacter(char))
+                  );
+                });
+              if (firstAnswers.length === 0) {
+                continue;
+              }
+              for (const second of shuffle(
+                [...secondEntries].slice(0, 160),
+                this.random,
+              )) {
+                const secondAnswers =
+                  second.directAnswers.filter((char) => {
+                    const level = this.data.levels.get(char);
+                    return (
+                      !usedChars.has(char) &&
+                      (level === 1 || level === 2) &&
+                      (this.includeSupplementaryChars ||
+                        this.data.isBasicPlaneCharacter(char))
+                    );
+                  });
+                if (secondAnswers.length === 0) {
+                  continue;
+                }
+                const firstChar = pickRandom(
+                  firstAnswers,
+                  this.random,
+                );
+                const secondChar = pickRandom(
+                  secondAnswers.filter(
+                    (char) => char !== firstChar,
+                  ),
+                  this.random,
+                );
+                if (!secondChar) {
+                  continue;
+                }
+                return {
+                  chars: [firstChar, secondChar],
+                  ways: [
+                    [...first.components],
+                    [...second.components],
+                  ],
+                  inheritedSlots: [
+                    first.components.indexOf(firstInherited),
+                    second.components.indexOf(secondInherited),
+                  ],
+                };
+              }
+            }
+          }
+        }
+      }
+    }
+    return null;
+  }
+
+  private buildHallraumChain(): void {
+    this.buildHallraumCatalog();
+    const rule = this.activeRule();
+    const usedChars = new Set<string>();
+    const steps: HallraumStep[] = [];
+    let expansions = 0;
+    const search = (depth: number): boolean => {
+      if (++expansions > 60000) {
+        return false;
+      }
+      if (depth >= TRIAL_QUESTIONS_PER_STAGE) {
+        const boss = this.pickHallraumBossPlan(
+          steps[steps.length - 1],
+          usedChars,
+        );
+        if (!boss) {
+          return false;
+        }
+        this.hallraumSteps = steps.map((step) => ({
+          ...step,
+          way: [...step.way],
+          acceptedAnswers: [...step.acceptedAnswers],
+        }));
+        this.hallraumBossPlan = {
+          chars: [...boss.chars],
+          ways: [
+            [...boss.ways[0]],
+            [...boss.ways[1]],
+          ],
+          inheritedSlots: [...boss.inheritedSlots],
+        };
+        this.usedStageChars = new Set(usedChars);
+        return true;
+      }
+      const inheritedChoices =
+        depth === 0
+          ? [null]
+          : shuffle(
+              [
+                ...new Set(
+                  steps[depth - 1].way,
+                ),
+              ],
+              this.random,
+            );
+      for (const inheritedSymbol of inheritedChoices) {
+        const inheritedSources =
+          depth === 0
+            ? null
+            : new Set(steps[depth - 1].way);
+        for (const length of this.hallraumLengthOrder(depth)) {
+          const candidates = shuffle(
+            this.hallraumCandidateBags(
+              length,
+              inheritedSymbol,
+              inheritedSources,
+              usedChars,
+              rule,
+            ),
+            this.random,
+          ).slice(0, 120);
+          for (const candidate of candidates) {
+            const answerChoices =
+              candidate.directAnswers.filter((char) => {
+                const level = this.data.levels.get(char);
+                return (
+                  (level === 1 || level === 2) &&
+                  (this.includeSupplementaryChars ||
+                    this.data.isBasicPlaneCharacter(char))
+                );
+              });
+            if (answerChoices.length === 0) {
+              continue;
+            }
+            const inheritedSlot =
+              inheritedSymbol === null
+                ? null
+                : candidate.components.indexOf(
+                    inheritedSymbol,
+                  );
+            if (
+              inheritedSlot !== null &&
+              inheritedSlot < 0
+            ) {
+              continue;
+            }
+            const answer = pickRandom(
+              answerChoices,
+              this.random,
+            );
+            const step: HallraumStep = {
+              char: answer,
+              way: [...candidate.components],
+              inheritedSlot,
+              acceptedAnswers: [
+                ...candidate.acceptedAnswers,
+              ],
+            };
+            steps.push(step);
+            for (const char of candidate.acceptedAnswers) {
+              usedChars.add(char);
+            }
+            if (search(depth + 1)) {
+              return true;
+            }
+            for (const char of candidate.acceptedAnswers) {
+              usedChars.delete(char);
+            }
+            steps.pop();
+          }
+        }
+      }
+      return false;
+    };
+    if (!search(0)) {
+      throw new Error(
+        "Unable to generate a Hallraum question chain.",
+      );
+    }
+  }
+
+  private buildFugueQuestionPool(): FugueQuestionPlan[] {
+    const plans: FugueQuestionPlan[] = [];
+    const used = new Set<string>();
+    let attempts = 0;
+    while (plans.length < TRIAL_QUESTIONS_PER_STAGE) {
+      attempts += 1;
+      if (attempts > 4000) {
+        throw new Error(
+          "Unable to generate the Fugue question queue.",
+        );
+      }
+      const length = pickWeighted(
+        [3, 4],
+        (candidate) => (candidate === 3 ? 42 : 23),
+        this.random,
+      );
+      const choices = [
+        ...(this.choicesByLength.get(length)?.values() ??
+          []),
+      ];
+      if (choices.length === 0) {
+        continue;
+      }
+      const choice = pickRandom(choices, this.random);
+      if (
+        used.has(choice.char) ||
+        !this.charAllowedByRule(
+          this.activeRule(),
+          choice.char,
+        )
+      ) {
+        continue;
+      }
+      const way = pickRandom(choice.ways, this.random);
+      const accepted = [
+        ...this.data.accepted(way),
+      ];
+      plans.push({
+        char: choice.char,
+        way: [...way],
+        accepted,
+      });
+      used.add(choice.char);
+      for (const char of accepted) {
+        used.add(char);
+      }
+    }
+    return plans;
+  }
+
+  private fugueBossCompletePairs(
+    plan: FugueBossPlan,
+  ): Set<string> {
+    const cards = plan.ways
+      .flat()
+      .map((symbolId, index): TrialCard => ({
+        uid: index + 1,
+        symbolId,
+        source: "answer",
+      }));
+    const allowedLengths = new Set(
+      this.activeRule().selection.boss.partLengths,
+    );
+    const pairs = new Set<string>();
+    const limit = 1 << cards.length;
+    for (let mask = 1; mask < limit - 1; mask += 1) {
+      const first = cardsForMask(cards, mask);
+      const second = cards.filter(
+        (_, index) => (mask & (1 << index)) === 0,
+      );
+      if (
+        !allowedLengths.has(first.length) ||
+        !allowedLengths.has(second.length)
+      ) {
+        continue;
+      }
+      const firstAnswers =
+        this.acceptedAnswersForCards(first);
+      const secondAnswers =
+        this.acceptedAnswersForCards(second);
+      for (const firstChar of firstAnswers) {
+        const firstLevel =
+          this.data.levels.get(firstChar);
+        if (
+          (firstLevel !== 1 && firstLevel !== 2) ||
+          (!this.includeSupplementaryChars &&
+            !this.data.isBasicPlaneCharacter(firstChar))
+        ) {
+          continue;
+        }
+        for (const secondChar of secondAnswers) {
+          if (secondChar === firstChar) {
+            continue;
+          }
+          const secondLevel =
+            this.data.levels.get(secondChar);
+          if (
+            (secondLevel !== 1 && secondLevel !== 2) ||
+            (!this.includeSupplementaryChars &&
+              !this.data.isBasicPlaneCharacter(secondChar))
+          ) {
+            continue;
+          }
+          pairs.add(
+            [firstChar, secondChar]
+              .sort((left, right) =>
+                left.localeCompare(right, "zh-CN"),
+              )
+              .join("|"),
+          );
+        }
+      }
+    }
+    return pairs;
+  }
+
+  private fugueBossSubmissionCharacters(
+    plan: FugueBossPlan,
+  ): Set<string> {
+    const cards = plan.ways
+      .flat()
+      .map((symbolId, index): TrialCard => ({
+        uid: index + 1,
+        symbolId,
+        source: "answer",
+      }));
+    const allowedLengths = new Set(
+      this.activeRule().selection.boss.partLengths,
+    );
+    const chars = new Set<string>();
+    const limit = 1 << cards.length;
+    for (let mask = 1; mask < limit; mask += 1) {
+      const selected = cardsForMask(cards, mask);
+      if (!allowedLengths.has(selected.length)) {
+        continue;
+      }
+      for (const char of
+        this.acceptedAnswersForCards(selected)) {
+        const level = this.data.levels.get(char);
+        if (
+          (level === 1 || level === 2) &&
+          (this.includeSupplementaryChars ||
+            this.data.isBasicPlaneCharacter(char))
+        ) {
+          chars.add(char);
+        }
+      }
+    }
+    return chars;
+  }
+
+  private generateFugueBossPlan(
+    usedChars: ReadonlySet<string>,
+  ): FugueBossPlan | null {
+    const lengthPairs: Array<[number, number]> = [
+      [2, 4],
+      [3, 3],
+      [4, 2],
+      [2, 5],
+      [5, 2],
+      [2, 6],
+      [6, 2],
+      [3, 4],
+      [4, 3],
+      [3, 5],
+      [5, 3],
+    ];
+    for (let attempt = 0; attempt < 512; attempt += 1) {
+      const [firstLength, secondLength] =
+        pickRandom(lengthPairs, this.random);
+      const firstChoices = [
+        ...(this.choicesByLength.get(firstLength)?.values() ??
+          []),
+      ].filter(
+        (choice) =>
+          !usedChars.has(choice.char) &&
+          this.charAllowedByRule(
+            this.activeRule(),
+            choice.char,
+          ),
+      );
+      const secondChoices = [
+        ...(this.choicesByLength.get(secondLength)?.values() ??
+          []),
+      ].filter(
+        (choice) =>
+          !usedChars.has(choice.char) &&
+          this.charAllowedByRule(
+            this.activeRule(),
+            choice.char,
+          ),
+      );
+      if (
+        firstChoices.length === 0 ||
+        secondChoices.length === 0
+      ) {
+        continue;
+      }
+      const first = pickRandom(firstChoices, this.random);
+      const second = pickRandom(
+        secondChoices.filter(
+          (choice) => choice.char !== first.char,
+        ),
+        this.random,
+      );
+      if (!second) {
+        continue;
+      }
+      const plan: FugueBossPlan = {
+        chars: [first.char, second.char],
+        ways: [
+          [...pickRandom(first.ways, this.random)],
+          [...pickRandom(second.ways, this.random)],
+        ],
+        acceptedPairs: new Set(),
+        submissionChars: new Set(),
+      };
+      plan.acceptedPairs =
+        this.fugueBossCompletePairs(plan);
+      plan.submissionChars =
+        this.fugueBossSubmissionCharacters(plan);
+      if (plan.acceptedPairs.size === 0) {
+        continue;
+      }
+      return plan;
+    }
+    return null;
+  }
+
+  private buildFugueStage(): void {
+    this.fugueQuestions = this.buildFugueQuestionPool();
+    const lastThreeAnswers = new Set(
+      this.fugueQuestions
+        .slice(-3)
+        .flatMap((question) => question.accepted),
+    );
+    const usedChars = new Set(
+      this.fugueQuestions.flatMap((question) => [
+        question.char,
+        ...question.accepted,
+      ]),
+    );
+    for (let attempt = 0; attempt < 160; attempt += 1) {
+      const left = this.generateFugueBossPlan(
+        usedChars,
+      );
+      if (!left) {
+        break;
+      }
+      const right = this.generateFugueBossPlan(
+        new Set([
+          ...usedChars,
+          ...left.chars,
+          ...[...left.acceptedPairs].flatMap((key) =>
+            key.split("|"),
+          ),
+        ]),
+      );
+      if (!right) {
+        continue;
+      }
+      const blocksKnownAnswer = [...lastThreeAnswers].some(
+        (char) =>
+          left.submissionChars.has(char) ||
+          right.submissionChars.has(char),
+      );
+      if (blocksKnownAnswer) {
+        continue;
+      }
+      const leftBlocked = [...left.acceptedPairs].some(
+        (key) =>
+          key
+            .split("|")
+            .some((char) =>
+              right.submissionChars.has(char),
+            ),
+      );
+      const rightBlocked = [...right.acceptedPairs].some(
+        (key) =>
+          key
+            .split("|")
+            .some((char) =>
+              left.submissionChars.has(char),
+            ),
+      );
+      if (leftBlocked || rightBlocked) {
+        continue;
+      }
+      this.fugueBossPlans = [left, right];
+      break;
+    }
+    if (!this.fugueBossPlans) {
+      throw new Error(
+        "Unable to generate a Fugue boss pair.",
+      );
+    }
+    this.fugueQuestionIndex = 2;
+    const slots: [
+      FugueSlotState,
+      FugueSlotState,
+    ] = [
+      {
+        id: "left",
+        mode: "normal",
+        current: null,
+        boss: null,
+        remaining: TRIAL_NORMAL_SECONDS,
+        timeLimit: TRIAL_NORMAL_SECONDS,
+        feedback: "",
+        revealing: false,
+        questionNumber: 1,
+      },
+      {
+        id: "right",
+        mode: "normal",
+        current: null,
+        boss: null,
+        remaining: TRIAL_NORMAL_SECONDS,
+        timeLimit: TRIAL_NORMAL_SECONDS,
+        feedback: "",
+        revealing: false,
+        questionNumber: 2,
+      },
+    ];
+    this.state.fugue = {
+      slots,
+      queueRemaining:
+        TRIAL_QUESTIONS_PER_STAGE - 2,
+    };
+    this.setFugueNormalQuestion(
+      0,
+      this.fugueQuestions[0],
+      1,
+    );
+    this.setFugueNormalQuestion(
+      1,
+      this.fugueQuestions[1],
+      2,
+    );
+    this.state.questionInStage = 2;
+  }
+
+  private setFugueNormalQuestion(
+    slotIndex: number,
+    plan: FugueQuestionPlan,
+    questionNumber: number,
+  ): void {
+    if (!this.state.fugue) {
+      return;
+    }
+    const slot = this.state.fugue.slots[slotIndex];
+    const displayCards = shuffleQuestionParts(
+      plan.way,
+      this.random,
+    ).map((symbolId) => this.makeCard(symbolId));
+    slot.mode = "normal";
+    slot.current = {
+      char: plan.char,
+      accepted: [...plan.accepted],
+      pinyin: displayPinyinFor(
+        this.pinyin,
+        plan.char,
+      ),
+      answerWay: [...plan.way],
+      displayCards,
+    };
+    slot.boss = null;
+    slot.feedback = "";
+    slot.revealing = false;
+    slot.questionNumber = questionNumber;
+    slot.remaining = TRIAL_NORMAL_SECONDS;
+    slot.timeLimit = TRIAL_NORMAL_SECONDS;
+    this.recordEncounter(plan.char, plan.way);
+  }
+
+  private createFugueBossState(
+    plan: FugueBossPlan,
+  ): TrialBossState {
+    const cards = shuffle(
+      plan.ways
+        .flat()
+        .map((symbolId) => this.makeCard(symbolId)),
+      this.random,
+    );
+    return {
+      cards,
+      initialCards: cards.map((card) => ({
+        ...card,
+      })),
+      expectedAnswers: [...plan.chars],
+      expectedDisplayChars: [...plan.chars],
+      expectedPinyin: plan.chars.map((char) =>
+        displayPinyinFor(this.pinyin, char),
+      ),
+      expectedWays: [
+        [...plan.ways[0]],
+        [...plan.ways[1]],
+      ],
+      displayWays: [
+        [...plan.ways[0]],
+        [...plan.ways[1]],
+      ],
+      expandedComponents: [],
+      pendingAnswers: [],
+      pendingSubmissions: [],
+      pendingAnswer: "",
+      pendingCardIds: [],
+      consumedCardIds: [],
+      submissionCount: 0,
+    };
+  }
+
+  private startFugueBoss(slotIndex: number): void {
+    if (!this.state.fugue || !this.fugueBossPlans) {
+      return;
+    }
+    const slot = this.state.fugue.slots[slotIndex];
+    const boss = this.createFugueBossState(
+      this.fugueBossPlans[slotIndex],
+    );
+    slot.mode = "boss";
+    slot.current = null;
+    slot.boss = boss;
+    slot.questionNumber = null;
+    slot.remaining = TRIAL_BOSS_SECONDS;
+    slot.timeLimit = TRIAL_BOSS_SECONDS;
+    slot.feedback = "";
+    slot.revealing = false;
+    for (const char of boss.expectedAnswers) {
+      this.recordEncounter(
+        char,
+        boss.expectedWays[
+          boss.expectedAnswers.indexOf(char)
+        ],
+      );
+    }
+    this.fugueDeadlines[slotIndex] =
+      performance.now() + TRIAL_BOSS_SECONDS * 1000;
+  }
+
+  private recordFugueNormal(
+    slot: FugueSlotState,
+    answer: string,
+    given: string,
+  ): void {
+    if (!slot.current) {
+      return;
+    }
+    this.recordFugueQuestionTime(slot);
+    const cards = slot.current.displayCards.map(
+      (card) => ({ ...card }),
+    );
+    this.state.history.push({
+      stage: this.state.stage,
+      ruleId: this.state.ruleId,
+      slot: slot.questionNumber ?? 0,
+      kind: "normal",
+      answerWay: [...slot.current.answerWay],
+      displayCards: cards,
+      answerDetails: [
+        {
+          char: answer,
+          answerWay: [...slot.current.answerWay],
+          displayCards: cards.map((card) => ({
+            ...card,
+          })),
+          meta: this.metaFor(answer),
+          pinyin: slot.current.pinyin,
+        },
+      ],
+      parts: this.data.names(slot.current.answerWay),
+      displayParts: this.data.names(
+        cards.map((card) => card.symbolId),
+      ),
+      displaySymbolIds: cards.map(
+        (card) => card.symbolId,
+      ),
+      answer,
+      given,
+      ok: true,
+      meta: this.metaFor(answer),
+    });
+  }
+
+  private recordFugueBoss(slot: FugueSlotState): void {
+    if (!slot.boss) {
+      return;
+    }
+    this.recordFugueQuestionTime(slot);
+    const boss = slot.boss;
+    const answer = boss.pendingAnswers.join("");
+    this.state.history.push({
+      stage: this.state.stage,
+      ruleId: this.state.ruleId,
+      slot: TRIAL_QUESTIONS_PER_STAGE + 1,
+      kind: "boss",
+      answerWay: boss.expectedWays.flatMap((way) => [
+        ...way,
+      ]),
+      displayCards: boss.initialCards.map((card) => ({
+        ...card,
+      })),
+      answerDetails: boss.pendingSubmissions.map(
+        (submission) => ({
+          char: submission.answer,
+          answerWay: submission.componentUses.map(
+            (use) => use.symbolId,
+          ),
+          displayCards: boss.initialCards
+            .filter((card) =>
+              submission.cardIds.includes(card.uid),
+            )
+            .map((card) => ({ ...card })),
+          meta: this.metaFor(submission.answer),
+          pinyin:
+            this.activeRule().policy.answer.boss.input ===
+            "pinyin"
+              ? displayPinyinFor(
+                  this.pinyin,
+                  submission.answer,
+                )
+              : undefined,
+        }),
+      ),
+      parts: boss.expectedWays.flatMap((way) =>
+        this.data.names(way),
+      ),
+      displayParts: boss.initialCards.map((card) =>
+        this.data.component(card.symbolId).name,
+      ),
+      displaySymbolIds: boss.initialCards.map(
+        (card) => card.symbolId,
+      ),
+      answer,
+      given: answer,
+      ok: true,
+      meta: [...answer]
+        .map((char) => this.metaFor(char))
+        .join(" · "),
+    });
+  }
+
+  private recordFugueQuestionTime(
+    slot: FugueSlotState,
+  ): void {
+    const remaining = Math.max(
+      0,
+      Math.min(slot.timeLimit, slot.remaining),
+    );
+    this.totalQuestionTimeMs +=
+      Math.max(0, slot.timeLimit - remaining) * 1000;
+    this.timedQuestionCount += 1;
+  }
+
+  private scheduleFugueAdvance(
+    slotIndex: number,
+  ): void {
+    if (!this.state.fugue) {
+      return;
+    }
+    const slot = this.state.fugue.slots[slotIndex];
+    slot.revealing = true;
+    this.fugueDeadlines[slotIndex] =
+      Number.POSITIVE_INFINITY;
+    if (this.fugueAdvanceIds[slotIndex] !== null) {
+      clearTimeout(this.fugueAdvanceIds[slotIndex]!);
+    }
+    this.fugueAdvanceIds[slotIndex] = setTimeout(() => {
+      this.fugueAdvanceIds[slotIndex] = null;
+      if (!this.state.fugue) {
+        return;
+      }
+      slot.revealing = false;
+      slot.feedback = "";
+      this.state.revealing = false;
+      if (
+        this.fugueQuestionIndex <
+        this.fugueQuestions.length
+      ) {
+        const plan =
+          this.fugueQuestions[this.fugueQuestionIndex];
+        this.fugueQuestionIndex += 1;
+        this.state.fugue.queueRemaining = Math.max(
+          0,
+          TRIAL_QUESTIONS_PER_STAGE -
+            this.fugueQuestionIndex,
+        );
+        this.setFugueNormalQuestion(
+          slotIndex,
+          plan,
+          this.fugueQuestionIndex,
+        );
+        this.fugueDeadlines[slotIndex] =
+          performance.now() +
+          TRIAL_NORMAL_SECONDS * 1000;
+      } else {
+        this.startFugueBoss(slotIndex);
+      }
+      this.state.draft = "";
+      this.emit();
+    }, 650);
+  }
+
+  private completeFugueBossSide(
+    slotIndex: number,
+  ): void {
+    if (!this.state.fugue) {
+      return;
+    }
+    const slot = this.state.fugue.slots[slotIndex];
+    slot.mode = "done";
+    slot.remaining = 0;
+    slot.revealing = false;
+    slot.feedback = "correct";
+    this.fugueDeadlines[slotIndex] =
+      Number.POSITIVE_INFINITY;
+    this.recordFugueBoss(slot);
+    if (
+      this.state.fugue.slots.every(
+        (candidate) => candidate.mode === "done",
+      ) &&
+      this.fugueStageAdvanceId === null
+    ) {
+      this.fugueStageAdvanceId = setTimeout(() => {
+        this.fugueStageAdvanceId = null;
+        if (this.state.stage >= TRIAL_STAGE_COUNT) {
+          this.finish(true);
+          return;
+        }
+        this.state.forcedRuleId = null;
+        this.state.stage += 1;
+        this.state.partLengthPlan = [];
+        this.state.ruleId = this.activeRule(
+          this.state.stage,
+        ).id;
+        this.state.phase = "stage-intro";
+        this.state.questionInStage = 0;
+        if ((this.state.stage - 1) % 3 === 0) {
+          this.state.skipsRemaining += 1;
+        }
+        this.state.timeLimit = 0;
+        this.state.remaining = 0;
+        this.state.paused = false;
+        this.state.revealing = false;
+        this.state.feedback = "";
+        this.state.draft = "";
+        this.state.current = null;
+        this.state.boss = null;
+        this.state.fugue = undefined;
+        this.emit();
+      }, 900);
+    }
+  }
+
+  private cloneFugueBossState(
+    boss: TrialBossState,
+  ): TrialBossState {
+    return {
+      ...boss,
+      cards: boss.cards.map((card) => ({
+        ...card,
+        ...(card.remainingComponents
+          ? {
+              remainingComponents: [
+                ...card.remainingComponents,
+              ],
+            }
+          : {}),
+      })),
+      initialCards: boss.initialCards.map((card) => ({
+        ...card,
+      })),
+      expectedAnswers: [...boss.expectedAnswers],
+      expectedDisplayChars: [
+        ...boss.expectedDisplayChars,
+      ],
+      expectedPinyin: [...boss.expectedPinyin],
+      expectedWays: boss.expectedWays.map((way) => [...way]),
+      displayWays: boss.displayWays.map((way) => [...way]),
+      expandedComponents: [...boss.expandedComponents],
+      pendingAnswers: [...boss.pendingAnswers],
+      pendingSubmissions: boss.pendingSubmissions.map(
+        (submission) => this.cloneBossSubmission(submission),
+      ),
+      pendingCardIds: [...boss.pendingCardIds],
+      consumedCardIds: [...boss.consumedCardIds],
+      ...(boss.revealAnswers
+        ? { revealAnswers: [...boss.revealAnswers] }
+        : {}),
+    };
+  }
+
+  private tryFugueBossSubmission(
+    bossState: TrialBossState,
+    raw: string,
+  ): {
+    boss: TrialBossState;
+    completed: boolean;
+  } | null {
+    const chars = [...raw];
+    if (
+      chars.length === 0 ||
+      chars.length >
+        bossState.expectedAnswers.length -
+          bossState.pendingAnswers.length ||
+      new Set([
+        ...bossState.pendingAnswers,
+        ...chars,
+      ]).size !==
+        bossState.pendingAnswers.length + chars.length
+    ) {
+      return null;
+    }
+    const boss = this.cloneFugueBossState(bossState);
+    const previous = this.state.boss;
+    this.state.boss = boss;
+    const assignment = this.assignBossAnswers(chars);
+    this.state.boss = previous;
+    if (!assignment) {
+      return null;
+    }
+    boss.cards = assignment.remainingCards;
+    boss.pendingSubmissions.push(
+      ...assignment.submissions,
+    );
+    boss.pendingAnswers.push(...chars);
+    boss.pendingAnswer = boss.pendingAnswers.join("");
+    boss.pendingCardIds.push(
+      ...assignment.submissions.flatMap(
+        (submission) => submission.cardIds,
+      ),
+    );
+    boss.consumedCardIds = boss.initialCards
+      .filter(
+        (card) =>
+          !boss.cards.some(
+            (current) => current.uid === card.uid,
+          ),
+      )
+      .map((card) => card.uid);
+    boss.submissionCount = boss.pendingAnswers.length;
+    return {
+      boss,
+      completed:
+        boss.pendingAnswers.length ===
+          boss.expectedAnswers.length &&
+        this.remainingAnswerComponents(boss.cards)
+          .length === 0,
+    };
+  }
+
+  private submitFugue(): void {
+    if (!this.state.fugue || this.state.paused) {
+      return;
+    }
+    const raw = this.state.draft.trim();
+    if (!raw) {
+      return;
+    }
+    const normalMatches = this.state.fugue.slots.map(
+      (slot) =>
+        slot.mode === "normal" &&
+        !slot.revealing &&
+        Boolean(slot.current?.accepted.includes(raw)),
+    );
+    const bossMatches = this.state.fugue.slots.map(
+      (slot) =>
+        slot.mode === "boss" &&
+        !slot.revealing &&
+        slot.boss
+          ? this.tryFugueBossSubmission(
+              slot.boss,
+              raw,
+            )
+          : null,
+    );
+    const matches = this.state.fugue.slots.map(
+      (_, index) =>
+        normalMatches[index] ||
+        bossMatches[index] !== null,
+    );
+    const matched = matches
+      .map((value, index) => (value ? index : -1))
+      .filter((index) => index >= 0);
+    if (matched.length !== 1) {
+      this.state.feedback = "wrong";
+      for (const slot of this.state.fugue.slots) {
+        if (
+          slot.mode !== "done" &&
+          !slot.revealing
+        ) {
+          slot.feedback = "wrong";
+        }
+      }
+      this.emit();
+      return;
+    }
+    const slotIndex = matched[0];
+    const slot = this.state.fugue.slots[slotIndex];
+    if (normalMatches[slotIndex]) {
+      slot.feedback = "correct";
+      this.state.feedback = "correct";
+      this.state.draft = "";
+      this.state.questionInStage = Math.min(
+        TRIAL_QUESTIONS_PER_STAGE,
+        this.state.questionInStage + 1,
+      );
+      this.recordFugueNormal(slot, raw, raw);
+      this.scheduleFugueAdvance(slotIndex);
+      this.emit();
+      return;
+    }
+    const result = bossMatches[slotIndex]!;
+    slot.boss = result.boss;
+    this.state.feedback = result.completed
+      ? "correct"
+      : "partial";
+    slot.feedback = result.completed
+      ? "correct"
+      : "partial";
+    this.state.draft = "";
+    if (result.completed) {
+      this.completeFugueBossSide(slotIndex);
+    }
+    this.emit();
+  }
+
+  private surrenderFugue(): void {
+    if (!this.state.fugue || this.state.revealing) {
+      return;
+    }
+    this.clearFugueTimers();
+    this.clearTimer();
+    this.state.revealing = true;
+    this.state.feedback = "wrong";
+    for (const slot of this.state.fugue.slots) {
+      if (slot.mode === "done") {
+        continue;
+      }
+      slot.revealing = true;
+      slot.feedback = "wrong";
+      slot.remaining = 0;
+      if (slot.boss) {
+        slot.boss.revealAnswers =
+          this.resolveBossRevealAnswersForState(
+            slot.boss,
+          );
+      }
+    }
+    this.emit();
+  }
+
+  private resolveBossRevealAnswersForState(
+    boss: TrialBossState,
+  ): string[] {
+    const previous = this.state.boss;
+    this.state.boss = boss;
+    const answers = this.resolveBossRevealAnswers();
+    this.state.boss = previous;
+    return answers;
+  }
+
+  undoFugueBossAnswer(
+    slotIndex: number,
+    index = -1,
+  ): void {
+    if (!this.state.fugue) {
+      return;
+    }
+    const boss =
+      this.state.fugue.slots[slotIndex].boss;
+    if (
+      !boss ||
+      boss.pendingSubmissions.length === 0 ||
+      this.state.fugue.slots[slotIndex].mode !== "boss"
+    ) {
+      return;
+    }
+    const resolvedIndex =
+      index < 0
+        ? boss.pendingSubmissions.length - 1
+        : index;
+    boss.pendingSubmissions.splice(resolvedIndex, 1);
+    boss.pendingAnswers = boss.pendingSubmissions.map(
+      (submission) => submission.answer,
+    );
+    boss.pendingAnswer = boss.pendingAnswers.join("");
+    boss.pendingCardIds = boss.pendingSubmissions.flatMap(
+      (submission) => submission.cardIds,
+    );
+    let cards = boss.initialCards.map((card) => ({
+      ...card,
+      ...(card.components
+        ? {
+            remainingComponents: [...card.components],
+            ...(card.displayMode === "quantity"
+              ? {
+                  remainingQuantity:
+                    card.components.length,
+                }
+              : {}),
+          }
+        : {}),
+    }));
+    for (const submission of boss.pendingSubmissions) {
+      cards = this.consumeBossComponentUses(
+        cards,
+        submission.componentUses,
+      );
+    }
+    boss.cards = cards;
+    boss.consumedCardIds = boss.initialCards
+      .filter(
+        (card) =>
+          !cards.some(
+            (current) => current.uid === card.uid,
+          ),
+      )
+      .map((card) => card.uid);
+    boss.submissionCount = boss.pendingAnswers.length;
+    this.state.fugue.slots[slotIndex].feedback = "";
+    this.state.feedback = "";
+    this.state.draft = "";
+    this.emit();
+  }
+
   private addRuleDecoy(
     kind: "normal" | "boss",
     cards: TrialCard[],
     answerWays: readonly number[][] = [],
   ): boolean {
     const cardPolicy = this.activeRule().policy.cards[kind];
+    if (cardPolicy.decoyMode === "attached") {
+      return this.attachOutlandDecoys(
+        cards,
+        answerWays,
+        cardPolicy,
+      );
+    }
     const names = cardPolicy.decoyComponents;
     const count = cardPolicy.decoyCount ?? 0;
     if (
@@ -6463,6 +8812,247 @@ export class TrialSession {
     return true;
   }
 
+  private outlandCompositeIndex(
+    names: readonly string[],
+  ): Map<string, OutlandCompositeOption[]> {
+    const cacheKey = [...names].sort().join("|");
+    const cached = this.outlandCompositeIndexes.get(cacheKey);
+    if (cached) {
+      return cached;
+    }
+    const familyIds = new Set(
+      this.data
+        .componentIds()
+        .filter((symbolId) =>
+          names.includes(
+            this.data.component(symbolId).name,
+          ),
+        ),
+    );
+    const index = new Map<string, OutlandCompositeOption[]>();
+    for (const [glyph, ways] of this.data.ways) {
+      if (
+        [...glyph].length !== 1 ||
+        !this.data.isCharSelectable(glyph)
+      ) {
+        continue;
+      }
+      for (const way of ways) {
+        if (way.length < 2 || way.length > 10) {
+          continue;
+        }
+        const seenBases = new Set<number>();
+        for (
+          let baseIndex = 0;
+          baseIndex < way.length;
+          baseIndex += 1
+        ) {
+          const baseId = way[baseIndex];
+          if (seenBases.has(baseId)) {
+            continue;
+          }
+          seenBases.add(baseId);
+          const attached = [...way];
+          attached.splice(baseIndex, 1);
+          if (
+            attached.length === 0 ||
+            attached.some(
+              (symbolId) => !familyIds.has(symbolId),
+            )
+          ) {
+            continue;
+          }
+          const normalized = [...attached].sort(
+            (left, right) => left - right,
+          );
+          const key = `${baseId}|${normalized.length}`;
+          const options = index.get(key) ?? [];
+          if (
+            !options.some(
+              (option) =>
+                option.glyph === glyph &&
+                option.attached.join(",") ===
+                  normalized.join(","),
+            )
+          ) {
+            options.push({
+              glyph,
+              attached: normalized,
+            });
+            index.set(key, options);
+          }
+        }
+      }
+    }
+    this.outlandCompositeIndexes.set(cacheKey, index);
+    return index;
+  }
+
+  private outlandWayCanAttach(
+    way: readonly number[],
+    policy: TrialRuleDefinition["policy"]["cards"]["normal"],
+  ): boolean {
+    if (
+      policy.decoyMode !== "attached" ||
+      !policy.decoyComponents?.length
+    ) {
+      return true;
+    }
+    const expected = policy.decoyCount ?? 2;
+    return Boolean(
+      this.pickOutlandAttachmentPlan(
+        way,
+        policy.decoyComponents,
+        expected,
+        false,
+      ),
+    );
+  }
+
+  private pickOutlandAttachmentPlan(
+    way: readonly number[],
+    names: readonly string[],
+    total: number,
+    randomize: boolean,
+  ): OutlandAttachment[] | null {
+    const index = this.outlandCompositeIndex(names);
+    const order = randomize
+      ? shuffle(
+          way.map((_, cardIndex) => cardIndex),
+          this.random,
+        )
+      : way.map((_, cardIndex) => cardIndex);
+    const selected: OutlandAttachment[] = [];
+    const search = (
+      orderIndex: number,
+      remaining: number,
+    ): boolean => {
+      if (orderIndex >= order.length) {
+        return remaining === 0;
+      }
+      const cardIndex = order[orderIndex];
+      let counts = [
+        ...new Set(
+          Array.from(
+            { length: remaining + 1 },
+            (_, count) => count,
+          ).filter(
+            (count) =>
+              count === 0 ||
+              Boolean(
+                index.get(
+                  `${way[cardIndex]}|${count}`,
+                )?.length,
+              ),
+          ),
+        ),
+      ];
+      if (randomize) {
+        counts = shuffle(counts, this.random);
+      }
+      for (const count of counts) {
+        if (count === 0) {
+          if (
+            search(orderIndex + 1, remaining)
+          ) {
+            return true;
+          }
+          continue;
+        }
+        let options = [
+          ...(index.get(
+            `${way[cardIndex]}|${count}`,
+          ) ?? []),
+        ];
+        if (randomize) {
+          options = shuffle(options, this.random);
+        }
+        for (const option of options) {
+          selected.push({ cardIndex, option });
+          if (
+            search(
+              orderIndex + 1,
+              remaining - count,
+            )
+          ) {
+            return true;
+          }
+          selected.pop();
+        }
+      }
+      return false;
+    };
+    return search(0, total) ? selected : null;
+  }
+
+  private attachOutlandDecoys(
+    cards: TrialCard[],
+    answerWays: readonly number[][],
+    policy: TrialRuleDefinition["policy"]["cards"]["normal"],
+  ): boolean {
+    const names = policy.decoyComponents;
+    if (!names?.length || answerWays.length === 0) {
+      return false;
+    }
+    const expected = policy.decoyCount ?? 2;
+    const reserved = new Set<number>();
+    const attachments: OutlandAttachment[] = [];
+    for (const answerWay of answerWays) {
+      const cardIndices: number[] = [];
+      for (const symbolId of answerWay) {
+        const cardIndex = cards.findIndex(
+          (card, index) =>
+            !reserved.has(index) &&
+            card.symbolId === symbolId,
+        );
+        if (cardIndex < 0) {
+          return false;
+        }
+        reserved.add(cardIndex);
+        cardIndices.push(cardIndex);
+      }
+      let plan: OutlandAttachment[] | null = null;
+      const candidateWay = cardIndices.map(
+        (cardIndex) => cards[cardIndex].symbolId,
+      );
+      const totals = shuffle(
+        [expected - 1, expected, expected + 1].filter(
+          (total) => total >= 1,
+        ),
+        this.random,
+      );
+      for (const total of totals) {
+        const candidate = this.pickOutlandAttachmentPlan(
+          candidateWay,
+          names,
+          total,
+          true,
+        );
+        if (candidate) {
+          plan = candidate.map((attachment) => ({
+            cardIndex:
+              cardIndices[attachment.cardIndex],
+            option: attachment.option,
+          }));
+          break;
+        }
+      }
+      if (!plan) {
+        return false;
+      }
+      attachments.push(...plan);
+    }
+    for (const attachment of attachments) {
+      const card = cards[attachment.cardIndex];
+      card.displayGlyph = attachment.option.glyph;
+      card.displayMode = "attached";
+      card.attachedComponents = [
+        ...attachment.option.attached,
+      ];
+    }
+    return true;
+  }
+
   private decoyCreatesUnexpectedAnswer(
     decoyIds: number[],
     answerWays: readonly number[][],
@@ -6516,6 +9106,92 @@ export class TrialSession {
     return changed;
   }
 
+  private clearFugueTimers(): void {
+    for (const id of this.fugueAdvanceIds) {
+      if (id !== null) {
+        clearTimeout(id);
+      }
+    }
+    this.fugueAdvanceIds = [null, null];
+    if (this.fugueStageAdvanceId !== null) {
+      clearTimeout(this.fugueStageAdvanceId);
+      this.fugueStageAdvanceId = null;
+    }
+  }
+
+  private startFugueTimer(): void {
+    this.clearTimer();
+    const now = performance.now();
+    if (!this.state.fugue) {
+      return;
+    }
+    this.state.fugue.slots.forEach((slot, index) => {
+      this.fugueDeadlines[index] =
+        now + slot.remaining * 1000;
+    });
+    this.timerId = setInterval(() => this.tick(), 200);
+  }
+
+  private freezeFugueTimers(): void {
+    const now = performance.now();
+    if (!this.state.fugue) {
+      return;
+    }
+    this.state.fugue.slots.forEach((slot, index) => {
+      if (slot.mode !== "done") {
+        slot.remaining = Math.max(
+          0,
+          Math.ceil(
+            (this.fugueDeadlines[index] - now) / 1000,
+          ),
+        );
+      }
+    });
+    this.clearTimer();
+  }
+
+  private resumeFugueTimers(): void {
+    this.startFugueTimer();
+  }
+
+  private tickFugue(): void {
+    if (!this.state.fugue || this.state.paused) {
+      return;
+    }
+    const now = performance.now();
+    let changed = false;
+    for (
+      let index = 0;
+      index < this.state.fugue.slots.length;
+      index += 1
+    ) {
+      const slot = this.state.fugue.slots[index];
+      if (
+        slot.mode === "done" ||
+        slot.revealing
+      ) {
+        continue;
+      }
+      const remaining = Math.max(
+        0,
+        Math.ceil(
+          (this.fugueDeadlines[index] - now) / 1000,
+        ),
+      );
+      if (remaining !== slot.remaining) {
+        slot.remaining = remaining;
+        changed = true;
+      }
+      if (remaining <= 0) {
+        this.surrenderFugue();
+        return;
+      }
+    }
+    if (changed) {
+      this.emit("tick");
+    }
+  }
+
   private startTimer(): void {
     this.clearTimer();
     const now = performance.now();
@@ -6525,6 +9201,10 @@ export class TrialSession {
   }
 
   private tick(): void {
+    if (this.state.fugue) {
+      this.tickFugue();
+      return;
+    }
     if (this.state.paused || this.state.revealing) {
       return;
     }
@@ -6566,10 +9246,17 @@ export class TrialSession {
     this.state.paused = false;
     this.state.revealing = true;
     this.state.feedback = "wrong";
+    if (this.state.phase === "boss" && this.state.boss) {
+      this.state.boss.revealAnswers =
+        this.state.boss.revealAnswers ??
+        this.resolveBossRevealAnswers();
+    }
     this.state.revealAnswer =
       this.state.phase === "playing"
         ? (this.state.current?.char ?? "")
-        : (this.state.boss?.expectedAnswers.join("") ?? "");
+        : (this.state.boss?.revealAnswers?.join("") ??
+          this.state.boss?.expectedAnswers.join("") ??
+          "");
     const answerInput =
       this.state.phase === "playing"
         ? this.activeRule().policy.answer.normal.input

@@ -1,0 +1,27 @@
+{
+  "version": 1,
+  "rules": [
+    {
+      "id": "fugue",
+      "name": "赋格曲",
+      "english": "Fugue",
+      "retiredAt": "2026-11-07",
+      "reason": "双题槽在手机端难以同时维持可读性、计时层级和明确作答焦点。",
+      "snapshot": "fugue.rule.json",
+      "documentation": "fugue.md",
+      "icon": "fugue.svg",
+      "stylesheet": "fugue.css"
+    },
+    {
+      "id": "multiexposure",
+      "name": "双重曝光",
+      "english": "Multiexposure",
+      "retiredAt": "2026-11-05",
+      "reason": "生态位与预制件重复，且玩法过度依赖辨认重叠字形。",
+      "snapshot": "multiexposure.rule.json",
+      "documentation": "multiexposure.md",
+      "icon": "multiexposure.svg",
+      "stylesheet": "multiexposure.css"
+    }
+  ]
+}
