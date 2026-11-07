@@ -1,7 +1,7 @@
 {
   "format": "zigsaw-assonance-words/1",
   "sourceHash": "f6021415716fdab9b7a9c2ea14d7ed90ffdb1d2063d826cdff71d75a8e383f1f",
-  "symbolHash": "b8125dd81dde494261d591d1c23a04fb6b37205e26ba8cbb3a2bab8efe0cbe78",
+  "symbolHash": "523ade17d67134adb8431301e98c8801ba8424dba0fc91752e18f04592375baf",
   "answerCompatibilityHash": "6235fc3519b03e344673aafdb8c81c74023f586928155fcad3f333d92186c9d4",
   "weighting": "per candidate pool: 1 / geometric mean of character occurrences within that generated pool",
   "words": {
@@ -63227,7 +63227,7 @@
             17,
             153,
             29,
-            35
+            34
           ],
           [
             194,
@@ -91925,7 +91925,7 @@
           ],
           [
             114,
-            31,
+            43,
             122
           ]
         ]

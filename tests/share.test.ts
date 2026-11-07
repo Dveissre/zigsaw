@@ -1,9 +1,14 @@
 import { describe, expect, it } from "vitest";
 import {
   buildChallengeShareText,
+  buildTrialShareText,
   challengeResultEmoji,
   challengeStageEmoji,
   challengeTimeEmoji,
+  trialCompletionEmoji,
+  trialQuestionEmoji,
+  trialResultEmoji,
+  trialShareHistory,
 } from "../src/game/share";
 
 describe("challenge sharing", () => {
@@ -113,5 +118,89 @@ describe("challenge sharing", () => {
     expect(text).toContain("◈ ZIGSAW - 挑战 - 专家");
     expect(text).toContain("🌌 20 题﹫阶段 EX");
     expect(text).toContain("💫 平均用时 12.0s");
+  });
+});
+
+describe("trial sharing", () => {
+  it("maps trial result titles and completion bands", () => {
+    expect(trialResultEmoji("覆鹿遗蕉")).toBe("🌫️");
+    expect(trialResultEmoji("临歧何反")).toBe("🏕️");
+    expect(trialResultEmoji("雾径得津")).toBe("🌄");
+    expect(trialResultEmoji("知我梦中")).toBe("🌌");
+    expect(trialCompletionEmoji(1)).toBe("🔸");
+    expect(trialCompletionEmoji(4)).toBe("🔹");
+    expect(trialCompletionEmoji(7)).toBe("🔷");
+  });
+
+  it("maps trial result colors and BOSS overrides normal levels", () => {
+    expect(
+      trialQuestionEmoji({
+        ok: true,
+        kind: "normal",
+        stage: 1,
+        level: 1,
+      }),
+    ).toBe("⬜");
+    expect(
+      trialQuestionEmoji({
+        ok: true,
+        kind: "normal",
+        stage: 1,
+        level: 2,
+      }),
+    ).toBe("🟩");
+    expect(
+      trialQuestionEmoji({
+        ok: true,
+        kind: "boss",
+        stage: 1,
+        level: 1,
+      }),
+    ).toBe("🟪");
+    expect(
+      trialQuestionEmoji({
+        ok: false,
+        kind: "boss",
+        stage: 1,
+        level: 1,
+      }),
+    ).toBe("🟥");
+  });
+
+  it("shows all of stage one but only the final two stages later", () => {
+    const history = [
+      { ok: true, kind: "normal" as const, stage: 1, level: 1 as const },
+      { ok: true, kind: "normal" as const, stage: 2, level: 2 as const },
+      { ok: true, kind: "boss" as const, stage: 2 },
+    ];
+    expect(trialShareHistory(history, 1)).toEqual([history[0]]);
+    expect(trialShareHistory(history, 2)).toEqual(history);
+  });
+
+  it("builds the requested trial share layout", () => {
+    const text = buildTrialShareText({
+      difficulty: 1,
+      title: "临歧何反",
+      correctCount: 10,
+      reachedStage: 2,
+      stageName: "第二幕",
+      ruleName: "短视",
+      history: [
+        { ok: true, kind: "normal", stage: 1, level: 1 },
+        { ok: true, kind: "normal", stage: 2, level: 2 },
+        { ok: true, kind: "boss", stage: 2 },
+        { ok: false, kind: "normal", stage: 2, level: 1 },
+      ],
+    });
+    expect(text).toBe(
+      [
+        "◈ ZIGSAW - 试炼 - 难度 1",
+        "🏕️ 临歧何反",
+        "🔸 10 题﹫第二幕「短视」",
+        "⬜🟩🟪🟥",
+        "",
+        "https://dveissre.github.io/zigsaw/",
+      ].join("\n"),
+    );
   });
 });

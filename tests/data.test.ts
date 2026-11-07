@@ -487,7 +487,7 @@ describe("static game data", () => {
         .digest("hex"),
     );
     expect(gestalt.excludedComponents).toContain("𰀁");
-    expect(gestalt.pairs).toHaveLength(4535);
+    expect(gestalt.pairs).toHaveLength(4531);
     expect(
       gestalt.pairs.find(
         (pair) =>

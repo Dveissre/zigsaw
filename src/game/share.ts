@@ -17,6 +17,29 @@ export interface ChallengeShareOptions {
   history: ShareHistoryItem[];
 }
 
+export type TrialResultTitle =
+  | "覆鹿遗蕉"
+  | "临歧何反"
+  | "雾径得津"
+  | "知我梦中";
+
+export interface TrialShareHistoryItem {
+  ok: boolean;
+  kind: "normal" | "boss";
+  stage: number;
+  level?: Level;
+}
+
+export interface TrialShareOptions {
+  difficulty: number;
+  title: TrialResultTitle;
+  correctCount: number;
+  reachedStage: number;
+  stageName: string;
+  ruleName: string;
+  history: TrialShareHistoryItem[];
+}
+
 const DIFFICULTY_LABELS: Record<ChallengeDifficulty, string> = {
   beginner: "入门",
   standard: "普通",
@@ -70,6 +93,56 @@ export function challengeTimeEmoji(averageSeconds: number): string {
   return "⏳";
 }
 
+export function trialResultEmoji(
+  title: TrialResultTitle,
+): string {
+  return {
+    覆鹿遗蕉: "🌫️",
+    临歧何反: "🏕️",
+    雾径得津: "🌄",
+    知我梦中: "🌌",
+  }[title];
+}
+
+export function trialCompletionEmoji(stage: number): string {
+  if (stage <= 3) {
+    return "🔸";
+  }
+  if (stage <= 6) {
+    return "🔹";
+  }
+  return "🔷";
+}
+
+export function trialQuestionEmoji(
+  item: TrialShareHistoryItem,
+): string {
+  if (!item.ok) {
+    return "🟥";
+  }
+  if (item.kind === "boss") {
+    return "🟪";
+  }
+  if (item.level === 2 || item.level === 3) {
+    return "🟩";
+  }
+  return "⬜";
+}
+
+export function trialShareHistory(
+  history: TrialShareHistoryItem[],
+  reachedStage: number,
+): TrialShareHistoryItem[] {
+  if (reachedStage <= 1) {
+    return history.filter((item) => item.stage === 1);
+  }
+  return history.filter(
+    (item) =>
+      item.stage === reachedStage ||
+      item.stage === reachedStage - 1,
+  );
+}
+
 export function buildChallengeShareText({
   correctCount,
   stage,
@@ -96,6 +169,29 @@ export function buildChallengeShareText({
       averageQuestionSeconds,
     ).toFixed(1)}s`,
     `${overflow}${visibleSymbols.join("")}`,
+    "",
+    SHARE_URL,
+  ].join("\n");
+}
+
+export function buildTrialShareText({
+  difficulty,
+  title,
+  correctCount,
+  reachedStage,
+  stageName,
+  ruleName,
+  history,
+}: TrialShareOptions): string {
+  const symbols = trialShareHistory(
+    history,
+    reachedStage,
+  ).map(trialQuestionEmoji);
+  return [
+    `◈ ZIGSAW - 试炼 - 难度 ${difficulty}`,
+    `${trialResultEmoji(title)} ${title}`,
+    `${trialCompletionEmoji(reachedStage)} ${correctCount} 题﹫${stageName}「${ruleName}」`,
+    symbols.join(""),
     "",
     SHARE_URL,
   ].join("\n");

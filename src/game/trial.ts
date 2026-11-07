@@ -328,7 +328,11 @@ export interface TrialPoolAvailability {
 }
 
 export interface TrialResultState {
-  title: "知我梦中" | "覆鹿遗蕉" | "临歧何返";
+  title:
+    | "知我梦中"
+    | "雾径得津"
+    | "覆鹿遗蕉"
+    | "临歧何反";
   cleared: boolean;
   reachedStage: number;
   correctCount: number;
@@ -344,6 +348,7 @@ export interface TrialState {
   partLengthPlan: number[];
   questionInStage: number;
   skipsRemaining: number;
+  skipsUsed: number;
   timeLimit: number;
   remaining: number;
   paused: boolean;
@@ -480,6 +485,60 @@ const cardsForMask = (
   mask: number,
 ): TrialCard[] =>
   cards.filter((_, index) => (mask & (1 << index)) !== 0);
+
+export function hallraumComponentDiversityWeight(
+  components: readonly number[],
+  previousWay: readonly number[],
+  inheritedSymbol: number | null,
+): number {
+  if (previousWay.length === 0) {
+    return 1;
+  }
+  const previousCounts = new Map<number, number>();
+  for (const symbolId of previousWay) {
+    previousCounts.set(
+      symbolId,
+      (previousCounts.get(symbolId) ?? 0) + 1,
+    );
+  }
+  if (inheritedSymbol !== null) {
+    const count = previousCounts.get(inheritedSymbol) ?? 0;
+    if (count <= 1) {
+      previousCounts.delete(inheritedSymbol);
+    } else {
+      previousCounts.set(inheritedSymbol, count - 1);
+    }
+  }
+  let inheritedRemoved = false;
+  const visible = new Set<number>();
+  for (const symbolId of components) {
+    if (
+      inheritedSymbol !== null &&
+      !inheritedRemoved &&
+      symbolId === inheritedSymbol
+    ) {
+      inheritedRemoved = true;
+      continue;
+    }
+    visible.add(symbolId);
+  }
+  let overlap = 0;
+  for (const symbolId of visible) {
+    if (previousCounts.has(symbolId)) {
+      overlap += 1;
+    }
+  }
+  if (overlap === 0) {
+    return 10;
+  }
+  if (overlap === 1) {
+    return 1.5;
+  }
+  if (overlap === 2) {
+    return 0.25;
+  }
+  return 0.05;
+}
 
 export function calculateTrialCrisReward(
   _correctCount: number,
@@ -661,6 +720,7 @@ export class TrialSession {
       partLengthPlan: [],
       questionInStage: 0,
       skipsRemaining: TRIAL_INITIAL_SKIPS,
+      skipsUsed: 0,
       timeLimit: 0,
       remaining: 0,
       paused: false,
@@ -979,7 +1039,7 @@ export class TrialSession {
     ) {
       return;
     }
-    this.finish(false, "临歧何返");
+    this.finish(false, "临歧何反");
   }
 
   skipQuestion(): void {
@@ -994,6 +1054,7 @@ export class TrialSession {
       return;
     }
     this.state.skipsRemaining -= 1;
+    this.state.skipsUsed += 1;
     if (this.state.phase === "playing") {
       if (
         this.state.questionInStage >=
@@ -7294,7 +7355,11 @@ export class TrialSession {
     this.state.result = {
       title:
         titleOverride ??
-        (successful ? "知我梦中" : "覆鹿遗蕉"),
+        (successful
+          ? this.state.skipsUsed > 0
+            ? "雾径得津"
+            : "知我梦中"
+          : "覆鹿遗蕉"),
       cleared: successful,
       reachedStage: this.state.stage,
       correctCount,
@@ -7519,6 +7584,31 @@ export class TrialSession {
     });
   }
 
+  private rankHallraumCandidates(
+    candidates: HallraumBagEntry[],
+    previousWay: readonly number[],
+    inheritedSymbol: number | null,
+  ): HallraumBagEntry[] {
+    return candidates
+      .map((candidate) => {
+        const weight = hallraumComponentDiversityWeight(
+          candidate.components,
+          previousWay,
+          inheritedSymbol,
+        );
+        const sample = Math.max(
+          Number.EPSILON,
+          1 - this.random(),
+        );
+        return {
+          candidate,
+          key: -Math.log(sample) / weight,
+        };
+      })
+      .sort((left, right) => left.key - right.key)
+      .map(({ candidate }) => candidate);
+  }
+
   private hallraumPossibleInheritedSymbols(
     visibleComponents: readonly number[],
     inheritedSources: ReadonlySet<number> | null,
@@ -7593,6 +7683,12 @@ export class TrialSession {
           if (firstEntries.length === 0) {
             continue;
           }
+          const rankedFirst =
+            this.rankHallraumCandidates(
+              firstEntries,
+              finalStep.way,
+              firstInherited,
+            ).slice(0, 160);
           for (const secondLength of secondLengths) {
             const secondEntries =
               this.hallraumBagsByLengthAndSymbol.get(
@@ -7601,10 +7697,13 @@ export class TrialSession {
             if (secondEntries.length === 0) {
               continue;
             }
-            for (const first of shuffle(
-              [...firstEntries].slice(0, 160),
-              this.random,
-            )) {
+            const rankedSecond =
+              this.rankHallraumCandidates(
+                secondEntries,
+                finalStep.way,
+                secondInherited,
+              ).slice(0, 160);
+            for (const first of rankedFirst) {
               const firstAnswers =
                 first.directAnswers.filter((char) => {
                   const level = this.data.levels.get(char);
@@ -7618,10 +7717,7 @@ export class TrialSession {
               if (firstAnswers.length === 0) {
                 continue;
               }
-              for (const second of shuffle(
-                [...secondEntries].slice(0, 160),
-                this.random,
-              )) {
+              for (const second of rankedSecond) {
                 const secondAnswers =
                   second.directAnswers.filter((char) => {
                     const level = this.data.levels.get(char);
@@ -7719,7 +7815,7 @@ export class TrialSession {
             ? null
             : new Set(steps[depth - 1].way);
         for (const length of this.hallraumLengthOrder(depth)) {
-          const candidates = shuffle(
+          const candidates = this.rankHallraumCandidates(
             this.hallraumCandidateBags(
               length,
               inheritedSymbol,
@@ -7727,7 +7823,8 @@ export class TrialSession {
               usedChars,
               rule,
             ),
-            this.random,
+            depth === 0 ? [] : steps[depth - 1].way,
+            inheritedSymbol,
           ).slice(0, 120);
           for (const candidate of candidates) {
             const answerChoices =

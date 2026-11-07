@@ -15,7 +15,7 @@
     "includeSupplementaryCharacters": true,
     "selectableCharacterRule": "任一拆法包含不可渲染部件时排除整字"
   },
-  "sourceHash": "b8125dd81dde494261d591d1c23a04fb6b37205e26ba8cbb3a2bab8efe0cbe78",
+  "sourceHash": "523ade17d67134adb8431301e98c8801ba8424dba0fc91752e18f04592375baf",
   "answerCompatibilityHash": "6235fc3519b03e344673aafdb8c81c74023f586928155fcad3f333d92186c9d4",
   "eligible": {
     "characters": 6500,
@@ -24,17 +24,17 @@
   "inspissation": [
     {
       "部件数": 2,
-      "可出题汉字数": 1425,
+      "可出题汉字数": 1426,
       "一级字数": 942,
-      "二级字数": 483,
-      "拆法数": 1435
+      "二级字数": 484,
+      "拆法数": 1436
     },
     {
       "部件数": 3,
-      "可出题汉字数": 2517,
+      "可出题汉字数": 2516,
       "一级字数": 1367,
-      "二级字数": 1150,
-      "拆法数": 2587
+      "二级字数": 1149,
+      "拆法数": 2586
     },
     {
       "部件数": 4,
@@ -76,17 +76,17 @@
     "eligibility": "答案至少三部件，同一拆法中至少一对卡能直接组成另一个可渲染汉字，且预组后的 symbol ID 组合不对应答案的任何既有拆法",
     "characters": 4637,
     "decompositionWays": 5206,
-    "usablePairs": 1454,
-    "hintCharacters": 1576,
+    "usablePairs": 1453,
+    "hintCharacters": 1575,
     "byPartCount": [
       {
         "部件数": 3,
-        "可出题汉字数": 2299,
+        "可出题汉字数": 2298,
         "一级字数": 1226,
-        "二级字数": 1073,
-        "拆法数": 2351,
-        "可用提示对数": 1140,
-        "可用提示字数": 1251
+        "二级字数": 1072,
+        "拆法数": 2350,
+        "可用提示对数": 1139,
+        "可用提示字数": 1250
       },
       {
         "部件数": 4,
@@ -99,10 +99,10 @@
       },
       {
         "部件数": 5,
-        "可出题汉字数": 816,
+        "可出题汉字数": 817,
         "一级字数": 345,
-        "二级字数": 471,
-        "拆法数": 852,
+        "二级字数": 472,
+        "拆法数": 853,
         "可用提示对数": 614,
         "可用提示字数": 681
       },
@@ -154,8 +154,8 @@
     ]
   },
   "gestalt": {
-    "directPairSeeds": 5557,
-    "pairPoolsWithAnswers": 5557,
+    "directPairSeeds": 5553,
+    "pairPoolsWithAnswers": 5553,
     "excludedComponents": [
       "一",
       "丨",
@@ -173,11 +173,11 @@
       "冂",
       "口"
     ],
-    "pairsWithAtMostThreeAnswers": 4535,
+    "pairsWithAtMostThreeAnswers": 4531,
     "directlyComposablePairsExcluded": true,
     "byAnswerCount": {
-      "1": 3153,
-      "2": 897,
+      "1": 3148,
+      "2": 898,
       "3": 485
     },
     "example": {
@@ -234,8 +234,8 @@
         "彳"
       ],
       "baseComponents": 160,
-      "resultCharacters": 221,
-      "compositionVariants": 222
+      "resultCharacters": 222,
+      "compositionVariants": 223
     },
     "speech": {
       "name": "断声讯",

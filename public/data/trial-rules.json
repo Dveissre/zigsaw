@@ -2434,7 +2434,7 @@
     },
     "minimalism": {
       "id": "minimalism",
-      "name": "极简主义",
+      "name": "简赅",
       "english": "Minimalism",
       "description": {
         "public": "答案均由二或三个部件组成，作答时间减半。",
@@ -2693,8 +2693,8 @@
       "english": "Myopia",
       "description": {
         "public": "开局数秒后，一张卡片会翻黑。守幕关卡会翻黑两张卡片。",
-        "debug": "道中累计答题 2 秒后遮挡 1 张；守幕 2 秒后遮挡 2 张。",
-        "internal": "出题时随机选定遮挡目标；累计有效答题时间达到 2 秒后翻黑。遮挡卡仍参与组字与判题，但不能读取或操作；暂停冻结计时，恢复后不还原已翻黑卡。"
+        "debug": "道中累计答题 1.5 秒后遮挡 1 张；守幕 1.5 秒后遮挡 2 张。",
+        "internal": "出题时随机选定遮挡目标；累计有效答题时间达到 1.5 秒后翻黑。遮挡卡仍参与组字与判题，但不能读取或操作；暂停冻结计时，恢复后不还原已翻黑卡。"
       },
       "stars": 2,
       "icon": "myopia.svg",
@@ -2761,7 +2761,7 @@
               "answer"
             ],
             "display": "obscured",
-            "obscureAfterMs": 2000,
+            "obscureAfterMs": 1500,
             "obscureCount": 1
           },
           "boss": {
@@ -2769,7 +2769,7 @@
               "answer"
             ],
             "display": "obscured",
-            "obscureAfterMs": 2000,
+            "obscureAfterMs": 1500,
             "obscureCount": 2
           }
         }
@@ -2777,12 +2777,12 @@
     },
     "aphantasia": {
       "id": "aphantasia",
-      "name": "心盲症",
-      "english": "Aphantasia",
+      "name": "盲视",
+      "english": "Anopia",
       "description": {
         "public": "开局数秒后，所有卡片会翻黑。",
-        "debug": "道中累计答题 4 秒、守幕 10 秒后遮挡全部卡。",
-        "internal": "普通题在累计有效答题 4 秒后翻黑全部卡，BOSS 为 10 秒。翻黑卡仍参与组字与判题，但不能读取或操作；暂停冻结计时，恢复后不还原已翻黑卡。"
+        "debug": "道中累计答题 1.5 秒、守幕 6 秒后遮挡全部卡。暂停冻结翻黑计时，恢复后不还原。",
+        "internal": "普通题在累计有效答题 1.5 秒后翻黑全部卡，BOSS 为 6 秒。翻黑卡仍参与组字与判题，但不能读取或操作；暂停冻结计时，恢复后不还原已翻黑卡。"
       },
       "stars": 3,
       "icon": "aphantasia.svg",
@@ -2849,7 +2849,7 @@
               "answer"
             ],
             "display": "obscured",
-            "obscureAfterMs": 4000,
+            "obscureAfterMs": 1500,
             "obscureCount": "all"
           },
           "boss": {
@@ -2857,7 +2857,7 @@
               "answer"
             ],
             "display": "obscured",
-            "obscureAfterMs": 10000,
+            "obscureAfterMs": 6000,
             "obscureCount": "all"
           }
         }

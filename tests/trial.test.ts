@@ -16,6 +16,7 @@ import {
   TRIAL_NORMAL_SECONDS,
   TRIAL_OUTLAND_PART_WEIGHTS,
   TrialSession,
+  hallraumComponentDiversityWeight,
   orderedBossAnswerChars,
   trialSkipBudgetWithoutSpending,
   type TrialCard,
@@ -1134,6 +1135,19 @@ describe("trial session", () => {
     );
     expect(parsed.rules.hallraum.stars).toBe(2);
     expect(parsed.rules.hallraum.allowSkip).toBe(false);
+    expect(parsed.rules.minimalism.name).toBe("简赅");
+    expect(parsed.rules.aphantasia.name).toBe("盲视");
+    expect(parsed.rules.aphantasia.english).toBe(
+      "Anopia",
+    );
+    expect(
+      parsed.rules.aphantasia.policy.cards.normal
+        .obscureAfterMs,
+    ).toBe(1500);
+    expect(
+      parsed.rules.aphantasia.policy.cards.boss
+        .obscureAfterMs,
+    ).toBe(6000);
     expect(parsed.rules).not.toHaveProperty("fugue");
     expect(parsed.rules).not.toHaveProperty(
       "multiexposure",
@@ -1290,6 +1304,7 @@ describe("trial session", () => {
     trial.skipQuestion();
 
     expect(trial.state.skipsRemaining).toBe(2);
+    expect(trial.state.skipsUsed).toBe(1);
     expect(trial.state.questionInStage).toBe(1);
     expect(trial.state.current?.char).not.toBe(original);
     expect(trial.state.history).toHaveLength(0);
@@ -1314,6 +1329,31 @@ describe("trial session", () => {
 
     expect(trial.state.skipsRemaining).toBe(3);
     expect(trial.state.questionInStage).toBe(1);
+  });
+
+  it("weights Hallraum candidates toward unused visible components", () => {
+    const previous = [1, 2, 3];
+    expect(
+      hallraumComponentDiversityWeight(
+        [2, 4, 5],
+        previous,
+        2,
+      ),
+    ).toBe(10);
+    expect(
+      hallraumComponentDiversityWeight(
+        [2, 1, 4],
+        previous,
+        2,
+      ),
+    ).toBe(1.5);
+    expect(
+      hallraumComponentDiversityWeight(
+        [2, 1, 3],
+        previous,
+        2,
+      ),
+    ).toBe(0.25);
   });
 
   it("carries used skips forward and grants one after stages three and six", () => {
@@ -1404,7 +1444,7 @@ describe("trial session", () => {
     expect(trial.state.ruleId).toBe("aphantasia");
     expect(
       trial.state.current?.displayCards.every(
-        (card) => card.obscuredAtMs === 4000,
+        (card) => card.obscuredAtMs === 1500,
       ),
     ).toBe(true);
 
@@ -4652,10 +4692,10 @@ describe("trial session", () => {
     expect(trial.state.ruleId).toBe("myopia");
     expect(
       current?.displayCards.filter(
-        (card) => card.obscuredAtMs === 2000,
+        (card) => card.obscuredAtMs === 1500,
       ),
     ).toHaveLength(1);
-    await vi.advanceTimersByTimeAsync(1900);
+    await vi.advanceTimersByTimeAsync(1400);
     expect(
       current?.displayCards.some((card) => card.obscured),
     ).toBe(false);
@@ -4687,7 +4727,7 @@ describe("trial session", () => {
     ).startBoss();
     expect(
       bossTrial.state.boss?.initialCards.filter(
-        (card) => card.obscuredAtMs === 2000,
+        (card) => card.obscuredAtMs === 1500,
       ),
     ).toHaveLength(2);
   });
@@ -4722,7 +4762,7 @@ describe("trial session", () => {
     expect(cards.filter((card) => card.obscured)).toHaveLength(1);
   });
 
-  it("applies Aphantasia to all normal and boss cards at their rule delays", async () => {
+  it("applies Anopia to all normal and boss cards at their rule delays", async () => {
     vi.useFakeTimers();
     const normal = new TrialSession(
       createData(),
@@ -4739,9 +4779,9 @@ describe("trial session", () => {
     normal.beginStage();
     const normalCards = normal.state.current?.displayCards ?? [];
     expect(
-      normalCards.every((card) => card.obscuredAtMs === 4000),
+      normalCards.every((card) => card.obscuredAtMs === 1500),
     ).toBe(true);
-    await vi.advanceTimersByTimeAsync(3900);
+    await vi.advanceTimersByTimeAsync(1400);
     expect(normalCards.some((card) => card.obscured)).toBe(false);
     await vi.advanceTimersByTimeAsync(300);
     expect(normalCards.every((card) => card.obscured)).toBe(true);
@@ -4765,9 +4805,9 @@ describe("trial session", () => {
     ).startBoss();
     const bossCards = boss.state.boss?.initialCards ?? [];
     expect(
-      bossCards.every((card) => card.obscuredAtMs === 10000),
+      bossCards.every((card) => card.obscuredAtMs === 6000),
     ).toBe(true);
-    await vi.advanceTimersByTimeAsync(9900);
+    await vi.advanceTimersByTimeAsync(5900);
     expect(bossCards.some((card) => card.obscured)).toBe(false);
     await vi.advanceTimersByTimeAsync(300);
     expect(bossCards.every((card) => card.obscured)).toBe(true);
@@ -5269,6 +5309,31 @@ describe("trial session", () => {
     expect(trial.state.result?.crisEarned).toBe(0);
   });
 
+  it("uses the ordinary-success title after a skip", async () => {
+    vi.useFakeTimers();
+    const trial = new TrialSession(
+      createData(),
+      settings,
+      () => {},
+      seededRandom(71),
+    );
+    trial.state.stage = 7;
+    trial.beginStage();
+    trial.skipQuestion();
+    (
+      trial as unknown as { startBoss: () => void }
+    ).startBoss();
+    trial.setDraft(
+      trial.state.boss?.expectedAnswers.join("") ?? "",
+    );
+    trial.submit();
+    await vi.advanceTimersByTimeAsync(1200);
+
+    expect(trial.state.phase).toBe("results");
+    expect(trial.state.result?.cleared).toBe(true);
+    expect(trial.state.result?.title).toBe("雾径得津");
+  });
+
   it("reveals the missed answer before leaving on timeout", async () => {
     vi.useFakeTimers();
     const trial = new TrialSession(
@@ -5348,7 +5413,7 @@ describe("trial session", () => {
     trial.settleAtStageIntro();
 
     expect(trial.state.phase).toBe("results");
-    expect(trial.state.result?.title).toBe("临歧何返");
+    expect(trial.state.result?.title).toBe("临歧何反");
     expect(trial.state.result?.cleared).toBe(false);
   });
 

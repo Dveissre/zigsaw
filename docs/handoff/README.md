@@ -36,6 +36,7 @@ git log --name-status -1 -- docs/handoff
 
 | 日期 | 类型 | 内容 | 文档 |
 | --- | --- | --- | --- |
+| 2026-11-07 | tuning | 心盲症更名为盲视/Anopia 并改为 2/6 秒；极简主义更名为简赅；回声室加入非强制部件去重权重 | [trial-mode.md](features/trial-mode.md) |
 | 2026-11-07 | feature | 规则数据升级 v3；七幕制限按 0/1/1/2/2/2或3/3 星级池随机抽取，同局避免重复；进入幕前按规则加载依赖 | [trial-mode.md](features/trial-mode.md) |
 | 2026-11-07 | feature | 试炼换题改为全流程累计预算且原地换题；首页增加 1–7 Center-focus Carousel 与说明 | [trial-mode.md](features/trial-mode.md) |
 | 2026-11-07 | feature | 试炼增加换题预算、失败后继续、阶段间主动结算与新结果标题；调试覆写按星级排序 | [trial-mode.md](features/trial-mode.md) |
@@ -82,7 +83,7 @@ git log --name-status -1 -- docs/handoff
 - 练习模式下的“无尽”已改为题数行右侧单键开关；开启时题数控件置灰禁用。
 - Bug worktree 的开发端口仍为 `5174`，试炼主线 worktree 为 `5173`。
 - 试炼已接入四分法、急板、失与得、拾级、五个奇境、五个厄境、指差确认、三秋树、
-  化约论、预制件、通配符、枝指、茁轧、格式塔、极简主义、短视、繁缛、
-  心盲症与回声室。赋格曲与双重曝光已统一归档，代码与测试保留但不再可进入。
+  化约论、预制件、通配符、枝指、茁轧、格式塔、简赅、短视、繁缛、
+  盲视与回声室。赋格曲与双重曝光已统一归档，代码与测试保留但不再可进入。
 - 完整制限规则目录与实装批次见 `docs/trial-rules-plan.md`。
 - 未提交或合并任务仍以 `git status`、`git diff` 的实际结果为准。

@@ -28,7 +28,10 @@ import {
   type CompactSaveState,
 } from "./game/save-code";
 import { GameSession, type GameState } from "./game/session";
-import { buildChallengeShareText } from "./game/share";
+import {
+  buildChallengeShareText,
+  buildTrialShareText,
+} from "./game/share";
 import {
   TRIAL_BOSS_SECONDS,
   TRIAL_NORMAL_SECONDS,
@@ -40,6 +43,7 @@ import {
   type TrialCardSource,
   type FugueSlotState,
   type TrialHistoryItem,
+  type TrialResultState,
   type TrialState,
 } from "./game/trial";
 import {
@@ -242,6 +246,24 @@ function showShareToast(message: string): void {
     shareToastTimer = null;
     toast?.classList.remove("is-visible");
   }, 1800);
+}
+
+function wireResultShareButton(shareText: string): void {
+  document
+    .querySelector<HTMLButtonElement>("[data-share]")
+    ?.addEventListener("click", async (event) => {
+      const button = event.currentTarget as HTMLButtonElement;
+      button.disabled = true;
+      try {
+        showShareToast(
+          (await copyText(shareText))
+            ? "已复制至剪贴板"
+            : "复制失败",
+        );
+      } finally {
+        button.disabled = false;
+      }
+    });
 }
 
 function renderComponent(
@@ -2425,6 +2447,24 @@ function trialStageName(stage: number): string {
   return names[stage - 1] ?? `第${stage}幕`;
 }
 
+function trialResultTitleMarkup(
+  title: TrialResultState["title"],
+): string {
+  const accent = {
+    覆鹿遗蕉: "鹿",
+    临歧何反: "歧",
+    雾径得津: "津",
+    知我梦中: "梦",
+  }[title];
+  return [...title]
+    .map((char) =>
+      char === accent
+        ? `<span class="trial-result-accent">${escapeHtml(char)}</span>`
+        : escapeHtml(char),
+    )
+    .join("");
+}
+
 function trialCharacterMeta(char: string): string {
   const codePoint = char.codePointAt(0) ?? 0;
   return (
@@ -3821,6 +3861,30 @@ function renderTrialResults(trial: TrialSession): void {
     group.push(item);
     byStage.set(item.stage, group);
   }
+  const resultRule =
+    trialRules?.rules[state.ruleId] ?? FALLBACK_TRIAL_RULE;
+  const shareText = buildTrialShareText({
+    difficulty: lastSettings.trialDifficulty,
+    title: result.title,
+    correctCount: result.correctCount,
+    reachedStage: result.reachedStage,
+    stageName: trialStageName(result.reachedStage),
+    ruleName: resultRule.name,
+    history: state.history.map((item) => {
+      const levels = item.answerDetails.map((detail) =>
+        data!.levels.get(detail.char),
+      );
+      return {
+        ok: item.ok,
+        kind: item.kind,
+        stage: item.stage,
+        level: (levels.includes(2) ||
+        levels.includes(3)
+          ? 2
+          : 1) as Level,
+      };
+    }),
+  });
   let reviewIndex = 0;
   const stageSections = [...byStage.entries()]
     .map(([stage, items]) => {
@@ -3877,17 +3941,18 @@ function renderTrialResults(trial: TrialSession): void {
               <svg class="trial-stage-chevron" viewBox="0 0 24 24" aria-hidden="true">
                 <path d="m9 3 9 9-9 9"></path>
               </svg>
-              <h1>${escapeHtml(result.title)}</h1>
+              <h1>${trialResultTitleMarkup(result.title)}</h1>
               <svg class="trial-stage-chevron" viewBox="0 0 24 24" aria-hidden="true">
                 <path d="m15 3-9 9 9 9"></path>
               </svg>
             </div>
-            <div class="result-score">${trialStageName(result.reachedStage)} · ${result.correctCount}题 · 平均${result.averageQuestionSeconds.toFixed(1)}s</div>
+            <div class="result-score">${trialStageName(result.reachedStage)} · ${result.correctCount}题</div>
             <div class="trial-result-cris">${crisIconMarkup()}<span>奖励待定</span></div>
           </header>
           <div class="trial-result-scroll">${stageSections}</div>
           <div class="result-actions">
             <button class="primary-action" type="button" data-trial-again>再次试炼</button>
+            <button class="result-share" type="button" data-share>分享</button>
             <button type="button" data-trial-exit>返回</button>
           </div>
         </section>
@@ -4016,6 +4081,7 @@ function renderTrialResults(trial: TrialSession): void {
     ?.addEventListener("click", () => {
       withPageTransition(() => renderStart(lastSettings));
     });
+  wireResultShareButton(shareText);
   wireGameSettingsDialog();
 }
 
@@ -4334,19 +4400,7 @@ function renderResults(game: GameSession): void {
   document.querySelector<HTMLButtonElement>("[data-again]")?.addEventListener("click", () => {
     withPageTransition(() => startGame(state.settings));
   });
-  document.querySelector<HTMLButtonElement>("[data-share]")?.addEventListener("click", async (event) => {
-    const button = event.currentTarget as HTMLButtonElement;
-    button.disabled = true;
-    try {
-      showShareToast(
-        (await copyText(shareText))
-          ? "已复制至剪贴板"
-          : "复制失败",
-      );
-    } finally {
-      button.disabled = false;
-    }
-  });
+  wireResultShareButton(shareText);
   document.querySelector<HTMLButtonElement>("[data-settings]")?.addEventListener("click", () => {
     withPageTransition(() => renderStart(state.settings));
   });

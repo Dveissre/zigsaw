@@ -1,6 +1,6 @@
 {
   "format": "zigsaw-gestalt-pairs/1",
-  "sourceHash": "b8125dd81dde494261d591d1c23a04fb6b37205e26ba8cbb3a2bab8efe0cbe78",
+  "sourceHash": "523ade17d67134adb8431301e98c8801ba8424dba0fc91752e18f04592375baf",
   "answerCompatibilityHash": "6235fc3519b03e344673aafdb8c81c74023f586928155fcad3f333d92186c9d4",
   "excludedComponents": [
     "一",
@@ -2999,30 +2999,6 @@
     {
       "components": [
         31,
-        114
-      ],
-      "answers": [
-        {
-          "char": "弥",
-          "level": 1
-        }
-      ]
-    },
-    {
-      "components": [
-        31,
-        122
-      ],
-      "answers": [
-        {
-          "char": "弥",
-          "level": 1
-        }
-      ]
-    },
-    {
-      "components": [
-        31,
         124
       ],
       "answers": [
@@ -4763,18 +4739,6 @@
     {
       "components": [
         35,
-        194
-      ],
-      "answers": [
-        {
-          "char": "愤",
-          "level": 1
-        }
-      ]
-    },
-    {
-      "components": [
-        35,
         209
       ],
       "answers": [
@@ -4924,18 +4888,6 @@
       "answers": [
         {
           "char": "倪",
-          "level": 2
-        }
-      ]
-    },
-    {
-      "components": [
-        35,
-        310
-      ],
-      "answers": [
-        {
-          "char": "佯",
           "level": 2
         }
       ]
@@ -7013,18 +6965,6 @@
         {
           "char": "鲍",
           "level": 1
-        }
-      ]
-    },
-    {
-      "components": [
-        43,
-        114
-      ],
-      "answers": [
-        {
-          "char": "猕",
-          "level": 2
         }
       ]
     },
@@ -40732,6 +40672,22 @@
         },
         {
           "char": "鲈",
+          "level": 2
+        }
+      ]
+    },
+    {
+      "components": [
+        43,
+        114
+      ],
+      "answers": [
+        {
+          "char": "弥",
+          "level": 1
+        },
+        {
+          "char": "猕",
           "level": 2
         }
       ]

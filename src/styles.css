@@ -3155,6 +3155,10 @@ input:focus-visible {
   gap: clamp(18px, 3vw, 30px);
 }
 
+.trial-result-accent {
+  color: var(--accent);
+}
+
 .trial-result-cris {
   display: inline-flex;
   align-items: center;
