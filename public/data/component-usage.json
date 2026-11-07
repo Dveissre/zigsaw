@@ -3,7 +3,7 @@
   "source": "tongyong_hanzi.json + char_sym.json",
   "characterCount": 8105,
   "decompositionCount": 9269,
-  "totalUsageCount": 32410,
+  "totalUsageCount": 32409,
   "componentCount": 374,
   "symbols": [
     {
@@ -21,8 +21,8 @@
     {
       "symbolId": 34,
       "name": "人",
-      "count": 935,
-      "charCount": 744
+      "count": 936,
+      "charCount": 745
     },
     {
       "symbolId": 140,
@@ -51,7 +51,7 @@
     {
       "symbolId": 73,
       "name": "土",
-      "count": 592,
+      "count": 593,
       "charCount": 488
     },
     {
@@ -117,14 +117,14 @@
     {
       "symbolId": 35,
       "name": "亻",
-      "count": 394,
-      "charCount": 352
+      "count": 393,
+      "charCount": 351
     },
     {
       "symbolId": 43,
       "name": "⺈",
-      "count": 373,
-      "charCount": 333
+      "count": 375,
+      "charCount": 335
     },
     {
       "symbolId": 232,
@@ -315,16 +315,16 @@
       "charCount": 153
     },
     {
-      "symbolId": 31,
-      "name": "𠂉",
-      "count": 164,
-      "charCount": 148
-    },
-    {
       "symbolId": 230,
       "name": "目",
       "count": 164,
       "charCount": 139
+    },
+    {
+      "symbolId": 31,
+      "name": "𠂉",
+      "count": 162,
+      "charCount": 146
     },
     {
       "symbolId": 223,
@@ -473,13 +473,6 @@
       "asset": "component_svg/121N.svg"
     },
     {
-      "symbolId": 71,
-      "name": "𰀁",
-      "count": 104,
-      "charCount": 99,
-      "asset": "component_svg/71.svg"
-    },
-    {
       "symbolId": 408,
       "name": "车",
       "count": 104,
@@ -491,6 +484,13 @@
       "count": 103,
       "charCount": 97,
       "asset": "component_svg/14.svg"
+    },
+    {
+      "symbolId": 71,
+      "name": "𰀁",
+      "count": 103,
+      "charCount": 98,
+      "asset": "component_svg/71.svg"
     },
     {
       "symbolId": 169,
@@ -513,8 +513,8 @@
     {
       "symbolId": 75,
       "name": "工",
-      "count": 97,
-      "charCount": 93
+      "count": 98,
+      "charCount": 94
     },
     {
       "symbolId": 99,
@@ -765,16 +765,16 @@
       "charCount": 56
     },
     {
-      "symbolId": 8,
-      "name": "乚",
-      "count": 58,
-      "charCount": 55
-    },
-    {
       "symbolId": 364,
       "name": "革",
       "count": 58,
       "charCount": 53
+    },
+    {
+      "symbolId": 8,
+      "name": "乚",
+      "count": 57,
+      "charCount": 54
     },
     {
       "symbolId": 323,
@@ -1318,12 +1318,6 @@
       "charCount": 18
     },
     {
-      "symbolId": 360,
-      "name": "金",
-      "count": 21,
-      "charCount": 17
-    },
-    {
       "symbolId": 218,
       "name": "甘",
       "count": 20,
@@ -1347,6 +1341,12 @@
       "name": "癶",
       "count": 20,
       "charCount": 20
+    },
+    {
+      "symbolId": 360,
+      "name": "金",
+      "count": 20,
+      "charCount": 17
     },
     {
       "symbolId": 414,

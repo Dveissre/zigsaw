@@ -450,21 +450,21 @@ function renderHand(): void {
   phase = "playing";
   appRoot.innerHTML = shell(`
     <div class="gacha-playing">
-      <div class="gacha-hand">
-        ${cardSlots
-          .map((card, index) =>
-            card
-              ? frontCardMarkup(card, index)
-              : `<span class="gacha-card is-empty-slot" style="--card-index:${index}" aria-hidden="true"></span>`,
-          )
-          .join("")}
+      <div class="gacha-card-box">
+        <button class="gacha-finish-button" type="button" data-gacha-finish>结算本轮</button>
+        <div class="gacha-hand">
+          ${cardSlots
+            .map((card, index) =>
+              card
+                ? frontCardMarkup(card, index)
+                : `<span class="gacha-card is-empty-slot" style="--card-index:${index}" aria-hidden="true"></span>`,
+            )
+            .join("")}
+        </div>
       </div>
       <div class="gacha-submit-row">
         <input data-gacha-answer type="text" autocomplete="off" autocapitalize="off" spellcheck="false" aria-label="组字答案">
         <button class="primary-action" type="button" data-gacha-submit>提交</button>
-      </div>
-      <div class="gacha-finish-row">
-        <button class="gacha-finish-button" type="button" data-gacha-finish>结算本轮</button>
       </div>
       ${obtainedRowsMarkup()}
     </div>

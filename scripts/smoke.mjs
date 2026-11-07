@@ -1903,7 +1903,7 @@ try {
   await page.locator("[data-trial-answer]").waitFor();
   assert.match(
     await page.locator(".question-progress").innerText(),
-    /第一幕 · 道中关卡 1/,
+    /第一幕 · 道中#1/,
   );
   await page.getByRole("button", { name: "中止", exact: true }).click();
   await page.locator(".answer-stage.is-miss").waitFor();
@@ -1911,7 +1911,7 @@ try {
   await page.locator(".trial-result-screen").waitFor();
   assert.match(
     await page.locator(".result-header h1").innerText(),
-    /试炼结束/,
+    /覆鹿遗蕉/,
   );
   assert.deepEqual(errors, []);
   console.log(

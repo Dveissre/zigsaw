@@ -4789,7 +4789,15 @@ input:focus-visible {
   flex: 1;
   flex-direction: column;
   overflow: hidden;
-  padding-top: clamp(30px, 6vh, 56px);
+}
+
+.gacha-page-surface {
+  --gacha-card-top-space: clamp(30px, 6vh, 56px);
+}
+
+.gacha-card-box {
+  position: relative;
+  padding-top: var(--gacha-card-top-space);
 }
 
 .gacha-hand {
@@ -4799,7 +4807,7 @@ input:focus-visible {
 }
 
 .gacha-dealing-hand {
-  padding-top: clamp(30px, 6vh, 56px);
+  padding-top: var(--gacha-card-top-space);
 }
 
 .gacha-card {
@@ -5295,26 +5303,35 @@ input:focus-visible {
   padding-inline: 10px;
 }
 
-.gacha-finish-row {
-  display: flex;
-  justify-content: center;
-  margin-top: 10px;
-}
-
 .gacha-finish-button {
-  min-width: 88px;
-  min-height: 34px;
-  padding: 5px 16px;
-  border: 1px solid var(--accent);
+  position: absolute;
+  top: 0;
+  right: 0;
+  display: flex;
+  width: min(48%, 320px);
+  min-width: 148px;
+  height: min(40px, calc(var(--gacha-card-top-space) - 8px));
+  align-items: center;
+  justify-content: flex-end;
+  padding: 5px 22px;
+  border: 0;
   color: var(--surface);
-  background: var(--accent);
-  font-size: 13px;
+  background:
+    linear-gradient(
+      90deg,
+      transparent 0%,
+      color-mix(in srgb, var(--accent) 10%, transparent) 18%,
+      var(--accent) 68%,
+      var(--accent) 100%
+    );
+  font-size: 16px;
   line-height: 1;
+  text-align: right;
 }
 
 .gacha-finish-button:hover {
   color: var(--surface);
-  background: color-mix(in srgb, var(--accent) 82%, var(--ink));
+  filter: brightness(1.04);
 }
 
 .gacha-feedback {

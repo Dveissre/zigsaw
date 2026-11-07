@@ -36,6 +36,7 @@ git log --name-status -1 -- docs/handoff
 
 | 日期 | 类型 | 内容 | 文档 |
 | --- | --- | --- | --- |
+| 2026-11-07 | bugfix | 同步 `origin/main@4c3ce9f`；写字台“结算本轮”改为卡片区右上角渐变条，并同步试炼 smoke 文案 | [gacha-rewards.md](features/gacha-rewards.md)、[bugfix.md](bugfix.md) |
 | 2026-11-07 | tuning | 心盲症更名为盲视/Anopia 并改为 2/6 秒；极简主义更名为简赅；回声室加入非强制部件去重权重 | [trial-mode.md](features/trial-mode.md) |
 | 2026-11-07 | feature | 规则数据升级 v3；七幕制限按 0/1/1/2/2/2或3/3 星级池随机抽取，同局避免重复；进入幕前按规则加载依赖 | [trial-mode.md](features/trial-mode.md) |
 | 2026-11-07 | feature | 试炼换题改为全流程累计预算且原地换题；首页增加 1–7 Center-focus Carousel 与说明 | [trial-mode.md](features/trial-mode.md) |
