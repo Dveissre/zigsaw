@@ -1815,6 +1815,7 @@ function renderStart(initial: GameSettings = lastSettings): void {
               <div class="trial-difficulty-notes">
                 <p>试炼流程共 7 幕</p>
                 <p>道中 / 守幕作答时间 30 / 90 秒</p>
+                <p>三星制限作答时间额外延长 30%</p>
                 <p>初始获得 3 次换题</p>
                 <p>每经历 3 幕，获得 1 次换题</p>
               </div>
@@ -2528,11 +2529,26 @@ interface TrialPartCardModel {
   displayGlyph?: string;
   attachedComponents?: number[];
   displayMode?: TrialCard["displayMode"];
+  reductionPart?: boolean;
   consumed?: boolean;
   partiallyConsumed?: boolean;
   animateConsumed?: boolean;
   obscured?: boolean;
   animateObscured?: boolean;
+}
+
+function trialBossAttemptsMarkup(
+  state: TrialState,
+  className = "",
+): string {
+  if (state.phase !== "boss") {
+    return "";
+  }
+  return `<span class="trial-boss-attempts ${className}" aria-label="已组成 ${state.boss?.submissionCount ?? 0} 个字，共 ${state.boss?.expectedAnswers.length ?? 2} 个">
+    <b>${state.boss?.submissionCount ?? 0}</b>
+    <i aria-hidden="true"></i>
+    <b>${state.boss?.expectedAnswers.length ?? 2}</b>
+  </span>`;
 }
 
 function trialPartCardsMarkup(
@@ -2622,7 +2638,7 @@ function trialPartCardsMarkup(
         `<div class="part-row">${row
           .map(
             (part) =>
-              `<span class="part-card ${part.prefabricated ? "is-prefabricated" : ""} ${part.wildcard ? "is-wildcard" : ""} ${part.overlay ? "is-overlay" : ""} ${part.quantity ? "is-quantity" : ""} ${part.coloredGroup} ${part.partiallyConsumed ? "is-partially-consumed" : ""} ${part.consumed ? "is-consumed" : ""} ${part.animateConsumed ? "is-consumed-new" : ""} ${part.obscured ? "is-obscured" : ""} ${part.animateObscured ? "is-obscuring" : ""}" data-card-uid="${part.uid}" data-card-source="${part.source ?? "answer"}" ${part.groupColor === undefined ? "" : `data-card-group="${part.groupColor}"`} ${part.obscured ? 'aria-label="已遮挡部件" aria-disabled="true"' : part.wildcard ? 'data-card-display="wildcard" aria-label="通配部件"' : part.overlay ? 'data-card-display="overlay" aria-label="叠印部件"' : part.quantity ? `data-card-display="quantity" aria-label="复沓部件 ${escapeHtml(data!.component(part.symbolId).name)}${part.quantityLabel ? ` ${part.quantityLabel}` : ""}"` : part.prefabricated ? `data-card-display="prefabricated" aria-label="预组汉字 ${escapeHtml(part.displayGlyph!)}"` : part.attached ? `data-card-display="attached" aria-label="复合部件 ${escapeHtml(part.displayGlyph!)}"` : `data-symbol-id="${part.symbolId}"`} ${part.consumed ? 'aria-hidden="true"' : ""} style="--card-index:${cardIndex};--card-angle:${cardAngles[cardIndex % cardAngles.length]}deg;--card-offset:${cardOffsets[cardIndex++ % cardOffsets.length]}px">${
+              `<span class="part-card ${part.prefabricated ? "is-prefabricated" : ""} ${part.reductionPart ? "is-reduction-part" : ""} ${part.wildcard ? "is-wildcard" : ""} ${part.overlay ? "is-overlay" : ""} ${part.quantity ? "is-quantity" : ""} ${part.coloredGroup} ${part.partiallyConsumed ? "is-partially-consumed" : ""} ${part.consumed ? "is-consumed" : ""} ${part.animateConsumed ? "is-consumed-new" : ""} ${part.obscured ? "is-obscured" : ""} ${part.animateObscured ? "is-obscuring" : ""}" data-card-uid="${part.uid}" data-card-source="${part.source ?? "answer"}" ${part.groupColor === undefined ? "" : `data-card-group="${part.groupColor}"`} ${part.obscured ? 'aria-label="已遮挡部件" aria-disabled="true"' : part.wildcard ? 'data-card-display="wildcard" aria-label="通配部件"' : part.overlay ? 'data-card-display="overlay" aria-label="叠印部件"' : part.quantity ? `data-card-display="quantity" aria-label="复沓部件 ${escapeHtml(data!.component(part.symbolId).name)}${part.quantityLabel ? ` ${part.quantityLabel}` : ""}"` : part.prefabricated ? `data-card-display="prefabricated" aria-label="预组汉字 ${escapeHtml(part.displayGlyph!)}"` : part.attached ? `data-card-display="attached" aria-label="复合部件 ${escapeHtml(part.displayGlyph!)}"` : `data-symbol-id="${part.symbolId}"`} ${part.consumed ? 'aria-hidden="true"' : ""} style="--card-index:${cardIndex};--card-angle:${cardAngles[cardIndex % cardAngles.length]}deg;--card-offset:${cardOffsets[cardIndex++ % cardOffsets.length]}px">${
                 part.obscured && !part.animateObscured
                   ? ""
                   : `<span class="part ${part.long ? "is-long" : ""} ${part.isEnclosedFrame ? "is-enclosed-frame" : ""} ${part.prefabricated ? "is-prefabricated" : ""} ${part.overlay ? "is-overlay" : ""}">${part.html}</span>${part.quantity && part.quantityLabel ? `<span class="trial-quantity-badge" aria-hidden="true">${part.quantityLabel}</span>` : ""}`
@@ -3319,6 +3335,9 @@ function renderTrialGame(trial: TrialSession): void {
     state.revealing ||
     state.skipsRemaining <= 0 ||
     activeRule?.allowSkip === false;
+  const reviveDisabled =
+    state.skipsRemaining <= 0 ||
+    activeRule?.allowSkip === false;
   const isWordNormal =
     !isBoss &&
     trialRuleAnswerInput(activeRule, "normal") === "word";
@@ -3474,6 +3493,7 @@ function renderTrialGame(trial: TrialSession): void {
           groupColor: card.groupColor,
           displayGlyph: card.displayGlyph,
           displayMode: card.displayMode,
+          reductionPart: card.reductionPart,
           consumed:
             !state.revealing &&
             consumedCardIds.has(card.uid),
@@ -3500,6 +3520,7 @@ function renderTrialGame(trial: TrialSession): void {
         groupColor: card.groupColor,
         displayGlyph: card.displayGlyph,
         displayMode: card.displayMode,
+        reductionPart: card.reductionPart,
         obscured:
           keepInheritedObscured && card.obscured,
         animateObscured:
@@ -3531,7 +3552,7 @@ function renderTrialGame(trial: TrialSession): void {
   lastTrialPaused = state.paused;
   root.innerHTML = shell(
     `
-      <main class="play-screen trial-play-screen">
+      <main class="play-screen trial-play-screen ${isBoss ? "is-trial-boss" : ""}">
         <section class="play-surface ${questionEnter ? "question-enter" : ""}">
           <header class="play-hud">
             <div class="progress-stack ${isBoss ? `is-trial-boss ${bossEntering ? "is-trial-boss-enter" : ""}` : ""}">
@@ -3552,15 +3573,7 @@ function renderTrialGame(trial: TrialSession): void {
           </header>
 
           <div class="parts ${densityClass} ${crowdedClass} ${partsFeedback} ${state.paused ? "is-paused" : resuming ? "is-resuming" : ""} ${isBoss ? "trial-boss-parts" : ""}" aria-label="部件">
-            ${
-              isBoss
-                ? `<span class="trial-boss-attempts" aria-label="已组成 ${state.boss?.submissionCount ?? 0} 个字，共 ${state.boss?.expectedAnswers.length ?? 2} 个">
-                    <b>${state.boss?.submissionCount ?? 0}</b>
-                    <i aria-hidden="true"></i>
-                    <b>${state.boss?.expectedAnswers.length ?? 2}</b>
-                  </span>`
-                : ""
-            }
+            ${isBoss ? trialBossAttemptsMarkup(state) : ""}
             ${trialPartCardsMarkup(
               cardModels,
               isBoss && cardModels.length === 4,
@@ -3608,6 +3621,7 @@ function renderTrialGame(trial: TrialSession): void {
                       <small>${escapeHtml(displayedRevealAnswers[0]?.meta ?? state.revealMeta)}</small>
                     </div>`
                 : `<div class="answer-row">
+                    ${isBoss ? trialBossAttemptsMarkup(state, "trial-boss-attempts-mobile") : ""}
                     <input
                       data-trial-answer
                       class="answer-input"
@@ -3663,9 +3677,17 @@ function renderTrialGame(trial: TrialSession): void {
           ${
             state.revealing
               ? wrong
-                ? `<div class="trial-actions is-reveal">
+                ? `<div class="trial-actions is-reveal ${hasTrialDebugAccess() ? "has-debug-continue" : ""}">
                     <button class="primary-action" type="button" data-trial-settle>结算</button>
-                    <button type="button" data-trial-continue>继续</button>
+                    <button class="skip-action" type="button" data-trial-revive ${reviveDisabled ? "disabled" : ""}>
+                      <span>换题</span>
+                      <span class="skip-count">${state.skipsRemaining}</span>
+                    </button>
+                    ${
+                      hasTrialDebugAccess()
+                        ? `<button type="button" data-trial-continue>继续</button>`
+                        : ""
+                    }
                   </div>`
                 : ""
               : `<div class="trial-actions">
@@ -3713,6 +3735,11 @@ function renderTrialGame(trial: TrialSession): void {
     .querySelector<HTMLButtonElement>("[data-trial-skip]")
     ?.addEventListener("click", () => {
       withPageTransition(() => trial.skipQuestion());
+    });
+  document
+    .querySelector<HTMLButtonElement>("[data-trial-revive]")
+    ?.addEventListener("click", () => {
+      withPageTransition(() => trial.reviveWithSkip());
     });
   document
     .querySelectorAll<HTMLButtonElement>("[data-trial-undo]")
@@ -3840,7 +3867,7 @@ function trialReviewCardMarkup(
                 }</small></span>`
               : card.displayMode === "compound"
               ? `<span class="review-part is-prefabricated">${escapeHtml(card.displayGlyph ?? "")}</span>`
-              : `<span class="review-part">${renderComponent(data!.component(card.symbolId)).html}</span>`,
+              : `<span class="review-part ${card.reductionPart ? "is-reduction-part" : ""}">${renderComponent(data!.component(card.symbolId)).html}</span>`,
           )
           .join("")}
       </div>

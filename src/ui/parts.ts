@@ -14,6 +14,12 @@ export function splitPartsIntoRows<T>(
   if (parts.length === 8) {
     return [parts.slice(0, 4), parts.slice(4, 8)];
   }
+  if (parts.length === 9) {
+    return [parts.slice(0, 5), parts.slice(5, 9)];
+  }
+  if (parts.length === 10) {
+    return [parts.slice(0, 5), parts.slice(5, 10)];
+  }
   return [parts];
 }
 

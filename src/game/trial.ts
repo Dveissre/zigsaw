@@ -36,6 +36,7 @@ export const TRIAL_STAGE_COUNT = 7;
 export const TRIAL_QUESTIONS_PER_STAGE = 8;
 export const TRIAL_NORMAL_SECONDS = 30;
 export const TRIAL_BOSS_SECONDS = 90;
+export const TRIAL_THREE_STAR_TIME_MULTIPLIER = 1.3;
 export const TRIAL_BOSS_CHAR_MIN_PARTS = 2;
 export const TRIAL_BOSS_CHAR_MAX_PARTS = 6;
 export const TRIAL_BOSS_MIN_PARTS = 6;
@@ -126,6 +127,7 @@ export interface TrialCard {
     | "quantity"
     | "obscured"
     | "wildcard";
+  reductionPart?: boolean;
 }
 
 export interface TrialQuestionState {
@@ -381,6 +383,10 @@ interface TrialChoice {
   displayChar?: string;
   displayWay?: number[];
   expandedComponent?: number;
+  reduction?: {
+    sourceIndex: number;
+    parts: [number, number];
+  };
   prefabrication?: {
     indices: [number, number];
     glyph: string;
@@ -766,7 +772,13 @@ export class TrialSession {
       this.buildHallraumChain();
     }
     this.sharedTimeRemaining =
-      rule.timing.sharedBudgetSeconds ?? null;
+      rule.timing.sharedBudgetSeconds === undefined
+        ? null
+        : this.timedSeconds(
+            rule.timing.sharedBudgetSeconds,
+            1,
+            rule,
+          );
     this.state.partLengthPlan =
       this.buildPartLengthPlan(rule);
     this.state.ruleId = rule.id;
@@ -1032,6 +1044,26 @@ export class TrialSession {
     this.advanceFromBoss(false);
   }
 
+  reviveWithSkip(): void {
+    if (
+      !this.state.revealing ||
+      this.state.feedback !== "wrong" ||
+      (this.state.phase !== "playing" &&
+        this.state.phase !== "boss") ||
+      this.state.skipsRemaining <= 0 ||
+      this.activeRule().allowSkip === false
+    ) {
+      return;
+    }
+    this.state.skipsRemaining -= 1;
+    this.state.skipsUsed += 1;
+    if (this.state.phase === "playing") {
+      this.showNormalQuestion();
+    } else {
+      this.startBoss();
+    }
+  }
+
   settleAtStageIntro(): void {
     if (
       this.state.phase !== "stage-intro" ||
@@ -1056,17 +1088,10 @@ export class TrialSession {
     this.state.skipsRemaining -= 1;
     this.state.skipsUsed += 1;
     if (this.state.phase === "playing") {
-      if (
-        this.state.questionInStage >=
-        TRIAL_QUESTIONS_PER_STAGE
-      ) {
-        this.startBoss();
-      } else {
-        this.showNormalQuestion();
-      }
-      return;
+      this.showNormalQuestion();
+    } else {
+      this.startBoss();
     }
-    this.startBoss();
   }
 
   surrender(): void {
@@ -1595,39 +1620,17 @@ export class TrialSession {
           ).length >= 2,
       ),
     );
-    const nonEmptyGroups = recipe
-      .map((way, index) => ({
-        index,
-        symbols: way.filter(
+    return recipe.flatMap((way, characterIndex) =>
+      shuffle(
+        way.filter(
           (symbolId) => !crossSymbols.has(symbolId),
         ),
-      }))
-      .filter(({ symbols }) => symbols.length > 0);
-    const paletteOrder =
-      nonEmptyGroups.length < recipe.length
-        ? [1, 0, 2, 3]
-        : [0, 1, 2, 3];
-    const colorByCharacter = new Map<number, number>();
-    nonEmptyGroups.forEach(({ index }, colorIndex) => {
-      colorByCharacter.set(
-        index,
-        paletteOrder[colorIndex] ?? colorIndex,
-      );
-    });
-    const cards: TrialCard[] = [];
-    recipe.forEach((way, characterIndex) => {
-      for (const symbolId of way) {
-        if (crossSymbols.has(symbolId)) {
-          continue;
-        }
-        cards.push({
-          ...this.makeCard(symbolId),
-          groupColor:
-            colorByCharacter.get(characterIndex) ?? 0,
-        });
-      }
-    });
-    return shuffle(cards, this.random);
+        this.random,
+      ).map((symbolId) => ({
+        ...this.makeCard(symbolId),
+        groupColor: characterIndex,
+      })),
+    );
   }
 
   private dissonanceAcceptedWords(
@@ -1761,26 +1764,22 @@ export class TrialSession {
     word: string,
     cards: TrialCard[],
   ): number[] | null {
-    const cardGroups = new Map<number, number[]>();
-    for (const card of cards) {
-      if (card.groupColor === undefined) {
-        continue;
-      }
-      const symbols =
-        cardGroups.get(card.groupColor) ?? [];
-      symbols.push(card.symbolId);
-      cardGroups.set(card.groupColor, symbols);
-    }
-    const cardGroupSignatures = [...cardGroups.entries()]
-      .map(([group, symbols]) => ({
-        group,
-        key: [...symbols]
+    const maxGroup = Math.max(
+      -1,
+      ...cards.map((card) => card.groupColor ?? -1),
+    );
+    const visibleGroups = Array.from(
+      { length: maxGroup + 1 },
+      (_, group) =>
+        cards
+          .filter((card) => card.groupColor === group)
+          .map((card) => card.symbolId)
           .sort((left, right) => left - right)
           .join(","),
-      }))
-      .sort((left, right) =>
-        left.key.localeCompare(right.key),
-      );
+    );
+    if (visibleGroups.every((group) => !group)) {
+      return null;
+    }
     const options = [...word].map((char) =>
       this.data
         .expandedDecompositions(char)
@@ -1794,34 +1793,26 @@ export class TrialSession {
       if (index >= options.length) {
         const groups =
           this.dissonanceRecipeGroupKeys(selected);
-        const nonEmptyGroups = groups.filter(Boolean);
-        if (
-          nonEmptyGroups.length !==
-          cardGroupSignatures.length
-        ) {
-          return null;
-        }
-        const used = new Set<number>();
-        const assignment = new Array<number>(
+        const slotCount = Math.max(
           groups.length,
-        ).fill(-1);
-        for (let charIndex = 0; charIndex < groups.length; charIndex += 1) {
-          if (!groups[charIndex]) {
-            continue;
-          }
-          const match = cardGroupSignatures.findIndex(
-            (candidate, index) =>
-              !used.has(index) &&
-              candidate.key === groups[charIndex],
-          );
-          if (match < 0) {
+          visibleGroups.length,
+        );
+        for (
+          let charIndex = 0;
+          charIndex < slotCount;
+          charIndex += 1
+        ) {
+          const candidate = groups[charIndex];
+          if (
+            candidate !==
+            (visibleGroups[charIndex] ?? "")
+          ) {
             return null;
           }
-          used.add(match);
-          assignment[charIndex] =
-            cardGroupSignatures[match].group;
         }
-        return assignment;
+        return groups.map((group, index) =>
+          group ? index : -1,
+        );
       }
       for (const way of options[index]) {
         selected.push(way);
@@ -1839,22 +1830,19 @@ export class TrialSession {
   private dissonanceCardsKey(
     cards: TrialCard[],
   ): string {
-    const groups = new Map<number, number[]>();
-    for (const card of cards) {
-      const group = card.groupColor ?? 0;
-      const symbols = groups.get(group) ?? [];
-      symbols.push(card.symbolId);
-      groups.set(group, symbols);
-    }
-    return [...groups.values()]
-      .map((symbols) =>
-        [...symbols].sort((left, right) => left - right),
-      )
-      .sort((left, right) =>
-        left.join(",").localeCompare(right.join(",")),
-      )
-      .map((symbols) => symbols.join(","))
-      .join("|");
+    const maxGroup = Math.max(
+      -1,
+      ...cards.map((card) => card.groupColor ?? -1),
+    );
+    return Array.from(
+      { length: maxGroup + 1 },
+      (_, group) =>
+        cards
+          .filter((card) => card.groupColor === group)
+          .map((card) => card.symbolId)
+          .sort((left, right) => left - right)
+          .join(","),
+    ).join("|");
   }
 
   private dissonanceRecipeGroupKeys(
@@ -1882,9 +1870,6 @@ export class TrialSession {
         way
           .filter((symbolId) => !crossSymbols.has(symbolId))
           .sort((left, right) => left - right),
-      )
-      .sort((left, right) =>
-        left.join(",").localeCompare(right.join(",")),
       )
       .map((symbols) => symbols.join(","));
   }
@@ -2647,8 +2632,21 @@ export class TrialSession {
     };
   }
 
-  private timedSeconds(baseSeconds: number, multiplier: number): number {
-    return Math.max(1, Math.round(baseSeconds * multiplier));
+  private timedSeconds(
+    baseSeconds: number,
+    multiplier: number,
+    rule = this.activeRule(),
+  ): number {
+    const starMultiplier =
+      rule.stars === 3
+        ? TRIAL_THREE_STAR_TIME_MULTIPLIER
+        : 1;
+    return Math.max(
+      1,
+      Math.round(
+        baseSeconds * multiplier * starMultiplier,
+      ),
+    );
   }
 
   private buildChoices(): void {
@@ -2933,6 +2931,8 @@ export class TrialSession {
   ): {
     displayWay: number[];
     expandedComponent: number;
+    sourceIndex: number;
+    parts: [number, number];
   } | null {
     const option = pickRandom(
       this.reductionOptionsForWay(way, excludedSources),
@@ -2950,7 +2950,35 @@ export class TrialSession {
     return {
       displayWay,
       expandedComponent: option.sourceSymbolId,
+      sourceIndex: option.sourceIndex,
+      parts: [option.parts[0], option.parts[1]],
     };
+  }
+
+  private cardsWithReduction(
+    answerWay: readonly number[],
+    reduction: {
+      sourceIndex: number;
+      parts: [number, number];
+    },
+  ): TrialCard[] {
+    const markers = answerWay.map(() => false);
+    markers.splice(reduction.sourceIndex, 1, true, true);
+    const displayWay = [...answerWay];
+    displayWay.splice(
+      reduction.sourceIndex,
+      1,
+      ...reduction.parts,
+    );
+    return shuffle(
+      displayWay.map((symbolId, index) => ({
+        ...this.makeCard(symbolId),
+        ...(markers[index]
+          ? { reductionPart: true }
+          : {}),
+      })),
+      this.random,
+    );
   }
 
   private prefabricationOptionsForComponents(
@@ -3276,6 +3304,12 @@ export class TrialSession {
       ways: [way],
       displayWay: reduction?.displayWay,
       expandedComponent: reduction?.expandedComponent,
+      reduction: reduction
+        ? {
+            sourceIndex: reduction.sourceIndex,
+            parts: reduction.parts,
+          }
+        : undefined,
       prefabrication:
         prefabrication?.prefabrication,
       overlay: overlay ?? undefined,
@@ -3897,6 +3931,11 @@ export class TrialSession {
           ? this.cardsWithPrefabrication(answerWay, [
               choice.prefabrication,
             ])
+          : choice.reduction
+            ? this.cardsWithReduction(
+                answerWay,
+                choice.reduction,
+              )
           : choice.repetend
             ? this.cardsWithRepetition(answerWay)
           : choice.overlay
@@ -3957,10 +3996,14 @@ export class TrialSession {
     const sharedBudget =
       this.activeRule().timing.sharedBudgetSeconds;
     if (sharedBudget !== undefined) {
-      this.sharedTimeRemaining ??= sharedBudget;
-      this.state.timeLimit = sharedBudget;
-      this.state.remaining = Math.min(
+      const effectiveBudget = this.timedSeconds(
         sharedBudget,
+        1,
+      );
+      this.sharedTimeRemaining ??= effectiveBudget;
+      this.state.timeLimit = effectiveBudget;
+      this.state.remaining = Math.min(
+        effectiveBudget,
         this.sharedTimeRemaining,
       );
       return;
@@ -3979,12 +4022,16 @@ export class TrialSession {
     if (timing.sharedBudgetSeconds === undefined) {
       return;
     }
-    this.sharedTimeRemaining = Math.min(
+    const effectiveBudget = this.timedSeconds(
       timing.sharedBudgetSeconds,
+      1,
+    );
+    this.sharedTimeRemaining = Math.min(
+      effectiveBudget,
       remainingBeforeBonus +
         (timing.correctBonusSeconds ?? 0),
     );
-    this.state.timeLimit = timing.sharedBudgetSeconds;
+    this.state.timeLimit = effectiveBudget;
     this.state.remaining = this.sharedTimeRemaining;
   }
 
@@ -4161,6 +4208,9 @@ export class TrialSession {
     const usesWildcard =
       rule.policy.prompt.boss.mode ===
       "wildcard-components";
+    const usesReduction =
+      rule.policy.prompt.boss.mode ===
+      "reduction-components";
     const usesRepetition =
       rule.policy.prompt.boss.mode ===
       "repetend-components";
@@ -4294,6 +4344,18 @@ export class TrialSession {
             )
         : usesRepetition
           ? this.cardsWithRepetition(ways.flat())
+        : usesReduction
+          ? shuffle(
+              choices.flatMap((choice) =>
+                choice.reduction
+                  ? this.cardsWithReduction(
+                      choice.ways[0],
+                      choice.reduction,
+                    )
+                  : [],
+              ),
+              this.random,
+            )
         : shuffle(
             displayWays
               .flat()
@@ -5205,6 +5267,13 @@ export class TrialSession {
         displayWay,
         expandedComponent:
           resolution.option.sourceSymbolId,
+        reduction: {
+          sourceIndex: resolution.option.sourceIndex,
+          parts: [
+            resolution.option.parts[0],
+            resolution.option.parts[1],
+          ],
+        },
       });
     }
     for (const source of reservedSources) {

@@ -599,7 +599,7 @@ describe("question timing", () => {
 });
 
 describe("multi-row part layout", () => {
-  it("uses the requested 6, 7 and 8 part rows", () => {
+  it("uses the requested 6 through 10 part rows", () => {
     expect(splitPartsIntoRows(Array.from({ length: 6 }, (_, index) => index)).map(
       (row) => row.length,
     )).toEqual([3, 3]);
@@ -609,6 +609,12 @@ describe("multi-row part layout", () => {
     expect(splitPartsIntoRows(Array.from({ length: 8 }, (_, index) => index)).map(
       (row) => row.length,
     )).toEqual([4, 4]);
+    expect(splitPartsIntoRows(Array.from({ length: 9 }, (_, index) => index)).map(
+      (row) => row.length,
+    )).toEqual([5, 4]);
+    expect(splitPartsIntoRows(Array.from({ length: 10 }, (_, index) => index)).map(
+      (row) => row.length,
+    )).toEqual([5, 5]);
   });
 });
 

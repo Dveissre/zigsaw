@@ -1130,12 +1130,21 @@ describe("trial session", () => {
     expect(parsed.rules["outland-mount"].icon).toBe(
       "outland-mount.svg",
     );
+    expect(parsed.rules.unrestricted.description.public).toBe(
+      "无额外规则。\n在每幕最后的守幕关卡，需要回答两个汉字。",
+    );
+    expect(parsed.rules.reschedule.description.debug).toBe(
+      "每幕初始及上限为 90 秒，普通题和守幕共用；答对后剩余时间加 5 秒，暂停扣 15 秒。",
+    );
     expect(parsed.rules.hallraum.name).toBe(
       "回声室",
     );
     expect(parsed.rules.hallraum.stars).toBe(2);
     expect(parsed.rules.hallraum.allowSkip).toBe(false);
     expect(parsed.rules.minimalism.name).toBe("简赅");
+    expect(parsed.rules.minimalism.description.public).toBe(
+      "答案均由二或三个部件组成，作答时间减半。\n守幕关卡答案为三个汉字。",
+    );
     expect(parsed.rules.aphantasia.name).toBe("盲视");
     expect(parsed.rules.aphantasia.english).toBe(
       "Anopia",
@@ -1212,9 +1221,13 @@ describe("trial session", () => {
       parsed.rules.polydactyly.policy.cards.normal
         .decoyUnique,
     ).toBe(true);
-    expect(parsed.rules.selcouth.selection.levels).toEqual([
-      2, 3,
-    ]);
+    expect(parsed.rules.selcouth.selection.levels).toEqual([3]);
+    expect(parsed.rules.selcouth.description.public).toBe(
+      "答案为三级通规汉字。",
+    );
+    expect(parsed.rules.selcouth.description.debug).toBe(
+      "排除一、二级字与表外字，结构不变。",
+    );
     expect(parsed.rules.gestalt.policy.prompt.normal.mode).toBe(
       "gestalt-components",
     );
@@ -1308,6 +1321,86 @@ describe("trial session", () => {
     expect(trial.state.questionInStage).toBe(1);
     expect(trial.state.current?.char).not.toBe(original);
     expect(trial.state.history).toHaveLength(0);
+  });
+
+  it("keeps question eight and the boss slot in place when skipped", () => {
+    const trial = new TrialSession(
+      createData(),
+      settings,
+      () => {},
+      seededRandom(35),
+    );
+    trial.beginStage();
+    trial.state.questionInStage = 8;
+    const original = trial.state.current?.char;
+    trial.skipQuestion();
+
+    expect(trial.state.phase).toBe("playing");
+    expect(trial.state.questionInStage).toBe(8);
+    expect(trial.state.current?.char).not.toBe(original);
+    expect(trial.state.skipsRemaining).toBe(2);
+
+    (
+      trial as unknown as { startBoss: () => void }
+    ).startBoss();
+    expect(trial.state.phase).toBe("boss");
+    trial.skipQuestion();
+    expect(trial.state.phase).toBe("boss");
+    expect(trial.state.questionInStage).toBe(9);
+    expect(trial.state.skipsRemaining).toBe(1);
+    expect(trial.state.boss?.initialCards.length).toBeGreaterThan(0);
+  });
+
+  it("revives a missed question by replacing it without advancing", async () => {
+    vi.useFakeTimers();
+    const trial = new TrialSession(
+      createData(),
+      settings,
+      () => {},
+      seededRandom(36),
+    );
+    trial.beginStage();
+    trial.state.questionInStage = 8;
+    await vi.advanceTimersByTimeAsync(
+      (TRIAL_NORMAL_SECONDS + 1) * 1000,
+    );
+    expect(trial.state.revealing).toBe(true);
+
+    trial.reviveWithSkip();
+    expect(trial.state.phase).toBe("playing");
+    expect(trial.state.revealing).toBe(false);
+    expect(trial.state.questionInStage).toBe(8);
+    expect(trial.state.skipsRemaining).toBe(2);
+    expect(trial.state.skipsUsed).toBe(1);
+    expect(trial.state.history).toHaveLength(1);
+    expect(trial.state.history[0].ok).toBe(false);
+
+    trial.state.skipsRemaining = 0;
+    trial.surrender();
+    trial.reviveWithSkip();
+    expect(trial.state.revealing).toBe(true);
+    expect(trial.state.questionInStage).toBe(8);
+  });
+
+  it("replaces the boss without advancing after a skipped miss", () => {
+    const trial = new TrialSession(
+      createData(),
+      settings,
+      () => {},
+      seededRandom(37),
+    );
+    trial.beginStage();
+    (
+      trial as unknown as { startBoss: () => void }
+    ).startBoss();
+    trial.surrender();
+    trial.reviveWithSkip();
+
+    expect(trial.state.phase).toBe("boss");
+    expect(trial.state.questionInStage).toBe(9);
+    expect(trial.state.revealing).toBe(false);
+    expect(trial.state.skipsRemaining).toBe(2);
+    expect(trial.state.history).toHaveLength(1);
   });
 
   it("disables question skipping for inherited-card rules", () => {
@@ -2464,6 +2557,11 @@ describe("trial session", () => {
     expect(current?.displayCards).toHaveLength(
       (current?.answerWay.length ?? 0) + 1,
     );
+    expect(
+      current?.displayCards.filter(
+        (card) => card.reductionPart,
+      ),
+    ).toHaveLength(2);
     expect(current?.accepted.length).toBeGreaterThan(1);
 
     const alternate = current?.accepted.find(
@@ -2881,7 +2979,7 @@ describe("trial session", () => {
     expect(trial.state.feedback).toBe("correct");
   });
 
-  it("restricts Selcouth questions to second- and third-level characters", async () => {
+  it("restricts Selcouth questions to third-level characters", async () => {
     vi.useFakeTimers();
     const gameData = createSelcouthData();
     const trial = new TrialSession(
@@ -2899,9 +2997,7 @@ describe("trial session", () => {
 
     for (let index = 0; index < 8; index += 1) {
       const current = trial.state.current!;
-      expect([2, 3]).toContain(
-        gameData.levels.get(current.char),
-      );
+      expect(gameData.levels.get(current.char)).toBe(3);
       trial.setDraft(current.char);
       trial.submit();
       await vi.advanceTimersByTimeAsync(900);
@@ -2910,10 +3006,32 @@ describe("trial session", () => {
     expect(trial.state.phase).toBe("boss");
     for (const answer of trial.state.boss?.expectedAnswers ??
       []) {
-      expect([2, 3]).toContain(
-        gameData.levels.get(answer),
-      );
+      expect(gameData.levels.get(answer)).toBe(3);
     }
+  });
+
+  it("extends normal and boss time by thirty percent for three-star rules", () => {
+    vi.useFakeTimers();
+    const trial = new TrialSession(
+      createData(),
+      settings,
+      () => {},
+      seededRandom(55),
+      false,
+      () => {},
+      null,
+      trialRulesData,
+    );
+    trial.setRuleOverride("aphantasia");
+    trial.beginStage();
+    expect(trial.state.timeLimit).toBe(39);
+    expect(trial.state.remaining).toBe(39);
+
+    (
+      trial as unknown as { startBoss: () => void }
+    ).startBoss();
+    expect(trial.state.timeLimit).toBe(117);
+    expect(trial.state.remaining).toBe(117);
   });
 
   it("adds a weighted N-rarity decoy that creates no unexpected answer", () => {
@@ -3073,6 +3191,11 @@ describe("trial session", () => {
     ).toEqual(
       boss.expectedWays.map((way) => way.length + 1),
     );
+    expect(
+      boss.initialCards.filter(
+        (card) => card.reductionPart,
+      ),
+    ).toHaveLength(4);
 
     const alternate = [
       ...gameData.accepted(boss.displayWays[0]),
@@ -3749,13 +3872,17 @@ describe("trial session", () => {
         { symbolId: 3, groupColor: 1, displayMode: undefined },
       ]),
     );
-    expect(question.accepted).toEqual(["上台"]);
     expect(
+      question.displayCards.map((card) => card.groupColor),
+    ).toEqual([0, 0, 1]);
+    expect(question.accepted).toEqual(["上台"]);
+    const acceptedNormalWords =
       helpers.dissonanceAcceptedWords(
         question.displayCards,
         [2],
-      ),
-    ).toContain("上台");
+      );
+    expect(acceptedNormalWords).toContain("上台");
+    expect(acceptedNormalWords).not.toContain("台上");
 
     const eliminatedGroupCards =
       helpers.dissonanceCards([
@@ -3765,15 +3892,16 @@ describe("trial session", () => {
     expect(eliminatedGroupCards).toEqual([
       expect.objectContaining({
         symbolId: 4,
-        groupColor: 1,
+        groupColor: 0,
       }),
     ]);
-    expect(
+    const acceptedEliminatedWords =
       helpers.dissonanceAcceptedWords(
         eliminatedGroupCards,
         [2],
-      ),
-    ).toContain("甲丁");
+      );
+    expect(acceptedEliminatedWords).toContain("甲丁");
+    expect(acceptedEliminatedWords).not.toContain("止丁");
 
     trial.state.phase = "playing";
     trial.state.ruleId = "dissonance";
@@ -3817,6 +3945,11 @@ describe("trial session", () => {
         ),
       ).size,
     ).toBe(3);
+    expect(
+      bossTrial.state.boss?.initialCards.map(
+        (card) => card.groupColor,
+      ),
+    ).toEqual([0, 1, 2]);
     expect(bossTrial.state.boss?.acceptedWords).toContain(
       "子丑寅",
     );
@@ -4445,15 +4578,15 @@ describe("trial session", () => {
     trial.setRuleOverride("reschedule");
     trial.beginStage();
 
-    expect(trial.state.timeLimit).toBe(150);
-    expect(trial.state.remaining).toBe(150);
+    expect(trial.state.timeLimit).toBe(90);
+    expect(trial.state.remaining).toBe(90);
     await vi.advanceTimersByTimeAsync(15_200);
     trial.setDraft(trial.state.current?.char ?? "");
     trial.submit();
     const carriedAfterFirst =
       trial.state.remaining;
-    expect(carriedAfterFirst).toBeGreaterThan(135);
-    expect(carriedAfterFirst).toBeLessThan(150);
+    expect(carriedAfterFirst).toBeGreaterThanOrEqual(75);
+    expect(carriedAfterFirst).toBeLessThan(90);
 
     await vi.advanceTimersByTimeAsync(900);
     expect(trial.state.questionInStage).toBe(2);
@@ -4465,20 +4598,20 @@ describe("trial session", () => {
     const carriedAfterSecond =
       trial.state.remaining;
     expect(carriedAfterSecond).toBe(
-      Math.min(150, carriedAfterFirst + 5),
+      Math.min(90, carriedAfterFirst + 5),
     );
 
     await vi.advanceTimersByTimeAsync(900);
     trial.setDraft(trial.state.current?.char ?? "");
     trial.submit();
-    expect(trial.state.remaining).toBe(150);
+    expect(trial.state.remaining).toBe(90);
 
     await vi.advanceTimersByTimeAsync(900);
     (
       trial as unknown as { startBoss: () => void }
     ).startBoss();
-    expect(trial.state.timeLimit).toBe(150);
-    expect(trial.state.remaining).toBe(150);
+    expect(trial.state.timeLimit).toBe(90);
+    expect(trial.state.remaining).toBe(90);
     trial.setDraft(
       trial.state.boss?.expectedAnswers.join("") ?? "",
     );
@@ -4489,8 +4622,8 @@ describe("trial session", () => {
 
     trial.setRuleOverride("reschedule");
     trial.beginStage();
-    expect(trial.state.timeLimit).toBe(150);
-    expect(trial.state.remaining).toBe(150);
+    expect(trial.state.timeLimit).toBe(90);
+    expect(trial.state.remaining).toBe(90);
   });
 
   it("deducts fifteen seconds instead of halving time when pausing Reschedule", () => {
@@ -4510,7 +4643,7 @@ describe("trial session", () => {
     trial.togglePause();
 
     expect(trial.state.paused).toBe(true);
-    expect(trial.state.remaining).toBe(135);
+    expect(trial.state.remaining).toBe(75);
   });
 
   it("generates the Inspissation eight-question progression and ten-card boss", async () => {
@@ -4898,6 +5031,58 @@ describe("trial session", () => {
         (detail) => detail.answerWay.length,
       ),
     ).toEqual([5, 5]);
+  });
+
+  it("accepts an alternative five-or-more-part Compages boss answer", () => {
+    vi.useFakeTimers();
+    const gameData = createData();
+    const trial = new TrialSession(
+      gameData,
+      settings,
+      () => {},
+      seededRandom(35),
+      false,
+      () => {},
+      null,
+      trialRulesData,
+    );
+    trial.state.stage = 6;
+    trial.setRuleOverride("compages");
+    trial.beginStage();
+    (
+      trial as unknown as { startBoss: () => void }
+    ).startBoss();
+    const boss = trial.state.boss!;
+    const expected = new Set(boss.expectedAnswers);
+    let alternative: string | null = null;
+    for (let mask = 0; mask < 1 << boss.cards.length; mask += 1) {
+      const selected = boss.cards.filter(
+        (_, index) => (mask & (1 << index)) !== 0,
+      );
+      if (selected.length !== 6) {
+        continue;
+      }
+      alternative =
+        [...gameData.accepted(
+          selected.map((card) => card.symbolId),
+        )].find((char) => !expected.has(char)) ?? null;
+      if (alternative) {
+        break;
+      }
+    }
+    expect(alternative).toBeTruthy();
+
+    trial.setDraft(alternative!);
+    trial.submit();
+    expect(trial.state.feedback).toBe("partial");
+    expect(trial.state.boss?.pendingAnswers).toEqual([
+      alternative,
+    ]);
+
+    trial.undoBossAnswer();
+    trial.setDraft(boss.expectedAnswers.join(""));
+    trial.submit();
+    expect(trial.state.feedback).toBe("correct");
   });
 
   it("supports partial submissions in a three-answer boss", () => {

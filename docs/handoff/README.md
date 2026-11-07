@@ -37,7 +37,11 @@ git log --name-status -1 -- docs/handoff
 | 日期 | 类型 | 内容 | 文档 |
 | --- | --- | --- | --- |
 | 2026-11-07 | bugfix | 同步 `origin/main@4c3ce9f`；写字台“结算本轮”改为卡片区右上角渐变条，并同步试炼 smoke 文案 | [gacha-rewards.md](features/gacha-rewards.md)、[bugfix.md](bugfix.md) |
-| 2026-11-07 | tuning | 心盲症更名为盲视/Anopia 并改为 2/6 秒；极简主义更名为简赅；回声室加入非强制部件去重权重 | [trial-mode.md](features/trial-mode.md) |
+| 2026-11-07 | trial | 化约论的两张展开部件卡复用黄色提示样式；BOSS 两次展开的四张卡统一标黄 | [trial-mode.md](features/trial-mode.md) |
+| 2026-11-07 | trial | 三星制限统一加时 30%；茁轧限定三级字；预制件改用普通卡样式并归档旧黄色样式 | [trial-mode.md](features/trial-mode.md) |
+| 2026-11-07 | trial | 中止后可消耗换题额度复活；所有换题只替换当前题面；失与得改为 90 秒；失韵法重新启用按字序分组 | [trial-mode.md](features/trial-mode.md) |
+| 2026-11-07 | ui | 试炼结算新增四档标题与红色字、移除平均用时、加入挑战模式同款分享；普通模式隐藏失败后的继续键；按 `390×430` 键盘后视口压缩守幕布局并固定 6–10 卡分行 | [trial-mode.md](features/trial-mode.md) |
+| 2026-11-07 | tuning | 心盲症更名为盲视/Anopia 并改为 1.5/6 秒；极简主义更名为简赅；回声室加入非强制部件去重权重 | [trial-mode.md](features/trial-mode.md) |
 | 2026-11-07 | feature | 规则数据升级 v3；七幕制限按 0/1/1/2/2/2或3/3 星级池随机抽取，同局避免重复；进入幕前按规则加载依赖 | [trial-mode.md](features/trial-mode.md) |
 | 2026-11-07 | feature | 试炼换题改为全流程累计预算且原地换题；首页增加 1–7 Center-focus Carousel 与说明 | [trial-mode.md](features/trial-mode.md) |
 | 2026-11-07 | feature | 试炼增加换题预算、失败后继续、阶段间主动结算与新结果标题；调试覆写按星级排序 | [trial-mode.md](features/trial-mode.md) |

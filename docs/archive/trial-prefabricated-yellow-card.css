@@ -1,0 +1,37 @@
+/*
+ * Archived on 2026-11-07.
+ *
+ * Prefabricated cards previously used this yellow treatment to distinguish a
+ * pre-composed character from ordinary component cards. Prefabricated cards
+ * now use the ordinary treatment; the same palette is reused by reductionism
+ * for the two cards created from one expanded component.
+ */
+
+.part-card.is-prefabricated {
+  border-color: #c1aa72;
+  color: #4c3808;
+  background-color: #f8f0d7;
+  box-shadow: 3px 3px 0 #dfd5b8;
+}
+
+.part-card.is-prefabricated::after {
+  background: #9b7b36;
+}
+
+.trial-review-list .review-part.is-prefabricated {
+  padding: 0 0.12em;
+  color: #775b1c;
+  background: rgba(236, 210, 123, 0.38);
+}
+
+.trial-review-card.is-boss-correct
+  .review-part.is-prefabricated {
+  color: #ffe7a3;
+  background: rgba(255, 231, 163, 0.13);
+}
+
+.trial-review-card.is-error
+  .review-part.is-prefabricated {
+  color: #ffe3b0;
+  background: rgba(255, 227, 176, 0.12);
+}

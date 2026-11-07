@@ -1749,14 +1749,14 @@ input:focus-visible {
   --card-angle: 0.7deg;
 }
 
-.part-card.is-prefabricated {
+.part-card.is-reduction-part {
   border-color: #c1aa72;
   color: #4c3808;
   background-color: #f8f0d7;
   box-shadow: 3px 3px 0 #dfd5b8;
 }
 
-.part-card.is-prefabricated::after {
+.part-card.is-reduction-part::after {
   background: #9b7b36;
 }
 
@@ -1783,17 +1783,17 @@ input:focus-visible {
 }
 
 .part-card.is-group-1 {
-  --dissonance-accent: var(--dissonance-red);
-  --dissonance-ink: var(--dissonance-red-ink);
-  --dissonance-fill: var(--dissonance-red-pale);
-  --dissonance-shadow: var(--dissonance-red-shadow);
-}
-
-.part-card.is-group-2 {
   --dissonance-accent: var(--dissonance-blue);
   --dissonance-ink: var(--dissonance-blue-ink);
   --dissonance-fill: var(--dissonance-blue-pale);
   --dissonance-shadow: var(--dissonance-blue-shadow);
+}
+
+.part-card.is-group-2 {
+  --dissonance-accent: var(--dissonance-red);
+  --dissonance-ink: var(--dissonance-red-ink);
+  --dissonance-fill: var(--dissonance-red-pale);
+  --dissonance-shadow: var(--dissonance-red-shadow);
 }
 
 .part-card.is-group-3 {
@@ -2860,6 +2860,10 @@ input:focus-visible {
   position: relative;
 }
 
+.trial-boss-parts .part-row {
+  flex-wrap: nowrap;
+}
+
 .trial-boss-attempts {
   position: absolute;
   top: 7px;
@@ -2874,6 +2878,10 @@ input:focus-visible {
   font-weight: 700;
   line-height: 1;
   pointer-events: none;
+}
+
+.trial-boss-attempts-mobile {
+  display: none;
 }
 
 .trial-boss-attempts b {
@@ -2903,6 +2911,42 @@ input:focus-visible {
   transform-origin: left center;
 }
 
+@media (max-width: 720px) {
+  .trial-play-screen .answer-row {
+    position: relative;
+  }
+
+  .trial-boss-parts > .trial-boss-attempts {
+    display: none;
+  }
+
+  .trial-boss-attempts-mobile {
+    top: 50%;
+    right: auto;
+    left: calc(100% + 6px);
+    display: block;
+    width: 40px;
+    height: 36px;
+    font-size: 18px;
+    transform: translateY(-50%);
+  }
+
+  .trial-boss-attempts-mobile b:first-child {
+    left: 3px;
+  }
+
+  .trial-boss-attempts-mobile b:last-child {
+    right: 3px;
+  }
+
+  .trial-boss-attempts-mobile i {
+    bottom: 8px;
+    left: 9px;
+    width: 23px;
+    height: 2px;
+  }
+}
+
 .trial-actions {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
@@ -2915,11 +2959,17 @@ input:focus-visible {
 
 .trial-actions.is-single {
   grid-template-columns: minmax(120px, 1fr);
+  width: min(100%, 150px);
 }
 
 .trial-actions.is-reveal {
   grid-template-columns: repeat(2, minmax(0, 1fr));
   width: min(100%, 280px);
+}
+
+.trial-actions.is-reveal.has-debug-continue {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  width: min(100%, 380px);
 }
 
 .trial-actions button,
@@ -3487,10 +3537,22 @@ input:focus-visible {
   line-height: 1;
 }
 
-.trial-review-list .review-part.is-prefabricated {
+.trial-review-list .review-part.is-reduction-part {
   padding: 0 0.12em;
   color: #775b1c;
   background: rgba(236, 210, 123, 0.38);
+}
+
+.trial-review-card.is-boss-correct
+  .review-part.is-reduction-part {
+  color: #ffe7a3;
+  background: rgba(255, 231, 163, 0.13);
+}
+
+.trial-review-card.is-error
+  .review-part.is-reduction-part {
+  color: #ffe3b0;
+  background: rgba(255, 227, 176, 0.12);
 }
 
 .trial-review-list .review-part.is-quantity {
@@ -3520,18 +3582,6 @@ input:focus-visible {
   display: block;
   width: 1em;
   height: 1em;
-}
-
-.trial-review-card.is-boss-correct
-  .review-part.is-prefabricated {
-  color: #ffe7a3;
-  background: rgba(255, 231, 163, 0.13);
-}
-
-.trial-review-card.is-error
-  .review-part.is-prefabricated {
-  color: #ffe3b0;
-  background: rgba(255, 227, 176, 0.12);
 }
 
 .trial-review-list .review-part .component-symbol {
@@ -8971,6 +9021,83 @@ input:focus-visible {
   }
 }
 
+@media (max-width: 720px) and (max-height: 560px) {
+  .page-play.is-test-version
+    .trial-play-screen.is-trial-boss
+    .play-hud {
+    min-height: 50px;
+    padding-bottom: 4px;
+  }
+
+  .page-play.is-test-version
+    .trial-play-screen.is-trial-boss
+    .trial-boss-parts {
+    flex: 1 1 auto;
+    min-height: 0;
+    padding: 4px 0 6px;
+    --card-gap: 5px;
+  }
+
+  .page-play.is-test-version
+    .trial-play-screen.is-trial-boss
+    .trial-boss-parts
+    .part-row {
+    gap: 5px;
+  }
+
+  .page-play.is-test-version
+    .trial-play-screen.is-trial-boss
+    .trial-boss-parts
+    .part-card {
+    width: clamp(44px, 13vw, 54px);
+    box-shadow: 2px 2px 0 #d9d5ca;
+  }
+
+  .page-play.is-test-version
+    .trial-play-screen.is-trial-boss
+    .trial-boss-parts
+    .part {
+    font-size: clamp(24px, 8vw, 32px);
+  }
+
+  .page-play.is-test-version
+    .trial-play-screen.is-trial-boss
+    .trial-boss-parts
+    .part.is-long {
+    font-size: clamp(16px, 5vw, 21px);
+  }
+
+  .page-play.is-test-version
+    .trial-play-screen.is-trial-boss
+    .trial-boss-records {
+    max-height: 68px;
+    margin-top: 3px;
+    padding-bottom: 2px;
+    gap: 3px;
+    overflow-y: auto;
+    scrollbar-width: thin;
+  }
+
+  .page-play.is-test-version
+    .trial-play-screen.is-trial-boss
+    .trial-boss-record {
+    min-height: 34px;
+  }
+
+  .page-play.is-test-version
+    .trial-play-screen.is-trial-boss
+    .answer-stage {
+    min-height: 48px;
+  }
+
+  .page-play.is-test-version
+    .trial-play-screen.is-trial-boss
+    .trial-actions {
+    margin-top: 3px;
+    padding-top: 5px;
+  }
+}
+
 @media (max-width: 640px) and (max-height: 380px) {
   .page-play.is-test-version.app-shell {
     padding-top: max(5px, env(safe-area-inset-top));
@@ -9040,6 +9167,53 @@ input:focus-visible {
   .page-play.is-test-version .play-actions button {
     min-height: 32px;
     padding-block: 3px;
+  }
+}
+
+@media (max-width: 640px) and (max-height: 380px) {
+  .page-play.is-test-version
+    .trial-play-screen.is-trial-boss
+    .play-hud {
+    min-height: 44px;
+  }
+
+  .page-play.is-test-version
+    .trial-play-screen.is-trial-boss
+    .trial-boss-parts {
+    padding-block: 2px;
+  }
+
+  .page-play.is-test-version
+    .trial-play-screen.is-trial-boss
+    .trial-boss-parts
+    .part-card {
+    width: clamp(36px, 10vw, 42px);
+  }
+
+  .page-play.is-test-version
+    .trial-play-screen.is-trial-boss
+    .trial-boss-parts
+    .part {
+    font-size: clamp(21px, 7vw, 27px);
+  }
+
+  .page-play.is-test-version
+    .trial-play-screen.is-trial-boss
+    .trial-boss-records {
+    max-height: 42px;
+  }
+
+  .page-play.is-test-version
+    .trial-play-screen.is-trial-boss
+    .answer-stage {
+    min-height: 42px;
+  }
+
+  .page-play.is-test-version
+    .trial-play-screen.is-trial-boss
+    .trial-actions {
+    margin-top: 2px;
+    padding-top: 3px;
   }
 }
 
