@@ -12,6 +12,7 @@ export const MANAGED_SAVE_KEYS = [
   "zigsaw.records.v1",
   "char-rush.records.v1",
   "zigsaw.cris.v1",
+  "zigsaw.trial.progress.v1",
   "zigsaw.trial.inspissation.recentLongChars",
 ] as const;
 

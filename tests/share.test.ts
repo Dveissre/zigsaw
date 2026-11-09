@@ -179,7 +179,7 @@ describe("trial sharing", () => {
 
   it("builds the requested trial share layout", () => {
     const text = buildTrialShareText({
-      difficulty: 1,
+      advancement: 1,
       title: "临歧何反",
       correctCount: 10,
       reachedStage: 2,
@@ -194,7 +194,7 @@ describe("trial sharing", () => {
     });
     expect(text).toBe(
       [
-        "◈ ZIGSAW - 试炼 - 难度 1",
+        "◈ ZIGSAW - 试炼 - 进阶 1",
         "🏕️ 临歧何反",
         "🔸 10 题﹫第二幕「短视」",
         "⬜🟩🟪🟥",

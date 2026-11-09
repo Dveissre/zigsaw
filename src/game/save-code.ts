@@ -7,9 +7,15 @@ import {
   applySaveArchive,
   type SaveStorage,
 } from "./save";
+import {
+  readTrialProgress,
+  TRIAL_ADVANCEMENT_MAX,
+  TRIAL_PROGRESS_STORAGE_KEY,
+} from "./trial-progress";
 
 const CODE_PREFIX = "ZSC1.";
-const PAYLOAD_VERSION = 1;
+const PAYLOAD_VERSION = 3;
+const MIN_PAYLOAD_VERSION = 1;
 const MAX_CODE_LENGTH = 1_000_000;
 const MAX_CHARACTERS = 20_000;
 const MAX_COMPONENTS = 20_000;
@@ -56,6 +62,8 @@ export interface CompactSaveState {
   records: CompactSaveRecord[];
   cris: number;
   trialRecentLongChars: string[];
+  trialHighestCleared: number;
+  trialPerfectMask: number;
 }
 
 class ByteWriter {
@@ -391,6 +399,10 @@ export function readCompactSaveState(
     records: readRecords(storage),
     cris: integer(storage.getItem("zigsaw.cris.v1")),
     trialRecentLongChars: readTrialRecentChars(storage),
+    trialHighestCleared: readTrialProgress(storage)
+      .highestCleared,
+    trialPerfectMask: readTrialProgress(storage)
+      .perfectMask,
   };
 }
 
@@ -520,6 +532,13 @@ function encodePayload(
   for (const char of trialChars) {
     writer.uvarint(codePointOf(char));
   }
+  writer.uvarint(
+    Math.min(
+      TRIAL_ADVANCEMENT_MAX,
+      Math.max(-1, Math.round(state.trialHighestCleared)),
+    ) + 1,
+  );
+  writer.uvarint(state.trialPerfectMask & 0xff);
   const result = new Uint8Array(
     new ArrayBuffer(writer.bytes.length),
   );
@@ -530,7 +549,10 @@ function encodePayload(
 function decodePayload(bytes: Uint8Array): CompactSaveState {
   const reader = new ByteReader(bytes);
   const version = reader.uvarint();
-  if (version !== PAYLOAD_VERSION) {
+  if (
+    version < MIN_PAYLOAD_VERSION ||
+    version > PAYLOAD_VERSION
+  ) {
     throw new Error("存档码正文版本不受支持");
   }
   reader.uvarint();
@@ -575,6 +597,19 @@ function decodePayload(bytes: Uint8Array): CompactSaveState {
     { length: trialCount },
     () => charFromCodePoint(reader.uvarint()),
   );
+  const trialHighestCleared =
+    version >= 2 ? reader.uvarint() - 1 : -1;
+  if (
+    trialHighestCleared < -1 ||
+    trialHighestCleared > TRIAL_ADVANCEMENT_MAX
+  ) {
+    throw new Error("存档码包含无效的试炼进阶");
+  }
+  const trialPerfectMask =
+    version >= 3 ? reader.uvarint() : 0;
+  if (trialPerfectMask > 0xff) {
+    throw new Error("存档码包含无效的完美通关记录");
+  }
   if (reader.remaining !== 0) {
     throw new Error("存档码包含无法识别的尾部数据");
   }
@@ -585,6 +620,8 @@ function decodePayload(bytes: Uint8Array): CompactSaveState {
     records,
     cris,
     trialRecentLongChars,
+    trialHighestCleared,
+    trialPerfectMask,
   };
 }
 
@@ -734,6 +771,19 @@ export function applyCompactSaveState(
     archiveData["zigsaw.trial.inspissation.recentLongChars"] =
       JSON.stringify(state.trialRecentLongChars);
   }
+  archiveData[TRIAL_PROGRESS_STORAGE_KEY] =
+    JSON.stringify({
+      version: 1,
+      highestCleared: Math.min(
+        TRIAL_ADVANCEMENT_MAX,
+        Math.max(
+          -1,
+          Math.round(state.trialHighestCleared),
+        ),
+      ),
+      perfectMask:
+        state.trialPerfectMask & 0xff,
+    });
   applySaveArchive(
     {
       version: 1,

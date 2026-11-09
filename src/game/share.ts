@@ -31,7 +31,7 @@ export interface TrialShareHistoryItem {
 }
 
 export interface TrialShareOptions {
-  difficulty: number;
+  advancement: number;
   title: TrialResultTitle;
   correctCount: number;
   reachedStage: number;
@@ -175,7 +175,7 @@ export function buildChallengeShareText({
 }
 
 export function buildTrialShareText({
-  difficulty,
+  advancement,
   title,
   correctCount,
   reachedStage,
@@ -188,7 +188,7 @@ export function buildTrialShareText({
     reachedStage,
   ).map(trialQuestionEmoji);
   return [
-    `◈ ZIGSAW - 试炼 - 难度 ${difficulty}`,
+    `◈ ZIGSAW - 试炼 - 进阶 ${advancement}`,
     `${trialResultEmoji(title)} ${title}`,
     `${trialCompletionEmoji(reachedStage)} ${correctCount} 题﹫${stageName}「${ruleName}」`,
     symbols.join(""),

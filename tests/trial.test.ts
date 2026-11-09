@@ -16,6 +16,7 @@ import {
   TRIAL_NORMAL_SECONDS,
   TRIAL_OUTLAND_PART_WEIGHTS,
   TrialSession,
+  calculateTrialCrisReward,
   hallraumComponentDiversityWeight,
   orderedBossAnswerChars,
   trialSkipBudgetWithoutSpending,
@@ -27,6 +28,11 @@ import {
   parseTrialRulesData,
   type TrialRulesData,
 } from "../src/game/trial-rules";
+import {
+  trialAdvancementConfig,
+  trialAdvancementTimeMultiplier,
+  trialAdvancementUnlockedByFirstClear,
+} from "../src/game/trial-advancement";
 import {
   acceptedPinyinFor,
   displayPinyinFor,
@@ -63,8 +69,15 @@ const settings: GameSettings = {
   exEnabled: true,
   includeSupplementaryChars: true,
   difficulty: "standard",
-  trialDifficulty: 1,
+  trialAdvancement: 1,
 };
+
+function settingsAtAdvancement(level: number): GameSettings {
+  return {
+    ...settings,
+    trialAdvancement: level,
+  };
+}
 
 function seededRandom(seed: number): () => number {
   let value = seed >>> 0;
@@ -267,6 +280,22 @@ function createHallraumBossData(): GameData {
         三级: [],
       },
     },
+  );
+}
+
+function createPublicGameData(): GameData {
+  const read = (path: string): unknown =>
+    JSON.parse(
+      readFileSync(resolve(process.cwd(), path), "utf8"),
+    );
+  return new GameData(
+    read("public/data/char_sym.json") as never,
+    read("public/data/tongyong_hanzi.json") as never,
+    read("public/data/component-assets.json") as never,
+    "https://example.invalid/",
+    read(
+      "public/data/char_sym_answer_compat.json",
+    ) as never,
   );
 }
 
@@ -1139,8 +1168,10 @@ describe("trial session", () => {
     expect(parsed.rules.hallraum.name).toBe(
       "回声室",
     );
-    expect(parsed.rules.hallraum.stars).toBe(2);
+    expect(parsed.rules.hallraum.stars).toBe(3);
     expect(parsed.rules.hallraum.allowSkip).toBe(false);
+    expect(parsed.rules.repetend.stars).toBe(1);
+    expect(parsed.rules.wildcard.stars).toBe(2);
     expect(parsed.rules.minimalism.name).toBe("简赅");
     expect(parsed.rules.minimalism.description.public).toBe(
       "答案均由二或三个部件组成，作答时间减半。\n守幕关卡答案为三个汉字。",
@@ -1299,10 +1330,166 @@ describe("trial session", () => {
     expect(trial.state.current).not.toBeNull();
   });
 
+  it("resolves cumulative advancement settings through level four", () => {
+    const expected = [
+      {
+        questions: 7,
+        initialSkips: 3,
+        skipEvery: 2,
+        threeStar: 1.3,
+        lowStar: 1,
+      },
+      {
+        questions: 8,
+        initialSkips: 3,
+        skipEvery: 3,
+        threeStar: 1.3,
+        lowStar: 1,
+      },
+      {
+        questions: 8,
+        initialSkips: 3,
+        skipEvery: 3,
+        threeStar: 1,
+        lowStar: 1,
+      },
+      {
+        questions: 8,
+        initialSkips: 1,
+        skipEvery: 3,
+        threeStar: 1,
+        lowStar: 1,
+      },
+      {
+        questions: 8,
+        initialSkips: 1,
+        skipEvery: 3,
+        threeStar: 1,
+        lowStar: 0.7,
+      },
+    ];
+    for (const [level, values] of expected.entries()) {
+      const config = trialAdvancementConfig(level);
+      expect(config.normalQuestionsPerStage).toBe(
+        values.questions,
+      );
+      expect(config.initialSkips).toBe(
+        values.initialSkips,
+      );
+      expect(config.skipGrantEveryStages).toBe(
+        values.skipEvery,
+      );
+      expect(config.threeStarTimeMultiplier).toBe(
+        values.threeStar,
+      );
+      expect(config.lowStarTimeMultiplier).toBe(
+        values.lowStar,
+      );
+    }
+    expect(trialAdvancementConfig(5)).toEqual({
+      ...trialAdvancementConfig(4),
+      level: 5,
+    });
+    expect(trialAdvancementConfig(6)).toEqual({
+      ...trialAdvancementConfig(4),
+      level: 6,
+    });
+    expect(trialAdvancementConfig(7)).toEqual({
+      ...trialAdvancementConfig(4),
+      level: 7,
+    });
+    expect(
+      trialAdvancementTimeMultiplier(
+        1,
+        trialAdvancementConfig(4),
+      ),
+    ).toBe(0.7);
+    expect(
+      trialAdvancementTimeMultiplier(
+        3,
+        trialAdvancementConfig(4),
+      ),
+    ).toBe(1);
+    expect(
+      trialAdvancementTimeMultiplier(
+        0,
+        trialAdvancementConfig(4),
+      ),
+    ).toBe(1);
+    expect(
+      trialAdvancementUnlockedByFirstClear(0, false),
+    ).toBe(1);
+    expect(
+      trialAdvancementUnlockedByFirstClear(0, true),
+    ).toBeNull();
+    expect(
+      trialAdvancementUnlockedByFirstClear(3, false),
+    ).toBe(4);
+    expect(
+      trialAdvancementUnlockedByFirstClear(4, false),
+    ).toBeNull();
+  });
+
+  it("rewards trial progress through back-loaded milestones", () => {
+    const reward = (
+      advancement: number,
+      clearedStages: number,
+      cleared = false,
+      perfect = false,
+    ) =>
+      calculateTrialCrisReward({
+        advancement,
+        clearedStages,
+        cleared,
+        perfect,
+      });
+
+    expect(
+      [0, 1, 2, 3, 4, 5, 6, 7].map((stages) =>
+        reward(1, stages, stages === 7),
+      ),
+    ).toEqual([0, 0, 5, 12, 27, 48, 75, 150]);
+    expect(reward(1, 6)).toBe(75);
+    expect(reward(1, 7, false)).toBe(75);
+    expect(reward(1, 7, true)).toBe(150);
+    expect(reward(1, 7, true, true)).toBe(180);
+    expect(reward(0, 7, true)).toBe(100);
+    expect(reward(0, 7, true, true)).toBe(120);
+    expect(reward(2, 7, true)).toBe(180);
+    expect(reward(2, 7, true, true)).toBe(216);
+    expect(reward(3, 7, true)).toBe(220);
+    expect(reward(4, 7, true)).toBe(280);
+  });
+
+  it("uses seven normal questions and the eighth slot for advancement zero", async () => {
+    vi.useFakeTimers();
+    const trial = new TrialSession(
+      createData(),
+      settingsAtAdvancement(0),
+      () => {},
+      seededRandom(30),
+    );
+    expect(trial.state.questionsPerStage).toBe(7);
+    expect(trial.state.skipsRemaining).toBe(3);
+    trial.beginStage();
+    trial.state.questionInStage = 7;
+    trial.setDraft(trial.state.current?.char ?? "");
+    trial.submit();
+    await vi.advanceTimersByTimeAsync(900);
+
+    expect(trial.state.phase).toBe("boss");
+    expect(trial.state.questionInStage).toBe(8);
+  });
+
   it("keeps one cumulative skip budget across the trial", () => {
     expect(
-      [1, 2, 3, 4, 5, 6, 7].map(
-        trialSkipBudgetWithoutSpending,
+      [1, 2, 3, 4, 5, 6, 7].map((stage) =>
+        trialSkipBudgetWithoutSpending(stage, 0),
+      ),
+    ).toEqual([3, 3, 4, 4, 5, 5, 6]);
+    expect(
+      [1, 2, 3, 4, 5, 6, 7].map((stage) =>
+        trialSkipBudgetWithoutSpending(stage, 1),
       ),
     ).toEqual([3, 3, 3, 4, 4, 4, 5]);
 
@@ -1372,14 +1559,28 @@ describe("trial session", () => {
     expect(trial.state.questionInStage).toBe(8);
     expect(trial.state.skipsRemaining).toBe(2);
     expect(trial.state.skipsUsed).toBe(1);
-    expect(trial.state.history).toHaveLength(1);
-    expect(trial.state.history[0].ok).toBe(false);
+    expect(trial.state.history).toHaveLength(0);
 
     trial.state.skipsRemaining = 0;
     trial.surrender();
     trial.reviveWithSkip();
     expect(trial.state.revealing).toBe(true);
     expect(trial.state.questionInStage).toBe(8);
+    trial.state.skipsRemaining = 1;
+    trial.reviveWithSkip();
+    expect(trial.state.history).toHaveLength(0);
+
+    trial.state.stage = 7;
+    (
+      trial as unknown as { startBoss: () => void }
+    ).startBoss();
+    trial.setDraft(
+      trial.state.boss?.expectedAnswers.join("") ?? "",
+    );
+    trial.submit();
+    await vi.advanceTimersByTimeAsync(1200);
+    expect(trial.state.phase).toBe("results");
+    expect(trial.state.result?.title).toBe("雾径得津");
   });
 
   it("replaces the boss without advancing after a skipped miss", () => {
@@ -1400,7 +1601,7 @@ describe("trial session", () => {
     expect(trial.state.questionInStage).toBe(9);
     expect(trial.state.revealing).toBe(false);
     expect(trial.state.skipsRemaining).toBe(2);
-    expect(trial.state.history).toHaveLength(1);
+    expect(trial.state.history).toHaveLength(0);
   });
 
   it("disables question skipping for inherited-card rules", () => {
@@ -1422,6 +1623,36 @@ describe("trial session", () => {
 
     expect(trial.state.skipsRemaining).toBe(3);
     expect(trial.state.questionInStage).toBe(1);
+  });
+
+  it("stacks Hallraum's one-third time cut with the three-star bonus", () => {
+    const trial = new TrialSession(
+      createData(),
+      settings,
+      () => {},
+      seededRandom(38),
+      false,
+      () => {},
+      null,
+      trialRulesData,
+    );
+    trial.setRuleOverride("hallraum");
+    const timedSeconds = (
+      trial as unknown as {
+        timedSeconds: (
+          baseSeconds: number,
+          multiplier: number,
+        ) => number;
+      }
+    ).timedSeconds.bind(trial);
+    expect(
+      timedSeconds(
+        TRIAL_NORMAL_SECONDS,
+        trialRulesData.rules.hallraum.timing
+          .normalMultiplier,
+      ),
+    ).toBe(26);
+    expect(timedSeconds(TRIAL_BOSS_SECONDS, 1)).toBe(117);
   });
 
   it("weights Hallraum candidates toward unused visible components", () => {
@@ -1481,6 +1712,25 @@ describe("trial session", () => {
     stageThree.continueAfterMiss();
     expect(stageThree.state.stage).toBe(4);
     expect(stageThree.state.skipsRemaining).toBe(4);
+  });
+
+  it("grants a skip after every two completed stages at advancement zero", () => {
+    const trial = new TrialSession(
+      createData(),
+      settingsAtAdvancement(0),
+      () => {},
+      seededRandom(34),
+    );
+    trial.state.stage = 2;
+    trial.beginStage();
+    (
+      trial as unknown as { startBoss: () => void }
+    ).startBoss();
+    trial.surrender();
+    trial.continueAfterMiss();
+
+    expect(trial.state.stage).toBe(3);
+    expect(trial.state.skipsRemaining).toBe(4);
   });
 
   it("applies Tetrarchy to four-part questions and its two four-part boss answers", () => {
@@ -2066,6 +2316,66 @@ describe("trial session", () => {
         ),
       ).toBe(true);
     }
+
+    const sevenQuestionTrial = new TrialSession(
+      createHallraumUniquenessData(),
+      settingsAtAdvancement(0),
+      () => {},
+      seededRandom(37),
+      false,
+      () => {},
+      null,
+      trialRulesData,
+    );
+    sevenQuestionTrial.setRuleOverride("hallraum");
+    const sevenQuestionHelpers =
+      sevenQuestionTrial as unknown as {
+        hallraumLengthOrder: (
+          questionIndex: number,
+        ) => number[];
+      };
+    for (let question = 0; question < 6; question += 1) {
+      expect(
+        sevenQuestionHelpers.hallraumLengthOrder(question),
+      ).toEqual([3]);
+    }
+    expect(
+      sevenQuestionHelpers.hallraumLengthOrder(6),
+    ).toEqual([4]);
+  });
+
+  it("builds a complete seven-question Hallraum chain at advancement zero", () => {
+    const trial = new TrialSession(
+      createPublicGameData(),
+      settingsAtAdvancement(0),
+      () => {},
+      seededRandom(39),
+      false,
+      () => {},
+      null,
+      trialRulesData,
+    );
+    trial.setRuleOverride("hallraum");
+    trial.beginStage();
+    const helpers = trial as unknown as {
+      hallraumSteps: Array<{
+        way: number[];
+      }>;
+      hallraumBossPlan: {
+        ways: [number[], number[]];
+        inheritedSlots: [number, number];
+      } | null;
+    };
+
+    expect(helpers.hallraumSteps).toHaveLength(7);
+    expect(helpers.hallraumSteps.at(-1)?.way).toHaveLength(4);
+    expect(helpers.hallraumBossPlan).not.toBeNull();
+    const bossPlan = helpers.hallraumBossPlan!;
+    for (const [index, slot] of bossPlan
+      .inheritedSlots.entries()) {
+      expect(slot).toBeGreaterThanOrEqual(0);
+      expect(slot).toBeLessThan(bossPlan.ways[index].length);
+    }
   });
 
   it("assigns one inherited Hallraum card to each boss answer", () => {
@@ -2486,11 +2796,11 @@ describe("trial session", () => {
     expect(trial.state.current?.accepted).toEqual([
       trial.state.current?.char,
     ]);
-    expect(encountered).toEqual(
-      expect.arrayContaining([
-        trial.state.current?.char,
-        trial.state.current?.displayChar,
-      ]),
+    expect(encountered).toContain(
+      trial.state.current?.char,
+    );
+    expect(encountered).not.toContain(
+      trial.state.current?.displayChar,
     );
     const normalAnswer = trial.state.current?.char ?? "";
     const normalDisplayChar =
@@ -2510,10 +2820,10 @@ describe("trial session", () => {
     expect(
       trial.state.boss?.expectedDisplayChars,
     ).toHaveLength(2);
-    expect(encountered).toEqual(
-      expect.arrayContaining([
+    expect(new Set(encountered)).toEqual(
+      new Set([
+        normalAnswer,
         ...(trial.state.boss?.expectedAnswers ?? []),
-        ...(trial.state.boss?.expectedDisplayChars ?? []),
       ]),
     );
     expect(trial.state.boss?.initialCards).toHaveLength(6);
@@ -3032,6 +3342,105 @@ describe("trial session", () => {
     ).startBoss();
     expect(trial.state.timeLimit).toBe(117);
     expect(trial.state.remaining).toBe(117);
+  });
+
+  it("removes the three-star bonus from advancement two onward", () => {
+    vi.useFakeTimers();
+    const trial = new TrialSession(
+      createData(),
+      settingsAtAdvancement(2),
+      () => {},
+      seededRandom(56),
+      false,
+      () => {},
+      null,
+      trialRulesData,
+    );
+    trial.setRuleOverride("aphantasia");
+    trial.beginStage();
+    expect(trial.state.timeLimit).toBe(30);
+    expect(trial.state.remaining).toBe(30);
+
+    (
+      trial as unknown as { startBoss: () => void }
+    ).startBoss();
+    expect(trial.state.timeLimit).toBe(90);
+    expect(trial.state.remaining).toBe(90);
+  });
+
+  it("reduces one- and two-star time at advancement four", () => {
+    vi.useFakeTimers();
+    const trial = new TrialSession(
+      createData(),
+      settingsAtAdvancement(4),
+      () => {},
+      seededRandom(57),
+      false,
+      () => {},
+      null,
+      trialRulesData,
+    );
+    trial.setRuleOverride("presto");
+    trial.beginStage();
+    expect(trial.state.timeLimit).toBe(14);
+    expect(trial.state.remaining).toBe(14);
+
+    (
+      trial as unknown as { startBoss: () => void }
+    ).startBoss();
+    expect(trial.state.timeLimit).toBe(42);
+    expect(trial.state.remaining).toBe(42);
+  });
+
+  it("leaves unrestricted and three-star rule time unshortened at advancement four", () => {
+    const unrestricted = new TrialSession(
+      createData(),
+      settingsAtAdvancement(4),
+      () => {},
+      seededRandom(58),
+      false,
+      () => {},
+      null,
+      trialRulesData,
+    );
+    unrestricted.setRuleOverride("unrestricted");
+    unrestricted.beginStage();
+    expect(unrestricted.state.timeLimit).toBe(30);
+
+    const threeStar = new TrialSession(
+      createData(),
+      settingsAtAdvancement(4),
+      () => {},
+      seededRandom(59),
+      false,
+      () => {},
+      null,
+      trialRulesData,
+    );
+    threeStar.setRuleOverride("aphantasia");
+    threeStar.beginStage();
+    expect(threeStar.state.timeLimit).toBe(30);
+  });
+
+  it("shortens Reschedule's shared cap while keeping its fixed bonus and pause penalty", () => {
+    const trial = new TrialSession(
+      createData(),
+      settingsAtAdvancement(4),
+      () => {},
+      seededRandom(60),
+      true,
+      () => {},
+      null,
+      trialRulesData,
+    );
+    trial.setRuleOverride("reschedule");
+    trial.beginStage();
+    expect(trial.state.timeLimit).toBe(63);
+    expect(trial.state.remaining).toBe(63);
+
+    trial.togglePause();
+    expect(trial.state.paused).toBe(true);
+    expect(trial.state.remaining).toBe(48);
   });
 
   it("adds a weighted N-rarity decoy that creates no unexpected answer", () => {
@@ -4702,6 +5111,30 @@ describe("trial session", () => {
     ).toBe(2);
   });
 
+  it("shortens the Inspissation progression to seven questions at advancement zero", () => {
+    const trial = new TrialSession(
+      createData(),
+      settingsAtAdvancement(0),
+      () => {},
+      seededRandom(32),
+      false,
+      () => {},
+      null,
+      trialRulesData,
+    );
+    trial.setRuleOverride("inspissation");
+    trial.beginStage();
+
+    const plan = trial.state.partLengthPlan;
+    expect(plan).toHaveLength(7);
+    expect(plan[0]).toBe(2);
+    expect([7, 8]).toContain(plan.at(-1));
+    for (let index = 1; index < plan.length; index += 1) {
+      const step = plan[index] - plan[index - 1];
+      expect(step === 0 || step === 1).toBe(true);
+    }
+  });
+
   it("weights Inspissation paths toward part counts with larger pools", () => {
     vi.useFakeTimers();
     const data = createData({
@@ -5491,7 +5924,7 @@ describe("trial session", () => {
     expect(trial.state.phase).toBe("results");
     expect(trial.state.result?.cleared).toBe(true);
     expect(trial.state.result?.title).toBe("知我梦中");
-    expect(trial.state.result?.crisEarned).toBe(0);
+    expect(trial.state.result?.crisEarned).toBe(180);
   });
 
   it("uses the ordinary-success title after a skip", async () => {
@@ -5517,6 +5950,7 @@ describe("trial session", () => {
     expect(trial.state.phase).toBe("results");
     expect(trial.state.result?.cleared).toBe(true);
     expect(trial.state.result?.title).toBe("雾径得津");
+    expect(trial.state.result?.crisEarned).toBe(150);
   });
 
   it("reveals the missed answer before leaving on timeout", async () => {

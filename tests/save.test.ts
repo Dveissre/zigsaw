@@ -37,19 +37,33 @@ describe("save archive", () => {
   it("encrypts and restores managed storage values", async () => {
     const source = new MemoryStorage();
     source.setItem("zigsaw.collection.v2", '{"secret":"collection"}');
-    source.setItem("zigsaw.cris.v1", "27");
+    source.setItem(
+      "zigsaw.cris.v1",
+      "314159265358979323846",
+    );
+    source.setItem(
+      "zigsaw.trial.progress.v1",
+      '{"version":1,"highestCleared":2,"perfectMask":1}',
+    );
     source.setItem("unmanaged", "leave-me-alone");
 
     const serialized = await createSaveArchive(source);
     expect(serialized).not.toContain("collection");
-    expect(serialized).not.toContain("27");
+    expect(serialized).not.toContain(
+      "314159265358979323846",
+    );
 
     const payload = await readSaveArchive(serialized);
     expect(payload.version).toBe(1);
     expect(payload.data["zigsaw.collection.v2"]).toBe(
       '{"secret":"collection"}',
     );
-    expect(payload.data["zigsaw.cris.v1"]).toBe("27");
+    expect(payload.data["zigsaw.cris.v1"]).toBe(
+      "314159265358979323846",
+    );
+    expect(payload.data["zigsaw.trial.progress.v1"]).toBe(
+      '{"version":1,"highestCleared":2,"perfectMask":1}',
+    );
     expect(payload.data).not.toHaveProperty("unmanaged");
   });
 

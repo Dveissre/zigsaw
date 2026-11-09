@@ -1,7 +1,7 @@
 {
   "format": "zigsaw-gestalt-pairs/1",
-  "sourceHash": "9aca5810df39ae21f3bc1adf5251e9cde0868d2688eadde45a9835a6de7ccb1a",
-  "answerCompatibilityHash": "6235fc3519b03e344673aafdb8c81c74023f586928155fcad3f333d92186c9d4",
+  "sourceHash": "eeb55877b534a059ddfb28733df33be619830b2ad9ced811408925c0f8f6da78",
+  "answerCompatibilityHash": "85bf1cbeda7a34e427acd3590b5881311b019f455bb13444e53d546ba123f459",
   "excludedComponents": [
     "一",
     "丨",
@@ -719,6 +719,18 @@
     {
       "components": [
         20,
+        36
+      ],
+      "answers": [
+        {
+          "char": "龚",
+          "level": 2
+        }
+      ]
+    },
+    {
+      "components": [
+        20,
         47
       ],
       "answers": [
@@ -832,18 +844,6 @@
       "answers": [
         {
           "char": "眬",
-          "level": 2
-        }
-      ]
-    },
-    {
-      "components": [
-        20,
-        244
-      ],
-      "answers": [
-        {
-          "char": "黻",
           "level": 2
         }
       ]
@@ -3371,6 +3371,18 @@
     {
       "components": [
         32,
+        177
+      ],
+      "answers": [
+        {
+          "char": "脐",
+          "level": 1
+        }
+      ]
+    },
+    {
+      "components": [
+        32,
         261
       ],
       "answers": [
@@ -3743,11 +3755,11 @@
     {
       "components": [
         34,
-        115
+        121
       ],
       "answers": [
         {
-          "char": "龈",
+          "char": "赈",
           "level": 2
         }
       ]
@@ -5363,18 +5375,6 @@
     {
       "components": [
         36,
-        225
-      ],
-      "answers": [
-        {
-          "char": "黻",
-          "level": 2
-        }
-      ]
-    },
-    {
-      "components": [
-        36,
         226
       ],
       "answers": [
@@ -5536,18 +5536,6 @@
       "answers": [
         {
           "char": "綦",
-          "level": 2
-        }
-      ]
-    },
-    {
-      "components": [
-        36,
-        319
-      ],
-      "answers": [
-        {
-          "char": "黼",
           "level": 2
         }
       ]
@@ -6988,18 +6976,6 @@
       "answers": [
         {
           "char": "鲍",
-          "level": 1
-        }
-      ]
-    },
-    {
-      "components": [
-        43,
-        121
-      ],
-      "answers": [
-        {
-          "char": "鲫",
           "level": 1
         }
       ]
@@ -8759,18 +8735,6 @@
     {
       "components": [
         48,
-        121
-      ],
-      "answers": [
-        {
-          "char": "痕",
-          "level": 1
-        }
-      ]
-    },
-    {
-      "components": [
-        48,
         131
       ],
       "answers": [
@@ -9455,24 +9419,24 @@
     {
       "components": [
         49,
-        115
-      ],
-      "answers": [
-        {
-          "char": "粮",
-          "level": 1
-        }
-      ]
-    },
-    {
-      "components": [
-        49,
         117
       ],
       "answers": [
         {
           "char": "粜",
           "level": 2
+        }
+      ]
+    },
+    {
+      "components": [
+        49,
+        121
+      ],
+      "answers": [
+        {
+          "char": "丧",
+          "level": 1
         }
       ]
     },
@@ -11243,30 +11207,6 @@
     {
       "components": [
         57,
-        115
-      ],
-      "answers": [
-        {
-          "char": "龈",
-          "level": 2
-        }
-      ]
-    },
-    {
-      "components": [
-        57,
-        121
-      ],
-      "answers": [
-        {
-          "char": "龈",
-          "level": 2
-        }
-      ]
-    },
-    {
-      "components": [
-        57,
         125
       ],
       "answers": [
@@ -12731,18 +12671,6 @@
     {
       "components": [
         61,
-        121
-      ],
-      "answers": [
-        {
-          "char": "艰",
-          "level": 1
-        }
-      ]
-    },
-    {
-      "components": [
-        61,
         123
       ],
       "answers": [
@@ -12797,18 +12725,6 @@
         {
           "char": "叠",
           "level": 1
-        }
-      ]
-    },
-    {
-      "components": [
-        61,
-        244
-      ],
-      "answers": [
-        {
-          "char": "黻",
-          "level": 2
         }
       ]
     },
@@ -14032,6 +13948,18 @@
       "answers": [
         {
           "char": "塑",
+          "level": 1
+        }
+      ]
+    },
+    {
+      "components": [
+        73,
+        121
+      ],
+      "answers": [
+        {
+          "char": "丧",
           "level": 1
         }
       ]
@@ -17315,18 +17243,6 @@
     {
       "components": [
         93,
-        225
-      ],
-      "answers": [
-        {
-          "char": "黻",
-          "level": 2
-        }
-      ]
-    },
-    {
-      "components": [
-        93,
         237
       ],
       "answers": [
@@ -17356,18 +17272,6 @@
       "answers": [
         {
           "char": "蛳",
-          "level": 2
-        }
-      ]
-    },
-    {
-      "components": [
-        93,
-        319
-      ],
-      "answers": [
-        {
-          "char": "黼",
           "level": 2
         }
       ]
@@ -17687,36 +17591,12 @@
     {
       "components": [
         98,
-        115
-      ],
-      "answers": [
-        {
-          "char": "很",
-          "level": 1
-        }
-      ]
-    },
-    {
-      "components": [
-        98,
         119
       ],
       "answers": [
         {
           "char": "屦",
           "level": 2
-        }
-      ]
-    },
-    {
-      "components": [
-        98,
-        121
-      ],
-      "answers": [
-        {
-          "char": "很",
-          "level": 1
         }
       ]
     },
@@ -18371,6 +18251,18 @@
     {
       "components": [
         101,
+        133
+      ],
+      "answers": [
+        {
+          "char": "麸",
+          "level": 2
+        }
+      ]
+    },
+    {
+      "components": [
+        101,
         144
       ],
       "answers": [
@@ -18575,30 +18467,6 @@
     {
       "components": [
         103,
-        115
-      ],
-      "answers": [
-        {
-          "char": "卿",
-          "level": 1
-        }
-      ]
-    },
-    {
-      "components": [
-        103,
-        121
-      ],
-      "answers": [
-        {
-          "char": "卿",
-          "level": 1
-        }
-      ]
-    },
-    {
-      "components": [
-        103,
         123
       ],
       "answers": [
@@ -18737,30 +18605,6 @@
         {
           "char": "婉",
           "level": 1
-        }
-      ]
-    },
-    {
-      "components": [
-        104,
-        133
-      ],
-      "answers": [
-        {
-          "char": "麸",
-          "level": 2
-        }
-      ]
-    },
-    {
-      "components": [
-        104,
-        134
-      ],
-      "answers": [
-        {
-          "char": "麸",
-          "level": 2
         }
       ]
     },
@@ -18965,6 +18809,18 @@
         {
           "char": "痍",
           "level": 2
+        }
+      ]
+    },
+    {
+      "components": [
+        107,
+        115
+      ],
+      "answers": [
+        {
+          "char": "瘾",
+          "level": 1
         }
       ]
     },
@@ -21011,24 +20867,36 @@
     {
       "components": [
         115,
-        156
+        131
       ],
       "answers": [
         {
-          "char": "趋",
-          "level": 1
+          "char": "珰",
+          "level": 2
         }
       ]
     },
     {
       "components": [
         115,
-        157
+        153
       ],
       "answers": [
         {
-          "char": "暨",
+          "char": "荨",
           "level": 2
+        }
+      ]
+    },
+    {
+      "components": [
+        115,
+        156
+      ],
+      "answers": [
+        {
+          "char": "趋",
+          "level": 1
         }
       ]
     },
@@ -21059,11 +20927,23 @@
     {
       "components": [
         115,
-        230
+        194
       ],
       "answers": [
         {
-          "char": "眼",
+          "char": "㤘",
+          "level": 2
+        }
+      ]
+    },
+    {
+      "components": [
+        115,
+        252
+      ],
+      "answers": [
+        {
+          "char": "稳",
           "level": 1
         }
       ]
@@ -21071,12 +20951,12 @@
     {
       "components": [
         115,
-        236
+        261
       ],
       "answers": [
         {
-          "char": "簋",
-          "level": 2
+          "char": "瘾",
+          "level": 1
         }
       ]
     },
@@ -21095,48 +20975,12 @@
     {
       "components": [
         115,
-        278
+        307
       ],
       "answers": [
         {
-          "char": "酿",
-          "level": 1
-        }
-      ]
-    },
-    {
-      "components": [
-        115,
-        289
-      ],
-      "answers": [
-        {
-          "char": "螂",
+          "char": "裆",
           "level": 2
-        }
-      ]
-    },
-    {
-      "components": [
-        115,
-        309
-      ],
-      "answers": [
-        {
-          "char": "粮",
-          "level": 1
-        }
-      ]
-    },
-    {
-      "components": [
-        115,
-        322
-      ],
-      "answers": [
-        {
-          "char": "酿",
-          "level": 1
         }
       ]
     },
@@ -21179,12 +21023,12 @@
     {
       "components": [
         115,
-        412
+        413
       ],
       "answers": [
         {
-          "char": "阆",
-          "level": 2
+          "char": "铛",
+          "level": 1
         }
       ]
     },
@@ -21196,18 +21040,6 @@
       "answers": [
         {
           "char": "诌",
-          "level": 2
-        }
-      ]
-    },
-    {
-      "components": [
-        115,
-        420
-      ],
-      "answers": [
-        {
-          "char": "簋",
           "level": 2
         }
       ]
@@ -22127,11 +21959,35 @@
     {
       "components": [
         121,
-        131
+        125
       ],
       "answers": [
         {
-          "char": "琅",
+          "char": "隈",
+          "level": 2
+        }
+      ]
+    },
+    {
+      "components": [
+        121,
+        145
+      ],
+      "answers": [
+        {
+          "char": "猥",
+          "level": 2
+        }
+      ]
+    },
+    {
+      "components": [
+        121,
+        157
+      ],
+      "answers": [
+        {
+          "char": "晨",
           "level": 1
         }
       ]
@@ -22151,12 +22007,24 @@
     {
       "components": [
         121,
-        192
+        186
       ],
       "answers": [
         {
-          "char": "恳",
-          "level": 1
+          "char": "煨",
+          "level": 2
+        }
+      ]
+    },
+    {
+      "components": [
+        121,
+        211
+      ],
+      "answers": [
+        {
+          "char": "溽",
+          "level": 2
         }
       ]
     },
@@ -22175,60 +22043,12 @@
     {
       "components": [
         121,
-        230
+        289
       ],
       "answers": [
         {
-          "char": "眼",
-          "level": 1
-        }
-      ]
-    },
-    {
-      "components": [
-        121,
-        236
-      ],
-      "answers": [
-        {
-          "char": "簋",
+          "char": "蜃",
           "level": 2
-        }
-      ]
-    },
-    {
-      "components": [
-        121,
-        252
-      ],
-      "answers": [
-        {
-          "char": "稂",
-          "level": 2
-        }
-      ]
-    },
-    {
-      "components": [
-        121,
-        261
-      ],
-      "answers": [
-        {
-          "char": "痕",
-          "level": 1
-        }
-      ]
-    },
-    {
-      "components": [
-        121,
-        278
-      ],
-      "answers": [
-        {
-          "char": "酿",
-          "level": 1
         }
       ]
     },
@@ -22247,23 +22067,11 @@
     {
       "components": [
         121,
-        309
+        307
       ],
       "answers": [
         {
-          "char": "粮",
-          "level": 1
-        }
-      ]
-    },
-    {
-      "components": [
-        121,
-        322
-      ],
-      "answers": [
-        {
-          "char": "酿",
+          "char": "褥",
           "level": 1
         }
       ]
@@ -22301,30 +22109,6 @@
         {
           "char": "辗",
           "level": 1
-        }
-      ]
-    },
-    {
-      "components": [
-        121,
-        412
-      ],
-      "answers": [
-        {
-          "char": "阆",
-          "level": 2
-        }
-      ]
-    },
-    {
-      "components": [
-        121,
-        420
-      ],
-      "answers": [
-        {
-          "char": "簋",
-          "level": 2
         }
       ]
     },
@@ -33658,18 +33442,6 @@
     },
     {
       "components": [
-        225,
-        244
-      ],
-      "answers": [
-        {
-          "char": "黻",
-          "level": 2
-        }
-      ]
-    },
-    {
-      "components": [
         226,
         237
       ],
@@ -33988,6 +33760,18 @@
       "answers": [
         {
           "char": "疃",
+          "level": 2
+        }
+      ]
+    },
+    {
+      "components": [
+        232,
+        286
+      ],
+      "answers": [
+        {
+          "char": "掳",
           "level": 2
         }
       ]
@@ -34624,18 +34408,6 @@
       "answers": [
         {
           "char": "酽",
-          "level": 2
-        }
-      ]
-    },
-    {
-      "components": [
-        244,
-        319
-      ],
-      "answers": [
-        {
-          "char": "黼",
           "level": 2
         }
       ]
@@ -37951,22 +37723,6 @@
     {
       "components": [
         20,
-        36
-      ],
-      "answers": [
-        {
-          "char": "黻",
-          "level": 2
-        },
-        {
-          "char": "龚",
-          "level": 2
-        }
-      ]
-    },
-    {
-      "components": [
-        20,
         43
       ],
       "answers": [
@@ -39327,22 +39083,6 @@
     {
       "components": [
         34,
-        121
-      ],
-      "answers": [
-        {
-          "char": "龈",
-          "level": 2
-        },
-        {
-          "char": "赈",
-          "level": 2
-        }
-      ]
-    },
-    {
-      "components": [
-        34,
         126
       ],
       "answers": [
@@ -39855,22 +39595,6 @@
     {
       "components": [
         36,
-        36
-      ],
-      "answers": [
-        {
-          "char": "黻",
-          "level": 2
-        },
-        {
-          "char": "黼",
-          "level": 2
-        }
-      ]
-    },
-    {
-      "components": [
-        36,
         37
       ],
       "answers": [
@@ -39951,6 +39675,22 @@
     {
       "components": [
         36,
+        93
+      ],
+      "answers": [
+        {
+          "char": "帘",
+          "level": 1
+        },
+        {
+          "char": "帜",
+          "level": 1
+        }
+      ]
+    },
+    {
+      "components": [
+        36,
         151
       ],
       "answers": [
@@ -40024,22 +39764,6 @@
         },
         {
           "char": "祺",
-          "level": 2
-        }
-      ]
-    },
-    {
-      "components": [
-        36,
-        244
-      ],
-      "answers": [
-        {
-          "char": "黻",
-          "level": 2
-        },
-        {
-          "char": "黼",
           "level": 2
         }
       ]
@@ -41599,6 +41323,22 @@
     {
       "components": [
         48,
+        115
+      ],
+      "answers": [
+        {
+          "char": "寝",
+          "level": 1
+        },
+        {
+          "char": "瘾",
+          "level": 1
+        }
+      ]
+    },
+    {
+      "components": [
+        48,
         122
       ],
       "answers": [
@@ -41801,22 +41541,6 @@
         {
           "char": "徕",
           "level": 2
-        }
-      ]
-    },
-    {
-      "components": [
-        49,
-        121
-      ],
-      "answers": [
-        {
-          "char": "粮",
-          "level": 1
-        },
-        {
-          "char": "丧",
-          "level": 1
         }
       ]
     },
@@ -43112,6 +42836,22 @@
         },
         {
           "char": "峄",
+          "level": 2
+        }
+      ]
+    },
+    {
+      "components": [
+        61,
+        93
+      ],
+      "answers": [
+        {
+          "char": "幔",
+          "level": 2
+        },
+        {
+          "char": "帑",
           "level": 2
         }
       ]
@@ -45935,22 +45675,6 @@
     {
       "components": [
         107,
-        121
-      ],
-      "answers": [
-        {
-          "char": "痕",
-          "level": 1
-        },
-        {
-          "char": "廊",
-          "level": 1
-        }
-      ]
-    },
-    {
-      "components": [
-        107,
         131
       ],
       "answers": [
@@ -46655,22 +46379,6 @@
     {
       "components": [
         115,
-        131
-      ],
-      "answers": [
-        {
-          "char": "珰",
-          "level": 2
-        },
-        {
-          "char": "琅",
-          "level": 1
-        }
-      ]
-    },
-    {
-      "components": [
-        115,
         135
       ],
       "answers": [
@@ -46687,64 +46395,64 @@
     {
       "components": [
         115,
-        145
+        140
       ],
       "answers": [
         {
-          "char": "狠",
+          "char": "档",
           "level": 1
         },
         {
-          "char": "狼",
-          "level": 1
+          "char": "棂",
+          "level": 2
         }
       ]
     },
     {
       "components": [
         115,
-        177
+        211
       ],
       "answers": [
         {
-          "char": "朗",
+          "char": "浸",
           "level": 1
         },
         {
-          "char": "腿",
-          "level": 1
+          "char": "浔",
+          "level": 2
         }
       ]
     },
     {
       "components": [
         115,
-        252
+        232
       ],
       "answers": [
         {
-          "char": "稂",
+          "char": "鳕",
           "level": 2
         },
         {
-          "char": "稳",
-          "level": 1
+          "char": "鲟",
+          "level": 2
         }
       ]
     },
     {
       "components": [
-        115,
-        261
+        119,
+        121
       ],
       "answers": [
         {
-          "char": "痕",
-          "level": 1
+          "char": "薅",
+          "level": 2
         },
         {
-          "char": "瘾",
-          "level": 1
+          "char": "娠",
+          "level": 2
         }
       ]
     },
@@ -46927,80 +46635,16 @@
     {
       "components": [
         121,
-        157
+        153
       ],
       "answers": [
         {
-          "char": "晨",
-          "level": 1
-        },
-        {
-          "char": "暨",
-          "level": 2
-        }
-      ]
-    },
-    {
-      "components": [
-        121,
-        177
-      ],
-      "answers": [
-        {
-          "char": "朗",
-          "level": 1
-        },
-        {
-          "char": "腿",
-          "level": 1
-        }
-      ]
-    },
-    {
-      "components": [
-        121,
-        194
-      ],
-      "answers": [
-        {
-          "char": "恨",
-          "level": 1
-        },
-        {
-          "char": "慨",
-          "level": 1
-        }
-      ]
-    },
-    {
-      "components": [
-        121,
-        289
-      ],
-      "answers": [
-        {
-          "char": "螂",
+          "char": "薅",
           "level": 2
         },
         {
-          "char": "蜃",
+          "char": "蓐",
           "level": 2
-        }
-      ]
-    },
-    {
-      "components": [
-        121,
-        413
-      ],
-      "answers": [
-        {
-          "char": "锒",
-          "level": 2
-        },
-        {
-          "char": "银",
-          "level": 1
         }
       ]
     },
@@ -48607,6 +48251,22 @@
     {
       "components": [
         151,
+        153
+      ],
+      "answers": [
+        {
+          "char": "藏",
+          "level": 1
+        },
+        {
+          "char": "蔑",
+          "level": 1
+        }
+      ]
+    },
+    {
+      "components": [
+        151,
         155
       ],
       "answers": [
@@ -48680,22 +48340,6 @@
         },
         {
           "char": "篾",
-          "level": 2
-        }
-      ]
-    },
-    {
-      "components": [
-        151,
-        275
-      ],
-      "answers": [
-        {
-          "char": "戢",
-          "level": 2
-        },
-        {
-          "char": "蕺",
           "level": 2
         }
       ]
@@ -50600,6 +50244,22 @@
         },
         {
           "char": "眺",
+          "level": 2
+        }
+      ]
+    },
+    {
+      "components": [
+        188,
+        244
+      ],
+      "answers": [
+        {
+          "char": "黻",
+          "level": 2
+        },
+        {
+          "char": "黼",
           "level": 2
         }
       ]
@@ -55023,26 +54683,6 @@
     {
       "components": [
         48,
-        115
-      ],
-      "answers": [
-        {
-          "char": "痕",
-          "level": 1
-        },
-        {
-          "char": "寝",
-          "level": 1
-        },
-        {
-          "char": "瘾",
-          "level": 1
-        }
-      ]
-    },
-    {
-      "components": [
-        48,
         310
       ],
       "answers": [
@@ -55923,26 +55563,6 @@
     {
       "components": [
         61,
-        93
-      ],
-      "answers": [
-        {
-          "char": "黻",
-          "level": 2
-        },
-        {
-          "char": "幔",
-          "level": 2
-        },
-        {
-          "char": "帑",
-          "level": 2
-        }
-      ]
-    },
-    {
-      "components": [
-        61,
         131
       ],
       "answers": [
@@ -56463,19 +56083,19 @@
     {
       "components": [
         73,
-        121
+        115
       ],
       "answers": [
         {
-          "char": "垦",
+          "char": "垱",
+          "level": 2
+        },
+        {
+          "char": "趋",
           "level": 1
         },
         {
-          "char": "丧",
-          "level": 1
-        },
-        {
-          "char": "垠",
+          "char": "埽",
           "level": 2
         }
       ]
@@ -57903,26 +57523,6 @@
     {
       "components": [
         107,
-        115
-      ],
-      "answers": [
-        {
-          "char": "痕",
-          "level": 1
-        },
-        {
-          "char": "廊",
-          "level": 1
-        },
-        {
-          "char": "瘾",
-          "level": 1
-        }
-      ]
-    },
-    {
-      "components": [
-        107,
         194
       ],
       "answers": [
@@ -58603,160 +58203,20 @@
     {
       "components": [
         115,
-        153
+        125
       ],
       "answers": [
         {
-          "char": "莨",
-          "level": 2
-        },
-        {
-          "char": "蒗",
-          "level": 2
-        },
-        {
-          "char": "荨",
-          "level": 2
-        }
-      ]
-    },
-    {
-      "components": [
-        115,
-        155
-      ],
-      "answers": [
-        {
-          "char": "跟",
+          "char": "隐",
           "level": 1
         },
         {
-          "char": "踉",
-          "level": 2
-        },
-        {
-          "char": "龈",
-          "level": 2
-        }
-      ]
-    },
-    {
-      "components": [
-        115,
-        173
-      ],
-      "answers": [
-        {
-          "char": "爵",
+          "char": "瘾",
           "level": 1
         },
         {
-          "char": "嚼",
-          "level": 1
-        },
-        {
-          "char": "爝",
+          "char": "邹",
           "level": 2
-        }
-      ]
-    },
-    {
-      "components": [
-        115,
-        194
-      ],
-      "answers": [
-        {
-          "char": "恨",
-          "level": 1
-        },
-        {
-          "char": "慨",
-          "level": 1
-        },
-        {
-          "char": "㤘",
-          "level": 2
-        }
-      ]
-    },
-    {
-      "components": [
-        115,
-        232
-      ],
-      "answers": [
-        {
-          "char": "鲫",
-          "level": 1
-        },
-        {
-          "char": "鳕",
-          "level": 2
-        },
-        {
-          "char": "鲟",
-          "level": 2
-        }
-      ]
-    },
-    {
-      "components": [
-        115,
-        237
-      ],
-      "answers": [
-        {
-          "char": "爵",
-          "level": 1
-        },
-        {
-          "char": "嚼",
-          "level": 1
-        },
-        {
-          "char": "爝",
-          "level": 2
-        }
-      ]
-    },
-    {
-      "components": [
-        115,
-        307
-      ],
-      "answers": [
-        {
-          "char": "裆",
-          "level": 2
-        },
-        {
-          "char": "裉",
-          "level": 2
-        },
-        {
-          "char": "褪",
-          "level": 1
-        }
-      ]
-    },
-    {
-      "components": [
-        115,
-        413
-      ],
-      "answers": [
-        {
-          "char": "铛",
-          "level": 1
-        },
-        {
-          "char": "锒",
-          "level": 2
-        },
-        {
-          "char": "银",
-          "level": 1
         }
       ]
     },
@@ -58816,26 +58276,6 @@
         },
         {
           "char": "媸",
-          "level": 2
-        }
-      ]
-    },
-    {
-      "components": [
-        119,
-        121
-      ],
-      "answers": [
-        {
-          "char": "薅",
-          "level": 2
-        },
-        {
-          "char": "娘",
-          "level": 1
-        },
-        {
-          "char": "娠",
           "level": 2
         }
       ]
@@ -58996,126 +58436,6 @@
         },
         {
           "char": "辗",
-          "level": 1
-        }
-      ]
-    },
-    {
-      "components": [
-        121,
-        145
-      ],
-      "answers": [
-        {
-          "char": "狠",
-          "level": 1
-        },
-        {
-          "char": "狼",
-          "level": 1
-        },
-        {
-          "char": "猥",
-          "level": 2
-        }
-      ]
-    },
-    {
-      "components": [
-        121,
-        155
-      ],
-      "answers": [
-        {
-          "char": "跟",
-          "level": 1
-        },
-        {
-          "char": "踉",
-          "level": 2
-        },
-        {
-          "char": "龈",
-          "level": 2
-        }
-      ]
-    },
-    {
-      "components": [
-        121,
-        173
-      ],
-      "answers": [
-        {
-          "char": "爵",
-          "level": 1
-        },
-        {
-          "char": "嚼",
-          "level": 1
-        },
-        {
-          "char": "爝",
-          "level": 2
-        }
-      ]
-    },
-    {
-      "components": [
-        121,
-        186
-      ],
-      "answers": [
-        {
-          "char": "爝",
-          "level": 2
-        },
-        {
-          "char": "煺",
-          "level": 2
-        },
-        {
-          "char": "煨",
-          "level": 2
-        }
-      ]
-    },
-    {
-      "components": [
-        121,
-        237
-      ],
-      "answers": [
-        {
-          "char": "爵",
-          "level": 1
-        },
-        {
-          "char": "嚼",
-          "level": 1
-        },
-        {
-          "char": "爝",
-          "level": 2
-        }
-      ]
-    },
-    {
-      "components": [
-        121,
-        307
-      ],
-      "answers": [
-        {
-          "char": "裉",
-          "level": 2
-        },
-        {
-          "char": "褥",
-          "level": 1
-        },
-        {
-          "char": "褪",
           "level": 1
         }
       ]
@@ -60177,26 +59497,6 @@
         {
           "char": "谮",
           "level": 2
-        }
-      ]
-    },
-    {
-      "components": [
-        151,
-        153
-      ],
-      "answers": [
-        {
-          "char": "藏",
-          "level": 1
-        },
-        {
-          "char": "蕺",
-          "level": 2
-        },
-        {
-          "char": "蔑",
-          "level": 1
         }
       ]
     },

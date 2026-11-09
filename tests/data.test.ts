@@ -180,7 +180,7 @@ describe("static game data", () => {
           readFileSync(
             resolve(
               process.cwd(),
-              "data-source/wordlists/words_2to4.txt",
+              "docs/words_2to4.txt",
             ),
           ),
         )
@@ -207,9 +207,9 @@ describe("static game data", () => {
         )
         .digest("hex"),
     );
-    expect(composition.normal).toHaveLength(7558);
-    expect(composition.boss).toHaveLength(6388);
-    expect(composition.words["2"]).toHaveLength(36947);
+    expect(composition.normal).toHaveLength(6117);
+    expect(composition.boss).toHaveLength(6370);
+    expect(composition.words["2"]).toHaveLength(29125);
     expect(composition.words["3"]).toHaveLength(6858);
     expect(composition.words["4"]).toHaveLength(8341);
     expect(
@@ -282,7 +282,7 @@ describe("static game data", () => {
           readFileSync(
             resolve(
               process.cwd(),
-              "data-source/wordlists/words_2to4.txt",
+              "docs/words_2to4.txt",
             ),
           ),
         )
@@ -309,9 +309,9 @@ describe("static game data", () => {
         )
         .digest("hex"),
     );
-    expect(assonance.normal).toHaveLength(3111);
-    expect(assonance.boss).toHaveLength(722);
-    expect(assonance.words["2"]).toHaveLength(36717);
+    expect(assonance.normal).toHaveLength(2425);
+    expect(assonance.boss).toHaveLength(715);
+    expect(assonance.words["2"]).toHaveLength(28933);
     expect(assonance.words["3"]).toHaveLength(6586);
     expect(assonance.words["4"]).toHaveLength(7603);
     for (const words of Object.values(assonance.words)) {
@@ -487,7 +487,7 @@ describe("static game data", () => {
         .digest("hex"),
     );
     expect(gestalt.excludedComponents).toContain("𰀁");
-    expect(gestalt.pairs).toHaveLength(4531);
+    expect(gestalt.pairs).toHaveLength(4487);
     expect(
       gestalt.pairs.find(
         (pair) =>
@@ -534,7 +534,7 @@ describe("static game data", () => {
     const data = readJson<SymTable>("public/data/char_sym.json");
 
     expect(data.counts.chars).toBe(27692);
-    expect(data.counts.symbols).toBe(428);
+    expect(data.counts.symbols).toBe(429);
     expect(data.chars["氢"]).toEqual([[168, 429, 75]]);
     expect(
       data.chars["氢"][0].map((symbolId) => data.symbols[String(symbolId)]),
@@ -713,7 +713,7 @@ describe("static game data", () => {
 
     expect(usage.format).toBe("zigsaw-component-usage/1");
     expect(usage.characterCount).toBe(8105);
-    expect(usage.decompositionCount).toBe(9269);
+    expect(usage.decompositionCount).toBe(9196);
     expect(usage.componentCount).toBe(usage.symbols.length);
     expect(new Set(ids).size).toBe(ids.length);
     expect(usage.totalUsageCount).toBe(
@@ -732,7 +732,7 @@ describe("static game data", () => {
     expect(usage.symbols[0]).toMatchObject({
       symbolId: 90,
       name: "口",
-      count: 1864,
+      count: 1859,
     });
     expect(
       usage.symbols.find((symbol) => symbol.symbolId === 425)
@@ -747,16 +747,16 @@ describe("static game data", () => {
 
     expect(atlas.format).toBe("zigsaw-component-atlas/3");
     expect(atlas.sourceHash).toHaveLength(16);
-    expect(atlas.componentCount).toBe(363);
+    expect(atlas.componentCount).toBe(364);
     expect(atlas.exclusiveCount).toBe(35);
     expect(atlas.xrCount).toBe(15);
     expect(atlas.characterCount).toBe(8105);
     expect(atlas.byRarity).toEqual({
-      N: 75,
-      R: 139,
+      N: 73,
+      R: 141,
       SR: 109,
       SSR: 35,
-      UR: 40,
+      UR: 41,
       XR: 15,
     });
     expect(
@@ -768,6 +768,17 @@ describe("static game data", () => {
       exCharCount: 22,
       isExclusive: true,
       asset: "component_svg/265.svg",
+    });
+    expect(
+      atlas.components.find(
+        (component) => component.symbolId === 435,
+      ),
+    ).toMatchObject({
+      name: "戢",
+      rarity: "UR",
+      count: 1,
+      charCount: 8,
+      selfChar: "戢",
     });
     const expectedRarity = (count: number) =>
       count >= 100
@@ -810,7 +821,7 @@ describe("static game data", () => {
         component.chars,
       ]),
     );
-    expect(charactersByComponent.size).toBe(413);
+    expect(charactersByComponent.size).toBe(414);
     expect(
       atlas.components.every((component) => {
           const chars =
@@ -1047,7 +1058,7 @@ describe("static game data", () => {
       exEnabled: true,
       includeSupplementaryChars: true,
       difficulty: "standard" as const,
-      trialDifficulty: 1,
+      trialAdvancement: 0,
     };
     const boundary = game.challengeBounds(settings, (24 - 1) * 5 + 1);
     const ex = game.challengeBounds(settings, (25 - 1) * 5 + 1);

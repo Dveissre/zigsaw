@@ -31,12 +31,15 @@ import type {
 } from "./composition";
 import type { AssonanceData } from "./assonance";
 import type { WordAnswerData } from "./word-answers";
+import {
+  trialAdvancementConfig,
+  trialAdvancementTimeMultiplier,
+  type TrialAdvancementConfig,
+} from "./trial-advancement";
 
 export const TRIAL_STAGE_COUNT = 7;
-export const TRIAL_QUESTIONS_PER_STAGE = 8;
 export const TRIAL_NORMAL_SECONDS = 30;
 export const TRIAL_BOSS_SECONDS = 90;
-export const TRIAL_THREE_STAR_TIME_MULTIPLIER = 1.3;
 export const TRIAL_BOSS_CHAR_MIN_PARTS = 2;
 export const TRIAL_BOSS_CHAR_MAX_PARTS = 6;
 export const TRIAL_BOSS_MIN_PARTS = 6;
@@ -75,14 +78,17 @@ export const TRIAL_NORMAL_PART_WEIGHTS: Record<number, number> = {
 export const TRIAL_OUTLAND_PART_WEIGHTS =
   TRIAL_NORMAL_PART_WEIGHTS;
 
-export const TRIAL_INITIAL_SKIPS = 3;
-
 export function trialSkipBudgetWithoutSpending(
   stage: number,
+  advancement = 0,
 ): number {
+  const config = trialAdvancementConfig(advancement);
   return (
-    TRIAL_INITIAL_SKIPS +
-    Math.floor((Math.max(1, stage) - 1) / 3)
+    config.initialSkips +
+    Math.floor(
+      (Math.max(1, stage) - 1) /
+        config.skipGrantEveryStages,
+    )
   );
 }
 
@@ -340,6 +346,7 @@ export interface TrialResultState {
   correctCount: number;
   averageQuestionSeconds: number;
   crisEarned: number;
+  unlockedAdvancement?: number;
 }
 
 export interface TrialState {
@@ -347,6 +354,7 @@ export interface TrialState {
   stage: number;
   ruleId: string;
   forcedRuleId: string | null;
+  questionsPerStage: number;
   partLengthPlan: number[];
   questionInStage: number;
   skipsRemaining: number;
@@ -546,18 +554,57 @@ export function hallraumComponentDiversityWeight(
   return 0.05;
 }
 
-export function calculateTrialCrisReward(
-  _correctCount: number,
-  _clearedStages: number,
-): number {
-  // Balance is intentionally deferred until the first playable pass.
-  return 0;
+const TRIAL_CRIS_BASE_REWARDS = [100, 150, 180, 220, 280];
+const TRIAL_CRIS_PROGRESS_FACTORS = [
+  0,
+  0,
+  0.03,
+  0.08,
+  0.18,
+  0.32,
+  0.5,
+  1,
+];
+
+export interface TrialCrisRewardInput {
+  advancement: number;
+  clearedStages: number;
+  cleared: boolean;
+  perfect: boolean;
+}
+
+export function calculateTrialCrisReward({
+  advancement,
+  clearedStages,
+  cleared,
+  perfect,
+}: TrialCrisRewardInput): number {
+  const advancementIndex = Math.min(
+    TRIAL_CRIS_BASE_REWARDS.length - 1,
+    Math.max(0, Math.round(advancement)),
+  );
+  const base = TRIAL_CRIS_BASE_REWARDS[advancementIndex];
+  const progressFactor = cleared
+    ? 1
+    : TRIAL_CRIS_PROGRESS_FACTORS[
+        Math.min(
+          6,
+          Math.max(0, Math.floor(clearedStages)),
+        )
+      ];
+  const perfectMultiplier =
+    cleared && perfect ? 1.2 : 1;
+  return Math.max(
+    0,
+    Math.round(base * progressFactor * perfectMultiplier),
+  );
 }
 
 export class TrialSession {
   readonly state: TrialState;
   private readonly data: GameData;
   private readonly random: () => number;
+  private readonly advancement: TrialAdvancementConfig;
   private readonly includeSupplementaryChars: boolean;
   private readonly pausePenalty: boolean;
   private readonly crisLedger: CrisLedger | null;
@@ -686,6 +733,9 @@ export class TrialSession {
   ) {
     this.data = data;
     this.random = random;
+    this.advancement = trialAdvancementConfig(
+      settings.trialAdvancement,
+    );
     this.onChange = onChange;
     this.includeSupplementaryChars =
       settings.includeSupplementaryChars;
@@ -723,9 +773,11 @@ export class TrialSession {
       stage: 1,
       ruleId: this.stageRuleIds[0],
       forcedRuleId: null,
+      questionsPerStage:
+        this.advancement.normalQuestionsPerStage,
       partLengthPlan: [],
       questionInStage: 0,
-      skipsRemaining: TRIAL_INITIAL_SKIPS,
+      skipsRemaining: this.advancement.initialSkips,
       skipsUsed: 0,
       timeLimit: 0,
       remaining: 0,
@@ -796,6 +848,18 @@ export class TrialSession {
       return;
     }
     this.showNormalQuestion();
+  }
+
+  private grantSkipForCompletedStage(
+    completedStage: number,
+  ): void {
+    if (
+      completedStage %
+        this.advancement.skipGrantEveryStages ===
+      0
+    ) {
+      this.state.skipsRemaining += 1;
+    }
   }
 
   setDraft(value: string): void {
@@ -1032,7 +1096,7 @@ export class TrialSession {
     if (this.state.phase === "playing") {
       if (
         this.state.questionInStage >=
-        TRIAL_QUESTIONS_PER_STAGE
+        this.state.questionsPerStage
       ) {
         this.startBoss();
       } else {
@@ -1054,6 +1118,19 @@ export class TrialSession {
       this.activeRule().allowSkip === false
     ) {
       return;
+    }
+    const failed = this.state.history.at(-1);
+    const expectedSlot =
+      this.state.phase === "boss"
+        ? this.state.questionsPerStage + 1
+        : this.state.questionInStage;
+    if (
+      failed &&
+      !failed.ok &&
+      failed.stage === this.state.stage &&
+      failed.slot === expectedSlot
+    ) {
+      this.state.history.pop();
     }
     this.state.skipsRemaining -= 1;
     this.state.skipsUsed += 1;
@@ -1281,12 +1358,12 @@ export class TrialSession {
     walkLengths(0, answerCount, 0, []);
 
     const normalSufficient =
-      normalChars.size >= TRIAL_QUESTIONS_PER_STAGE &&
-      normalWays >= TRIAL_QUESTIONS_PER_STAGE;
+      normalChars.size >= this.state.questionsPerStage &&
+      normalWays >= this.state.questionsPerStage;
     const bossSufficient = lengthCombinations.length > 0;
     return {
       normal: {
-        required: TRIAL_QUESTIONS_PER_STAGE,
+        required: this.state.questionsPerStage,
         chars: normalChars.size,
         ways: normalWays,
         byLength: buckets,
@@ -2390,11 +2467,11 @@ export class TrialSession {
       ),
     );
     const normalSufficient =
-      pairs.length >= TRIAL_QUESTIONS_PER_STAGE;
+      pairs.length >= this.state.questionsPerStage;
     const bossSufficient = pairs.length >= 2;
     return {
       normal: {
-        required: TRIAL_QUESTIONS_PER_STAGE,
+        required: this.state.questionsPerStage,
         chars: normalCharacters.size,
         ways: pairs.length,
         byLength: [
@@ -2425,11 +2502,11 @@ export class TrialSession {
     const normalWords = this.composition?.normal ?? [];
     const bossWords = this.composition?.boss ?? [];
     const normalSufficient =
-      normalWords.length >= TRIAL_QUESTIONS_PER_STAGE;
+      normalWords.length >= this.state.questionsPerStage;
     const bossSufficient = bossWords.length > 0;
     return {
       normal: {
-        required: TRIAL_QUESTIONS_PER_STAGE,
+        required: this.state.questionsPerStage,
         chars: new Set(
           normalWords.flatMap((entry) => [
             ...entry.word,
@@ -2472,11 +2549,11 @@ export class TrialSession {
     const normalWords = this.assonance?.normal ?? [];
     const bossWords = this.assonance?.boss ?? [];
     const normalSufficient =
-      normalWords.length >= TRIAL_QUESTIONS_PER_STAGE;
+      normalWords.length >= this.state.questionsPerStage;
     const bossSufficient = bossWords.length > 0;
     return {
       normal: {
-        required: TRIAL_QUESTIONS_PER_STAGE,
+        required: this.state.questionsPerStage,
         chars: new Set(
           normalWords.flatMap((entry) => [
             ...entry.word,
@@ -2611,11 +2688,11 @@ export class TrialSession {
     };
     walk(0, answerCount, 0, []);
     const normalSufficient =
-      normalChars.size >= TRIAL_QUESTIONS_PER_STAGE &&
-      normalWays >= TRIAL_QUESTIONS_PER_STAGE;
+      normalChars.size >= this.state.questionsPerStage &&
+      normalWays >= this.state.questionsPerStage;
     return {
       normal: {
-        required: TRIAL_QUESTIONS_PER_STAGE,
+        required: this.state.questionsPerStage,
         chars: normalChars.size,
         ways: normalWays,
         byLength: buckets,
@@ -2637,14 +2714,17 @@ export class TrialSession {
     multiplier: number,
     rule = this.activeRule(),
   ): number {
-    const starMultiplier =
-      rule.stars === 3
-        ? TRIAL_THREE_STAR_TIME_MULTIPLIER
-        : 1;
+    const advancementMultiplier =
+      trialAdvancementTimeMultiplier(
+        rule.stars,
+        this.advancement,
+      );
     return Math.max(
       1,
       Math.round(
-        baseSeconds * multiplier * starMultiplier,
+        baseSeconds *
+          multiplier *
+          advancementMultiplier,
       ),
     );
   }
@@ -3328,7 +3408,7 @@ export class TrialSession {
       return [];
     }
     const transitionCount =
-      TRIAL_QUESTIONS_PER_STAGE - 1;
+      this.state.questionsPerStage - 1;
     const endpoints = progression.end.filter(
       (end) =>
         end - progression.start <= transitionCount,
@@ -3378,7 +3458,7 @@ export class TrialSession {
       increases: number,
       stays: number,
     ): void => {
-      if (lengths.length === TRIAL_QUESTIONS_PER_STAGE) {
+      if (lengths.length === this.state.questionsPerStage) {
         const occurrences = new Map<number, number>();
         for (const length of lengths) {
           occurrences.set(
@@ -4135,7 +4215,10 @@ export class TrialSession {
     );
     this.advanceId = setTimeout(() => {
       this.advanceId = null;
-      if (this.state.questionInStage >= TRIAL_QUESTIONS_PER_STAGE) {
+      if (
+        this.state.questionInStage >=
+        this.state.questionsPerStage
+      ) {
         this.startBoss();
       } else {
         this.state.questionInStage += 1;
@@ -4379,7 +4462,7 @@ export class TrialSession {
     this.scheduleObscuration("boss", cards);
     this.state.phase = "boss";
     this.state.questionInStage =
-      TRIAL_QUESTIONS_PER_STAGE + 1;
+      this.state.questionsPerStage + 1;
     this.state.current = null;
     this.state.boss = {
       cards,
@@ -4460,7 +4543,7 @@ export class TrialSession {
     );
     this.state.phase = "boss";
     this.state.questionInStage =
-      TRIAL_QUESTIONS_PER_STAGE + 1;
+      this.state.questionsPerStage + 1;
     this.state.current = null;
     this.state.boss = {
       cards,
@@ -4542,7 +4625,7 @@ export class TrialSession {
     );
     this.state.phase = "boss";
     this.state.questionInStage =
-      TRIAL_QUESTIONS_PER_STAGE + 1;
+      this.state.questionsPerStage + 1;
     this.state.current = null;
     this.state.boss = {
       cards,
@@ -4621,7 +4704,7 @@ export class TrialSession {
     );
     this.state.phase = "boss";
     this.state.questionInStage =
-      TRIAL_QUESTIONS_PER_STAGE + 1;
+      this.state.questionsPerStage + 1;
     this.state.current = null;
     this.state.boss = {
       cards,
@@ -4695,7 +4778,7 @@ export class TrialSession {
     );
     this.state.phase = "boss";
     this.state.questionInStage =
-      TRIAL_QUESTIONS_PER_STAGE + 1;
+      this.state.questionsPerStage + 1;
     this.state.current = null;
     this.state.boss = {
       cards,
@@ -4787,7 +4870,7 @@ export class TrialSession {
     );
     this.state.phase = "boss";
     this.state.questionInStage =
-      TRIAL_QUESTIONS_PER_STAGE + 1;
+      this.state.questionsPerStage + 1;
     this.state.current = null;
     this.state.boss = {
       cards,
@@ -4828,12 +4911,9 @@ export class TrialSession {
   private recordEncounter(
     char: string,
     way: number[],
-    displayChar?: string,
+    _displayChar?: string,
   ): void {
     this.onEncounter(char, way);
-    if (displayChar && displayChar !== char) {
-      this.onEncounter(displayChar, way);
-    }
   }
 
   private pickBossPrefabricationGroups(
@@ -6999,9 +7079,7 @@ export class TrialSession {
     ).id;
     this.state.phase = "stage-intro";
     this.state.questionInStage = 0;
-    if (completedStage % 3 === 0) {
-      this.state.skipsRemaining += 1;
-    }
+    this.grantSkipForCompletedStage(completedStage);
     this.state.timeLimit = 0;
     this.state.remaining = 0;
     this.state.paused = false;
@@ -7147,7 +7225,7 @@ export class TrialSession {
     this.state.history.push({
       stage: this.state.stage,
       ruleId: this.state.ruleId,
-      slot: TRIAL_QUESTIONS_PER_STAGE + 1,
+      slot: this.state.questionsPerStage + 1,
       kind: "boss",
       answerWay: this.state.boss.expectedWays.flatMap(
         (way) => [...way],
@@ -7414,21 +7492,26 @@ export class TrialSession {
     const clearedStages = successful
       ? TRIAL_STAGE_COUNT
       : Math.max(0, this.state.stage - 1);
+    const title =
+      titleOverride ??
+      (successful
+        ? this.state.skipsUsed > 0
+          ? "雾径得津"
+          : "知我梦中"
+        : "覆鹿遗蕉");
     const crisEarned = calculateTrialCrisReward(
-      correctCount,
-      clearedStages,
+      {
+        advancement: this.advancement.level,
+        clearedStages,
+        cleared: successful,
+        perfect: title === "知我梦中",
+      },
     );
     if (crisEarned > 0) {
       this.crisLedger?.add(crisEarned);
     }
     this.state.result = {
-      title:
-        titleOverride ??
-        (successful
-          ? this.state.skipsUsed > 0
-            ? "雾径得津"
-            : "知我梦中"
-          : "覆鹿遗蕉"),
+      title,
       cleared: successful,
       reachedStage: this.state.stage,
       correctCount,
@@ -7588,7 +7671,7 @@ export class TrialSession {
     questionIndex: number,
   ): number[] {
     return [
-      questionIndex === TRIAL_QUESTIONS_PER_STAGE - 1
+      questionIndex === this.state.questionsPerStage - 1
         ? 4
         : 3,
     ];
@@ -7843,7 +7926,7 @@ export class TrialSession {
       if (++expansions > 60000) {
         return false;
       }
-      if (depth >= TRIAL_QUESTIONS_PER_STAGE) {
+      if (depth >= this.state.questionsPerStage) {
         const boss = this.pickHallraumBossPlan(
           steps[steps.length - 1],
           usedChars,
@@ -7959,7 +8042,7 @@ export class TrialSession {
     const plans: FugueQuestionPlan[] = [];
     const used = new Set<string>();
     let attempts = 0;
-    while (plans.length < TRIAL_QUESTIONS_PER_STAGE) {
+    while (plans.length < this.state.questionsPerStage) {
       attempts += 1;
       if (attempts > 4000) {
         throw new Error(
@@ -8282,7 +8365,7 @@ export class TrialSession {
     this.state.fugue = {
       slots,
       queueRemaining:
-        TRIAL_QUESTIONS_PER_STAGE - 2,
+        this.state.questionsPerStage - 2,
     };
     this.setFugueNormalQuestion(
       0,
@@ -8449,7 +8532,7 @@ export class TrialSession {
     this.state.history.push({
       stage: this.state.stage,
       ruleId: this.state.ruleId,
-      slot: TRIAL_QUESTIONS_PER_STAGE + 1,
+      slot: this.state.questionsPerStage + 1,
       kind: "boss",
       answerWay: boss.expectedWays.flatMap((way) => [
         ...way,
@@ -8539,7 +8622,7 @@ export class TrialSession {
         this.fugueQuestionIndex += 1;
         this.state.fugue.queueRemaining = Math.max(
           0,
-          TRIAL_QUESTIONS_PER_STAGE -
+          this.state.questionsPerStage -
             this.fugueQuestionIndex,
         );
         this.setFugueNormalQuestion(
@@ -8592,9 +8675,9 @@ export class TrialSession {
         ).id;
         this.state.phase = "stage-intro";
         this.state.questionInStage = 0;
-        if ((this.state.stage - 1) % 3 === 0) {
-          this.state.skipsRemaining += 1;
-        }
+        this.grantSkipForCompletedStage(
+          this.state.stage - 1,
+        );
         this.state.timeLimit = 0;
         this.state.remaining = 0;
         this.state.paused = false;
@@ -8759,7 +8842,7 @@ export class TrialSession {
       this.state.feedback = "correct";
       this.state.draft = "";
       this.state.questionInStage = Math.min(
-        TRIAL_QUESTIONS_PER_STAGE,
+        this.state.questionsPerStage,
         this.state.questionInStage + 1,
       );
       this.recordFugueNormal(slot, raw, raw);

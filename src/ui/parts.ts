@@ -23,3 +23,16 @@ export function splitPartsIntoRows<T>(
   return [parts];
 }
 
+export function uniqueCardUses<T extends { cardUid: number }>(
+  uses: readonly T[],
+): T[] {
+  const seen = new Set<number>();
+  return uses.filter((use) => {
+    if (seen.has(use.cardUid)) {
+      return false;
+    }
+    seen.add(use.cardUid);
+    return true;
+  });
+}
+

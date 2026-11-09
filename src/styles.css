@@ -29,6 +29,7 @@
   --correct: #3f6946;
   --correct-dark: #294c32;
   --answer-yellow: #8a5a00;
+  --trial-perfect-gold: #b98520;
   --ex-purple: #704a86;
   --ex-pale: #eadff2;
   --ex-ink: #31243a;
@@ -905,10 +906,15 @@ input:focus-visible {
   align-items: center;
 }
 
+.trial-difficulty-stage {
+  position: relative;
+  width: min(100%, 330px);
+}
+
 .trial-difficulty-carousel {
   position: relative;
   display: block;
-  width: min(100%, 330px);
+  width: 100%;
   overflow-x: auto;
   overflow-y: hidden;
   padding-block: 4px;
@@ -969,6 +975,7 @@ input:focus-visible {
     transform 120ms ease;
   place-items: center;
   cursor: pointer;
+  position: relative;
 }
 
 .trial-difficulty-item:first-child,
@@ -980,6 +987,80 @@ input:focus-visible {
   color: var(--ex-purple);
   opacity: 1;
   filter: none;
+}
+
+.trial-difficulty-item:not(.is-locked) {
+  color: var(--ex-purple);
+}
+
+.trial-difficulty-item.is-perfect {
+  color: var(--trial-perfect-gold);
+}
+
+.trial-difficulty-item.is-locked.is-center {
+  color: var(--muted);
+}
+
+.trial-difficulty-item.is-locked .trial-difficulty-number {
+  opacity: 0.72;
+}
+
+.trial-difficulty-number {
+  display: block;
+}
+
+.trial-difficulty-cleared-star {
+  position: absolute;
+  top: 11px;
+  right: 16px;
+  display: block;
+  width: 8px;
+  height: 8px;
+  color: var(--ex-purple);
+  filter: drop-shadow(0 1px 1px rgba(32, 35, 31, 0.28));
+  pointer-events: none;
+}
+
+.trial-difficulty-cleared-star.is-perfect {
+  color: var(--trial-perfect-gold);
+  filter: drop-shadow(0 1px 1px rgba(82, 58, 12, 0.36));
+}
+
+.trial-difficulty-cleared-star svg {
+  display: block;
+  width: 100%;
+  height: 100%;
+  fill: currentColor;
+}
+
+.trial-difficulty-focus-mark {
+  position: absolute;
+  top: 50%;
+  z-index: 2;
+  width: 16px;
+  height: 16px;
+  color: var(--ink);
+  pointer-events: none;
+  transform: translateY(-50%);
+}
+
+.trial-difficulty-focus-mark.is-left {
+  left: calc(50% - 34px);
+}
+
+.trial-difficulty-focus-mark.is-right {
+  right: calc(50% - 34px);
+}
+
+.trial-difficulty-focus-mark svg {
+  display: block;
+  width: 100%;
+  height: 100%;
+  fill: none;
+  stroke: currentColor;
+  stroke-linecap: square;
+  stroke-linejoin: miter;
+  stroke-width: 1.7;
 }
 
 .trial-difficulty-item:focus-visible {
@@ -997,6 +1078,17 @@ input:focus-visible {
 
 .trial-difficulty-notes p {
   margin: 0;
+}
+
+.trial-difficulty-notes .trial-advancement-status {
+  margin-bottom: 2px;
+  color: var(--ex-purple);
+  font-weight: 600;
+}
+
+.trial-difficulty-notes
+  .trial-advancement-status[data-locked="true"] {
+  color: var(--muted);
 }
 
 .ex-toggle,
@@ -2804,6 +2896,84 @@ input:focus-visible {
   view-transition-name: trial-stage-flow;
 }
 
+.trial-hud-heading {
+  display: flex;
+  min-width: 0;
+  align-items: center;
+  gap: 12px;
+}
+
+.trial-hud-heading > .progress-stack {
+  flex: 1;
+}
+
+.trial-rule-emblem.trial-hud-rule-emblem {
+  width: 38px;
+  height: 38px;
+  flex: 0 0 38px;
+}
+
+.trial-rule-emblem.trial-hud-rule-emblem::before,
+.trial-rule-emblem.trial-hud-rule-emblem::after {
+  width: 11px;
+  height: 11px;
+  border-width: 1px;
+}
+
+.trial-hud-rule-emblem .trial-rule-icon {
+  width: 29px;
+  height: 29px;
+}
+
+.trial-hud-rule-emblem .trial-rule-icon::before {
+  inset: -5px;
+}
+
+.trial-hud-rule-emblem .trial-rule-stars {
+  top: -3px;
+  right: -7px;
+  gap: 0;
+}
+
+.trial-hud-rule-emblem .trial-rule-star,
+.trial-hud-rule-emblem .trial-rule-star svg {
+  width: 7px;
+  height: 7px;
+}
+
+@media (min-width: 641px) {
+  .trial-rule-emblem.trial-hud-rule-emblem {
+    width: 47px;
+    height: 47px;
+    flex-basis: 47px;
+  }
+
+  .trial-rule-emblem.trial-hud-rule-emblem::before,
+  .trial-rule-emblem.trial-hud-rule-emblem::after {
+    width: 14px;
+    height: 14px;
+  }
+
+  .trial-hud-rule-emblem .trial-rule-icon {
+    width: 36px;
+    height: 36px;
+  }
+
+  .trial-hud-rule-emblem .trial-rule-icon::before {
+    inset: -6px;
+  }
+
+  .trial-hud-rule-emblem .trial-rule-stars {
+    right: -8px;
+  }
+
+  .trial-hud-rule-emblem .trial-rule-star,
+  .trial-hud-rule-emblem .trial-rule-star svg {
+    width: 9px;
+    height: 9px;
+  }
+}
+
 .trial-play-screen .progress-stack.is-trial-boss {
   border-left-color: var(--accent);
   color: #fff8f4;
@@ -3221,6 +3391,21 @@ input:focus-visible {
 .trial-result-cris .cris-icon {
   width: 15px;
   height: 15px;
+  color: var(--accent);
+}
+
+.trial-result-cris strong {
+  color: var(--accent);
+  font-family: var(--display-font-family);
+  font-size: 14px;
+  line-height: 1;
+  font-variant-numeric: tabular-nums;
+}
+
+.trial-result-unlock {
+  margin-left: 6px;
+  color: var(--ex-purple);
+  font-weight: 600;
 }
 
 .trial-result-scroll {

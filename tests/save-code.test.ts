@@ -78,6 +78,14 @@ function createStorage(): MemoryStorage {
   );
   storage.setItem("zigsaw.cris.v1", "123");
   storage.setItem(
+    "zigsaw.trial.progress.v1",
+    JSON.stringify({
+      version: 1,
+      highestCleared: 3,
+      perfectMask: 5,
+    }),
+  );
+  storage.setItem(
     "zigsaw.trial.inspissation.recentLongChars",
     JSON.stringify(["聯", "鬱"]),
   );
@@ -86,12 +94,50 @@ function createStorage(): MemoryStorage {
   return storage;
 }
 
+async function encodeRawCompactPayload(
+  payload: Uint8Array<ArrayBuffer>,
+): Promise<string> {
+  const material = await crypto.subtle.digest(
+    "SHA-256",
+    new TextEncoder().encode(
+      "zigsaw.save.encryption.v1",
+    ),
+  );
+  const key = await crypto.subtle.importKey(
+    "raw",
+    material,
+    { name: "AES-GCM" },
+    false,
+    ["encrypt"],
+  );
+  const iv = new Uint8Array(12);
+  const ciphertext = await crypto.subtle.encrypt(
+    { name: "AES-GCM", iv },
+    key,
+    payload,
+  );
+  const combined = new Uint8Array(
+    12 + ciphertext.byteLength,
+  );
+  combined.set(iv);
+  combined.set(new Uint8Array(ciphertext), 12);
+  const encoded = btoa(
+    String.fromCharCode(...combined),
+  )
+    .replaceAll("+", "-")
+    .replaceAll("/", "_")
+    .replace(/=+$/u, "");
+  return `ZSC1.${encoded}`;
+}
+
 describe("compact beta save code", () => {
   it("round-trips the minimal domain state and rebuilds storage", async () => {
     const source = createStorage();
     const state = readCompactSaveState(source);
     expect(state.seenChars).toEqual(["三", "二", "犬"]);
     expect(state.directComponents).toEqual([9]);
+    expect(state.trialHighestCleared).toBe(3);
+    expect(state.trialPerfectMask).toBe(5);
     expect(state.records.map((record) => record.mode)).toEqual([
       "challenge",
       "challenge",
@@ -115,6 +161,17 @@ describe("compact beta save code", () => {
       target.getItem("zigsaw.collection.v1"),
     ).toBeNull();
     expect(target.getItem("zigsaw.cris.v1")).toBe("123");
+    expect(
+      JSON.parse(
+        target.getItem(
+          "zigsaw.trial.progress.v1",
+        ) ?? "{}",
+      ),
+    ).toEqual({
+      version: 1,
+      highestCleared: 3,
+      perfectMask: 5,
+    });
     expect(
       JSON.parse(
         target.getItem(
@@ -155,5 +212,27 @@ describe("compact beta save code", () => {
     await expect(decodeSaveCode(corrupted)).rejects.toThrow(
       "校验失败",
     );
+  });
+
+  it("reads version one codes with only advancement zero unlocked", async () => {
+    const payload = new Uint8Array([
+      1, 0, 0, 0, 0, 0, 0,
+    ]);
+    const decoded = await decodeSaveCode(
+      await encodeRawCompactPayload(payload),
+    );
+    expect(decoded.trialHighestCleared).toBe(-1);
+    expect(decoded.trialPerfectMask).toBe(0);
+  });
+
+  it("reads version two codes with advancement but no perfect mask", async () => {
+    const payload = new Uint8Array([
+      2, 0, 0, 0, 0, 0, 0, 5,
+    ]);
+    const decoded = await decodeSaveCode(
+      await encodeRawCompactPayload(payload),
+    );
+    expect(decoded.trialHighestCleared).toBe(4);
+    expect(decoded.trialPerfectMask).toBe(0);
   });
 });

@@ -35,7 +35,6 @@ import {
 import {
   TRIAL_BOSS_SECONDS,
   TRIAL_NORMAL_SECONDS,
-  TRIAL_QUESTIONS_PER_STAGE,
   TRIAL_STAGE_COUNT,
   TrialSession,
   orderedBossAnswerChars,
@@ -46,6 +45,16 @@ import {
   type TrialResultState,
   type TrialState,
 } from "./game/trial";
+import {
+  trialAdvancementConfig,
+  trialAdvancementUnlockedByFirstClear,
+  type TrialAdvancementConfig,
+} from "./game/trial-advancement";
+import {
+  TRIAL_ADVANCEMENT_AVAILABLE_MAX,
+  TRIAL_ADVANCEMENT_MAX,
+  TrialProgressStore,
+} from "./game/trial-progress";
 import {
   FALLBACK_TRIAL_RULE,
   loadTrialRules,
@@ -73,7 +82,10 @@ import {
   revokeDebugAccess,
 } from "./ui/debug-auth";
 import { CHALLENGE_CARD_DECOR_MARKUP } from "./ui/decorations";
-import { splitPartsIntoRows } from "./ui/parts";
+import {
+  splitPartsIntoRows,
+  uniqueCardUses,
+} from "./ui/parts";
 import {
   createTutorialDialog,
   TUTORIAL_TRIGGER_MARKUP,
@@ -111,7 +123,7 @@ const DEFAULT_SETTINGS: GameSettings = {
   exEnabled: true,
   includeSupplementaryChars: true,
   difficulty: "standard",
-  trialDifficulty: 1,
+  trialAdvancement: 0,
 };
 
 let data: GameData | null = null;
@@ -175,6 +187,7 @@ const DIFFICULTY_NOTES: Record<
 const records = new LocalRecordStore();
 const cris = new CrisStore();
 const collection = new CollectionStore();
+const trialProgress = new TrialProgressStore();
 const charDetails = new CharDetailStore(appBaseUrl);
 const tutorialDialog = createTutorialDialog();
 let resumeAfterTutorial = false;
@@ -1349,7 +1362,7 @@ function updateDifficultyNotes(): void {
     ?.replaceChildren(notes[1]);
 }
 
-function trialDifficultyButtons(
+function trialAdvancementButtons(
   carousel: HTMLElement,
 ): HTMLButtonElement[] {
   return [
@@ -1362,7 +1375,7 @@ function trialDifficultyButtons(
 function focusTrialDifficultyCarousel(
   carousel: HTMLElement,
 ): void {
-  const buttons = trialDifficultyButtons(carousel);
+  const buttons = trialAdvancementButtons(carousel);
   if (buttons.length === 0) {
     return;
   }
@@ -1396,13 +1409,10 @@ function focusTrialDifficultyCarousel(
   const value = String(
     clamp(
       Number(closest.dataset.trialDifficultyValue),
-      1,
-      7,
+      0,
+      TRIAL_ADVANCEMENT_MAX,
     ),
   );
-  if (carousel.dataset.activeTrialDifficulty === value) {
-    return;
-  }
   carousel.dataset.activeTrialDifficulty = value;
   buttons.forEach((button) => {
     const selected =
@@ -1410,6 +1420,7 @@ function focusTrialDifficultyCarousel(
     button.setAttribute("aria-pressed", String(selected));
     button.setAttribute("aria-selected", String(selected));
   });
+  updateTrialAdvancementUi(carousel, Number(value));
 }
 
 function centerTrialDifficultyValue(
@@ -1440,10 +1451,13 @@ function setupTrialDifficultyCarousel(): void {
   if (!carousel) {
     return;
   }
+  if (carousel.closest("[hidden]")) {
+    return;
+  }
   const activeValue = clamp(
-    Number(carousel.dataset.activeTrialDifficulty ?? "1"),
-    1,
-    7,
+    Number(carousel.dataset.activeTrialDifficulty ?? "0"),
+    0,
+    TRIAL_ADVANCEMENT_MAX,
   );
   window.requestAnimationFrame(() => {
     centerTrialDifficultyValue(
@@ -1521,8 +1535,8 @@ function setupTrialDifficultyCarousel(): void {
       carousel,
       clamp(
         Number(button.dataset.trialDifficultyValue),
-        1,
-        7,
+        0,
+        TRIAL_ADVANCEMENT_MAX,
       ),
     );
   });
@@ -1537,24 +1551,176 @@ function setupTrialDifficultyCarousel(): void {
     }
     event.preventDefault();
     const current = Number(
-      carousel.dataset.activeTrialDifficulty ?? "1",
+      carousel.dataset.activeTrialDifficulty ?? "0",
     );
     const next =
       event.key === "Home"
-        ? 1
+        ? 0
         : event.key === "End"
-          ? 7
+          ? TRIAL_ADVANCEMENT_MAX
           : current + (event.key === "ArrowRight" ? 1 : -1);
     centerTrialDifficultyValue(
       carousel,
-      clamp(next, 1, 7),
+      clamp(next, 0, TRIAL_ADVANCEMENT_MAX),
     );
     carousel
       .querySelector<HTMLButtonElement>(
-        `[data-trial-difficulty-value="${clamp(next, 1, 7)}"]`,
+        `[data-trial-difficulty-value="${clamp(next, 0, TRIAL_ADVANCEMENT_MAX)}"]`,
       )
       ?.focus({ preventScroll: true });
   });
+}
+
+function selectedTrialAdvancement(): number {
+  return clamp(
+    Number(
+      document.querySelector<HTMLElement>(
+        "[data-trial-difficulty]",
+      )?.dataset.activeTrialDifficulty ?? "0",
+    ),
+    0,
+    TRIAL_ADVANCEMENT_MAX,
+  );
+}
+
+type TrialAdvancementNoteKey =
+  | "unavailable"
+  | "flow"
+  | "questions"
+  | "timing"
+  | "timingModifier"
+  | "initialSkips"
+  | "skipGrowth";
+
+const TRIAL_ADVANCEMENT_NOTE_KEYS: readonly TrialAdvancementNoteKey[] =
+  [
+    "unavailable",
+    "flow",
+    "questions",
+    "timing",
+    "timingModifier",
+    "initialSkips",
+    "skipGrowth",
+  ];
+
+function trialAdvancementNoteTexts(
+  level: number,
+): Partial<Record<TrialAdvancementNoteKey, string>> {
+  if (level > TRIAL_ADVANCEMENT_AVAILABLE_MAX) {
+    return { unavailable: "尚未开放" };
+  }
+  const config: TrialAdvancementConfig =
+    trialAdvancementConfig(level);
+  if (level === 0) {
+    return {
+      flow: "试炼流程共 7 幕",
+      questions: `每幕 ${config.normalQuestionsPerStage} 个道中关卡 + 1 个守幕关卡`,
+      timing: "道中 / 守幕作答时间 30 / 90 秒",
+      timingModifier:
+        "三星制限作答时间额外延长 30%",
+      initialSkips: `初始获得 ${config.initialSkips} 次换题`,
+      skipGrowth: `每经历 ${config.skipGrantEveryStages} 幕，获得 1 次换题`,
+    };
+  }
+  if (level === 1) {
+    return {
+      questions: "每幕增加 1 个道中关卡",
+      skipGrowth: "每经历 3 幕，获得 1 次换题",
+    };
+  }
+  if (level === 2) {
+    return {
+      timingModifier:
+        "三星制限作答时间不再额外延长",
+    };
+  }
+  if (level === 3) {
+    return {
+      initialSkips: "初始获得 1 次换题",
+    };
+  }
+  return {
+    timingModifier:
+      "一星、二星制限作答时间减少30%",
+  };
+}
+
+function updateTrialAdvancementNotes(level: number): void {
+  const notes = trialAdvancementNoteTexts(level);
+  document
+    .querySelectorAll<HTMLElement>(
+      "[data-trial-advancement-note]",
+    )
+    .forEach((element) => {
+      const key = element.dataset.trialAdvancementNote;
+      const text =
+        key &&
+        TRIAL_ADVANCEMENT_NOTE_KEYS.includes(
+          key as TrialAdvancementNoteKey,
+        )
+          ? notes[key as TrialAdvancementNoteKey]
+          : undefined;
+      element.hidden = !text;
+      element.textContent = text ?? "";
+    });
+}
+
+function updateTrialAdvancementUi(
+  carousel: HTMLElement,
+  value: number,
+): void {
+  const maxUnlocked = clamp(
+    Number(carousel.dataset.maxUnlocked ?? "0"),
+    0,
+    TRIAL_ADVANCEMENT_MAX,
+  );
+  const status = document.querySelector<HTMLElement>(
+    "[data-trial-advancement-status]",
+  );
+  const unavailable =
+    value > TRIAL_ADVANCEMENT_AVAILABLE_MAX;
+  if (status) {
+    const state =
+      unavailable
+        ? "尚未开放"
+        : value > maxUnlocked
+        ? "未解锁"
+        : trialProgress.perfect(value)
+          ? "完美通关"
+          : trialProgress.completed(value)
+            ? "已通关"
+          : "已解锁";
+    status.textContent = `进阶 ${value} · ${state}`;
+    status.hidden = unavailable;
+    status.dataset.locked = String(
+      unavailable || value > maxUnlocked,
+    );
+  }
+  updateTrialAdvancementNotes(value);
+  updateStartAvailability();
+}
+
+function updateStartAvailability(): void {
+  const button =
+    document.querySelector<HTMLButtonElement>(".start-button");
+  if (!button) {
+    return;
+  }
+  const locked =
+    selectedMode() === "trial" &&
+    selectedTrialAdvancement() > trialProgress.maxUnlocked();
+  const unavailable =
+    selectedMode() === "trial" &&
+    selectedTrialAdvancement() >
+      TRIAL_ADVANCEMENT_AVAILABLE_MAX;
+  button.disabled =
+    !data || startingGame || locked || unavailable;
+  button.textContent = unavailable
+    ? "尚未开放"
+    : locked
+      ? "未解锁"
+      : "开始";
+  button.dataset.trialLocked = String(locked);
 }
 
 function updateStartRecord(): void {
@@ -1564,11 +1730,13 @@ function updateStartRecord(): void {
   }
   if (selectedMode() !== "challenge") {
     record.hidden = true;
+    updateStartAvailability();
     return;
   }
   record.hidden = false;
   const settings = readSettings();
   record.textContent = `纪录：${records.load(recordKey(settings))}`;
+  updateStartAvailability();
 }
 
 function updateModeFields(direction = 0): void {
@@ -1699,15 +1867,7 @@ function readSettings(): GameSettings {
       ? "endless"
       : mode;
   const difficulty = selectedDifficulty();
-  const trialDifficulty = clamp(
-    Number(
-      document.querySelector<HTMLElement>(
-        "[data-trial-difficulty]",
-      )?.dataset.activeTrialDifficulty ?? "1",
-    ),
-    1,
-    7,
-  );
+  const trialAdvancement = selectedTrialAdvancement();
 
   return {
     levels: runtimeMode === "trial" ? [1, 2] : levels,
@@ -1737,7 +1897,7 @@ function readSettings(): GameSettings {
         )
         ?.dataset.includeSupplementary !== "false",
     difficulty,
-    trialDifficulty,
+    trialAdvancement,
   };
 }
 
@@ -1760,11 +1920,16 @@ function renderStart(initial: GameSettings = lastSettings): void {
 
   const lowStop = initial.partsLow >= 5 ? 5 : clamp(initial.partsLow, 2, 4);
   const highStop = initial.partsHigh >= 5 ? 5 : clamp(initial.partsHigh, 2, 4);
-  const trialDifficulty = clamp(
-    Math.round(initial.trialDifficulty),
-    1,
-    7,
-  );
+  const maxUnlocked = trialProgress.maxUnlocked();
+  const trialAdvancement = maxUnlocked;
+  const trialAdvancementNotes =
+    trialAdvancementNoteTexts(trialAdvancement);
+  const trialAdvancementState =
+    trialProgress.perfect(trialAdvancement)
+      ? "完美通关"
+      : trialProgress.completed(trialAdvancement)
+        ? "已通关"
+      : "已解锁";
   const initialMode: Mode =
     initial.mode === "endless"
       ? "normal"
@@ -1799,25 +1964,56 @@ function renderStart(initial: GameSettings = lastSettings): void {
 
           <div class="mode-fields">
           <section class="setting-block trial-entry-setting" data-mode-field="trial" hidden>
-            <div class="setting-label">难度</div>
+            <div class="setting-label">进阶</div>
             <div class="trial-difficulty-settings">
-              <div class="trial-difficulty-carousel" data-trial-difficulty data-active-trial-difficulty="${trialDifficulty}" role="listbox" aria-label="试炼难度">
-                <div class="trial-difficulty-track">
-                  ${Array.from(
-                    { length: 7 },
-                    (_, index) => {
-                      const value = index + 1;
-                      return `<button class="trial-difficulty-item" type="button" role="option" data-trial-difficulty-value="${value}" aria-selected="${value === trialDifficulty}" aria-pressed="${value === trialDifficulty}">${value}</button>`;
-                    },
-                  ).join("")}
+              <div class="trial-difficulty-stage">
+                <span class="trial-difficulty-focus-mark is-left" aria-hidden="true">
+                  <svg viewBox="0 0 24 24"><path d="m15 3-9 9 9 9"></path></svg>
+                </span>
+                <div class="trial-difficulty-carousel" data-trial-difficulty data-active-trial-difficulty="${trialAdvancement}" data-max-unlocked="${maxUnlocked}" role="listbox" aria-label="试炼进阶">
+                  <div class="trial-difficulty-track">
+                    ${Array.from(
+                      { length: TRIAL_ADVANCEMENT_MAX + 1 },
+                      (_, value) => {
+                        const completed =
+                          trialProgress.completed(value);
+                        const perfect =
+                          trialProgress.perfect(value);
+                        const unavailable =
+                          value >
+                          TRIAL_ADVANCEMENT_AVAILABLE_MAX;
+                        const locked = value > maxUnlocked;
+                        const state = completed
+                          ? perfect
+                            ? "完美通关"
+                            : "已通关"
+                          : unavailable
+                            ? "尚未开放"
+                          : locked
+                            ? "未解锁"
+                            : "已解锁";
+                        return `<button class="trial-difficulty-item ${completed ? "is-cleared" : ""} ${perfect ? "is-perfect" : ""} ${locked ? "is-locked" : ""} ${unavailable ? "is-unavailable" : ""}" type="button" role="option" data-trial-difficulty-value="${value}" data-locked="${locked}" aria-label="进阶 ${value}，${state}" aria-selected="${value === trialAdvancement}" aria-pressed="${value === trialAdvancement}">
+                          <span class="trial-difficulty-number">${value}</span>
+                          ${
+                            completed
+                              ? `<span class="trial-difficulty-cleared-star ${perfect ? "is-perfect" : ""}" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M12 1.5c.7 6.2 4.3 9.8 10.5 10.5-6.2.7-9.8 4.3-10.5 10.5C11.3 16.3 7.7 12.7 1.5 12 7.7 11.3 11.3 7.7 12 1.5Z"></path></svg></span>`
+                              : ""
+                          }
+                        </button>`;
+                      },
+                    ).join("")}
+                  </div>
                 </div>
+                <span class="trial-difficulty-focus-mark is-right" aria-hidden="true">
+                  <svg viewBox="0 0 24 24"><path d="m9 3 9 9-9 9"></path></svg>
+                </span>
               </div>
               <div class="trial-difficulty-notes">
-                <p>试炼流程共 7 幕</p>
-                <p>道中 / 守幕作答时间 30 / 90 秒</p>
-                <p>三星制限作答时间额外延长 30%</p>
-                <p>初始获得 3 次换题</p>
-                <p>每经历 3 幕，获得 1 次换题</p>
+                <p class="trial-advancement-status" data-trial-advancement-status>进阶 ${trialAdvancement} · ${trialAdvancementState}</p>
+                ${TRIAL_ADVANCEMENT_NOTE_KEYS.map((key) => {
+                  const text = trialAdvancementNotes[key];
+                  return `<p data-trial-advancement-note="${key}" ${text ? "" : "hidden"}>${escapeHtml(text ?? "")}</p>`;
+                }).join("")}
               </div>
             </div>
           </section>
@@ -2035,6 +2231,21 @@ function renderStart(initial: GameSettings = lastSettings): void {
       if (formError) {
         formError.textContent = "数据读取失败";
       }
+      return;
+    }
+    if (
+      settings.mode === "trial" &&
+      settings.trialAdvancement >
+        trialProgress.maxUnlocked()
+    ) {
+      if (formError) {
+        formError.textContent =
+          settings.trialAdvancement >
+          TRIAL_ADVANCEMENT_AVAILABLE_MAX
+            ? "未开放"
+            : "未解锁";
+      }
+      updateStartAvailability();
       return;
     }
     if (startingGame) {
@@ -2477,9 +2688,9 @@ function trialCharacterMeta(char: string): string {
   );
 }
 
-function trialRuleMarkup(
+function trialRuleEmblemMarkup(
   rule: TrialRuleDefinition,
-  showDebug = false,
+  className = "",
 ): string {
   const iconUrl = new URL(
     `assets/trial-rules/${rule.icon}`,
@@ -2495,13 +2706,22 @@ function trialRuleMarkup(
       </span>`,
   ).join("");
   return `
+    <div class="trial-rule-emblem ${className}">
+      <span class="trial-rule-icon" aria-hidden="true">
+        <img src="${escapeHtml(iconUrl)}" alt="">
+      </span>
+      ${stars ? `<div class="trial-rule-stars" aria-label="${rule.stars}星制限">${stars}</div>` : ""}
+    </div>
+  `;
+}
+
+function trialRuleMarkup(
+  rule: TrialRuleDefinition,
+  showDebug = false,
+): string {
+  return `
     <section class="trial-rule-card">
-      <div class="trial-rule-emblem">
-        <span class="trial-rule-icon" aria-hidden="true">
-          <img src="${escapeHtml(iconUrl)}" alt="">
-        </span>
-        ${stars ? `<div class="trial-rule-stars" aria-label="${rule.stars}星制限">${stars}</div>` : ""}
-      </div>
+      ${trialRuleEmblemMarkup(rule)}
       <div class="trial-rule-copy">
         <div class="trial-rule-title">
           <strong>${escapeHtml(rule.name)}</strong>
@@ -3352,6 +3572,9 @@ function renderTrialGame(trial: TrialSession): void {
         state.feedback === "correct",
     );
   })();
+  const showBossPinyin =
+    trialRuleAnswerInput(activeRule, "boss") ===
+    "pinyin";
   const displayedRevealAnswers = isBoss
     ? orderedBossAnswers.map((char, index) => {
         const answerIndex =
@@ -3363,12 +3586,9 @@ function renderTrialGame(trial: TrialSession): void {
               ? state.boss?.expectedDisplayChars[answerIndex]
               : undefined,
           pinyin:
-            (state.feedback === "correct"
-              ? state.revealPinyin[index]
-              : undefined) ??
-            (answerIndex >= 0
-              ? state.boss?.expectedPinyin[answerIndex]
-              : ""),
+            showBossPinyin
+              ? state.revealPinyin[index] ?? ""
+              : "",
           meta: trialCharacterMeta(char),
         };
       })
@@ -3555,13 +3775,19 @@ function renderTrialGame(trial: TrialSession): void {
       <main class="play-screen trial-play-screen ${isBoss ? "is-trial-boss" : ""}">
         <section class="play-surface ${questionEnter ? "question-enter" : ""}">
           <header class="play-hud">
-            <div class="progress-stack ${isBoss ? `is-trial-boss ${bossEntering ? "is-trial-boss-enter" : ""}` : ""}">
-              <span class="question-progress">${
-                isBoss
-                  ? `${trialStageName(state.stage)} · ACTKEEPER`
-                  : `${trialStageName(state.stage)} · 道中#${state.questionInStage}`
-              }</span>
-              <small class="trial-mode-caption">试炼模式</small>
+            <div class="trial-hud-heading">
+              ${trialRuleEmblemMarkup(
+                activeRule ?? FALLBACK_TRIAL_RULE,
+                "trial-hud-rule-emblem",
+              )}
+              <div class="progress-stack ${isBoss ? `is-trial-boss ${bossEntering ? "is-trial-boss-enter" : ""}` : ""}">
+                <span class="question-progress">${
+                  isBoss
+                    ? `${trialStageName(state.stage)} · ACTKEEPER`
+                    : `${trialStageName(state.stage)} · 道中#${state.questionInStage}`
+                }</span>
+                <small class="trial-mode-caption">试炼模式</small>
+              </div>
             </div>
             <button class="timer-ring" type="button" data-trial-timer aria-label="${state.paused ? "继续" : "暂停"}，剩余 ${state.remaining} 秒" aria-pressed="${state.paused}" ${state.revealing ? "disabled" : ""}>
               <svg viewBox="0 0 80 80" aria-hidden="true">
@@ -3648,7 +3874,9 @@ function renderTrialGame(trial: TrialSession): void {
                       (submission, index) =>
                         `<div class="trial-boss-record">
                           <div class="trial-boss-record-parts" aria-label="已使用部件">
-                            ${submission.componentUses
+                            ${uniqueCardUses(
+                              submission.componentUses,
+                            )
                               .map(
                                 (use) =>
                                   `<span class="trial-boss-used-part ${use.wildcard ? "is-wildcard" : ""} ${use.inherited ? "is-inherited" : ""}">${use.inherited ? "" : use.wildcard ? crisIconMarkup() : renderComponent(data!.component(use.symbolId), true).html}</span>`,
@@ -3891,7 +4119,7 @@ function renderTrialResults(trial: TrialSession): void {
   const resultRule =
     trialRules?.rules[state.ruleId] ?? FALLBACK_TRIAL_RULE;
   const shareText = buildTrialShareText({
-    difficulty: lastSettings.trialDifficulty,
+    advancement: lastSettings.trialAdvancement,
     title: result.title,
     correctCount: result.correctCount,
     reachedStage: result.reachedStage,
@@ -3925,7 +4153,7 @@ function renderTrialResults(trial: TrialSession): void {
         <section class="trial-result-stage">
           <header>
             <h2>${trialStageName(stage)}</h2>
-            <small>${items.filter((item) => item.ok).length} / ${TRIAL_QUESTIONS_PER_STAGE + 1}</small>
+            <small>${items.filter((item) => item.ok).length} / ${state.questionsPerStage + 1}</small>
           </header>
           ${trialRuleMarkup(rule, hasTrialDebugAccess())}
           <ol class="review-list trial-review-list">
@@ -3974,7 +4202,19 @@ function renderTrialResults(trial: TrialSession): void {
               </svg>
             </div>
             <div class="result-score">${trialStageName(result.reachedStage)} · ${result.correctCount}题</div>
-            <div class="trial-result-cris">${crisIconMarkup()}<span>奖励待定</span></div>
+            <div class="trial-result-cris" aria-label="${
+              result.crisEarned > 0
+                ? `获得分光水晶 ${result.crisEarned}`
+                : "本局未获得分光水晶"
+            }">${crisIconMarkup()}${
+              result.crisEarned > 0
+                ? `<strong>+${result.crisEarned}</strong>`
+                : "<span>无奖励</span>"
+            }${
+              result.unlockedAdvancement === undefined
+                ? ""
+                : `<span class="trial-result-unlock">已解锁进阶${result.unlockedAdvancement}</span>`
+            }</div>
           </header>
           <div class="trial-result-scroll">${stageSections}</div>
           <div class="result-actions">
@@ -4126,6 +4366,13 @@ function startTrial(settings: GameSettings): void {
   if (!data) {
     return;
   }
+  if (
+    settings.trialAdvancement >
+    trialProgress.maxUnlocked()
+  ) {
+    renderStart(settings);
+    return;
+  }
   session?.destroy();
   trialSession?.destroy();
   session = null;
@@ -4165,6 +4412,25 @@ function startTrial(settings: GameSettings): void {
         return;
       }
       if (state.phase === "results") {
+        if (state.result?.cleared) {
+          const wasCompleted =
+            trialProgress.completed(
+              settings.trialAdvancement,
+            );
+          trialProgress.recordCleared(
+            settings.trialAdvancement,
+            state.result.title === "知我梦中",
+          );
+          const unlocked =
+            trialAdvancementUnlockedByFirstClear(
+              settings.trialAdvancement,
+              wasCompleted,
+            );
+          if (unlocked !== null) {
+            state.result.unlockedAdvancement =
+              unlocked;
+          }
+        }
         withPageTransition(() => renderTrialResults(active));
         return;
       }

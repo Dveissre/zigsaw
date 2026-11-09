@@ -8,7 +8,10 @@ import {
   initialChallengeSkips,
   shuffleQuestionParts,
 } from "../src/game/session";
-import { splitPartsIntoRows } from "../src/ui/parts";
+import {
+  splitPartsIntoRows,
+  uniqueCardUses,
+} from "../src/ui/parts";
 
 const challenge: GameSettings = {
   levels: [],
@@ -23,7 +26,7 @@ const challenge: GameSettings = {
   exEnabled: true,
   includeSupplementaryChars: true,
   difficulty: "standard",
-  trialDifficulty: 1,
+  trialAdvancement: 0,
 };
 
 describe("record keys", () => {
@@ -615,6 +618,19 @@ describe("multi-row part layout", () => {
     expect(splitPartsIntoRows(Array.from({ length: 10 }, (_, index) => index)).map(
       (row) => row.length,
     )).toEqual([5, 5]);
+  });
+
+  it("keeps one recorded entry per reused card", () => {
+    expect(
+      uniqueCardUses([
+        { cardUid: 3, symbolId: 1 },
+        { cardUid: 3, symbolId: 1 },
+        { cardUid: 8, symbolId: 2 },
+      ]),
+    ).toEqual([
+      { cardUid: 3, symbolId: 1 },
+      { cardUid: 8, symbolId: 2 },
+    ]);
   });
 });
 

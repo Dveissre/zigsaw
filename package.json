@@ -24,7 +24,7 @@
     "pretest": "npm run check:trial-rules",
     "test": "vitest run",
     "pretest:trial": "npm run check:trial-rules",
-    "test:trial": "vitest run tests/trial.test.ts tests/trial-runtime-data.test.ts tests/trial-rule-helpers.test.ts tests/debug-auth.test.ts tests/data.test.ts",
+    "test:trial": "vitest run tests/trial.test.ts tests/trial-runtime-data.test.ts tests/trial-rule-helpers.test.ts tests/trial-progress.test.ts tests/debug-auth.test.ts tests/data.test.ts",
     "test:watch": "vitest",
     "check:trial-rules": "node scripts/check-trial-rules.mjs",
     "apply:trial-rules-opinion": "node scripts/apply-trial-rule-opinion.mjs",

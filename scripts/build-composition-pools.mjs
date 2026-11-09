@@ -11,7 +11,7 @@ const root = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 const dataDir = resolve(root, "public/data");
 const wordPath = resolve(
   root,
-  "data-source/wordlists/words_2to4.txt",
+  "docs/words_2to4.txt",
 );
 const commonWordPath = resolve(
   root,

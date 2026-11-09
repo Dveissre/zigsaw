@@ -15,54 +15,54 @@
     "includeSupplementaryCharacters": true,
     "selectableCharacterRule": "任一拆法包含不可渲染部件时排除整字"
   },
-  "sourceHash": "9aca5810df39ae21f3bc1adf5251e9cde0868d2688eadde45a9835a6de7ccb1a",
-  "answerCompatibilityHash": "6235fc3519b03e344673aafdb8c81c74023f586928155fcad3f333d92186c9d4",
+  "sourceHash": "eeb55877b534a059ddfb28733df33be619830b2ad9ced811408925c0f8f6da78",
+  "answerCompatibilityHash": "85bf1cbeda7a34e427acd3590b5881311b019f455bb13444e53d546ba123f459",
   "eligible": {
     "characters": 6500,
-    "decompositionWays": 7211
+    "decompositionWays": 7155
   },
   "inspissation": [
     {
       "部件数": 2,
-      "可出题汉字数": 1426,
+      "可出题汉字数": 1428,
       "一级字数": 942,
-      "二级字数": 484,
-      "拆法数": 1436
+      "二级字数": 486,
+      "拆法数": 1438
     },
     {
       "部件数": 3,
-      "可出题汉字数": 2516,
-      "一级字数": 1367,
-      "二级字数": 1149,
-      "拆法数": 2586
+      "可出题汉字数": 2500,
+      "一级字数": 1353,
+      "二级字数": 1147,
+      "拆法数": 2569
     },
     {
       "部件数": 4,
-      "可出题汉字数": 1797,
-      "一级字数": 843,
-      "二级字数": 954,
-      "拆法数": 1884
+      "可出题汉字数": 1776,
+      "一级字数": 828,
+      "二级字数": 948,
+      "拆法数": 1861
     },
     {
       "部件数": 5,
-      "可出题汉字数": 881,
-      "一级字数": 368,
-      "二级字数": 513,
-      "拆法数": 921
+      "可出题汉字数": 867,
+      "一级字数": 363,
+      "二级字数": 504,
+      "拆法数": 907
     },
     {
       "部件数": 6,
-      "可出题汉字数": 279,
-      "一级字数": 107,
-      "二级字数": 172,
-      "拆法数": 288
+      "可出题汉字数": 276,
+      "一级字数": 105,
+      "二级字数": 171,
+      "拆法数": 285
     },
     {
       "部件数": 7,
-      "可出题汉字数": 73,
+      "可出题汉字数": 72,
       "一级字数": 20,
-      "二级字数": 53,
-      "拆法数": 74
+      "二级字数": 52,
+      "拆法数": 73
     },
     {
       "部件数": 8,
@@ -74,55 +74,55 @@
   ],
   "prefabrication": {
     "eligibility": "答案至少三部件，同一拆法中至少一对卡能直接组成另一个可渲染汉字，且预组后的 symbol ID 组合不对应答案的任何既有拆法",
-    "characters": 4638,
-    "decompositionWays": 5208,
-    "usablePairs": 1453,
-    "hintCharacters": 1575,
+    "characters": 4637,
+    "decompositionWays": 5191,
+    "usablePairs": 1451,
+    "hintCharacters": 1573,
     "byPartCount": [
       {
         "部件数": 3,
-        "可出题汉字数": 2299,
-        "一级字数": 1226,
+        "可出题汉字数": 2300,
+        "一级字数": 1227,
         "二级字数": 1073,
-        "拆法数": 2351,
-        "可用提示对数": 1139,
-        "可用提示字数": 1250
+        "拆法数": 2352,
+        "可用提示对数": 1138,
+        "可用提示字数": 1249
       },
       {
         "部件数": 4,
-        "可出题汉字数": 1562,
-        "一级字数": 717,
-        "二级字数": 845,
-        "拆法数": 1631,
-        "可用提示对数": 896,
+        "可出题汉字数": 1555,
+        "一级字数": 712,
+        "二级字数": 843,
+        "拆法数": 1624,
+        "可用提示对数": 895,
         "可用提示字数": 989
       },
       {
         "部件数": 5,
-        "可出题汉字数": 817,
-        "一级字数": 345,
-        "二级字数": 472,
-        "拆法数": 853,
-        "可用提示对数": 614,
-        "可用提示字数": 681
+        "可出题汉字数": 810,
+        "一级字数": 341,
+        "二级字数": 469,
+        "拆法数": 846,
+        "可用提示对数": 613,
+        "可用提示字数": 680
       },
       {
         "部件数": 6,
-        "可出题汉字数": 270,
-        "一级字数": 104,
-        "二级字数": 166,
-        "拆法数": 279,
-        "可用提示对数": 310,
-        "可用提示字数": 358
+        "可出题汉字数": 267,
+        "一级字数": 102,
+        "二级字数": 165,
+        "拆法数": 276,
+        "可用提示对数": 306,
+        "可用提示字数": 354
       },
       {
         "部件数": 7,
-        "可出题汉字数": 71,
+        "可出题汉字数": 70,
         "一级字数": 19,
-        "二级字数": 52,
-        "拆法数": 72,
-        "可用提示对数": 138,
-        "可用提示字数": 160
+        "二级字数": 51,
+        "拆法数": 71,
+        "可用提示对数": 135,
+        "可用提示字数": 157
       },
       {
         "部件数": 8,
@@ -154,8 +154,8 @@
     ]
   },
   "gestalt": {
-    "directPairSeeds": 5554,
-    "pairPoolsWithAnswers": 5554,
+    "directPairSeeds": 5495,
+    "pairPoolsWithAnswers": 5495,
     "excludedComponents": [
       "一",
       "丨",
@@ -173,12 +173,12 @@
       "冂",
       "口"
     ],
-    "pairsWithAtMostThreeAnswers": 4531,
+    "pairsWithAtMostThreeAnswers": 4487,
     "directlyComposablePairsExcluded": true,
     "byAnswerCount": {
-      "1": 3150,
-      "2": 900,
-      "3": 481
+      "1": 3131,
+      "2": 893,
+      "3": 463
     },
     "example": {
       "components": "⺈ + 忄",
@@ -199,9 +199,9 @@
         "冫",
         "雨"
       ],
-      "baseComponents": 172,
-      "resultCharacters": 248,
-      "compositionVariants": 251
+      "baseComponents": 173,
+      "resultCharacters": 250,
+      "compositionVariants": 253
     },
     "herb": {
       "name": "开榛薮",
@@ -212,8 +212,8 @@
         "禾"
       ],
       "baseComponents": 229,
-      "resultCharacters": 528,
-      "compositionVariants": 539
+      "resultCharacters": 529,
+      "compositionVariants": 540
     },
     "mount": {
       "name": "越嵩峦",
@@ -222,9 +222,9 @@
         "石",
         "山"
       ],
-      "baseComponents": 178,
-      "resultCharacters": 383,
-      "compositionVariants": 388
+      "baseComponents": 179,
+      "resultCharacters": 384,
+      "compositionVariants": 389
     },
     "people": {
       "name": "脱尘网",
@@ -245,11 +245,11 @@
         "耳"
       ],
       "baseComponents": 181,
-      "resultCharacters": 351,
-      "compositionVariants": 354
+      "resultCharacters": 354,
+      "compositionVariants": 357
     }
   },
   "atlas": {
-    "nRarityComponents": 75
+    "nRarityComponents": 73
   }
 }

@@ -36,7 +36,14 @@ git log --name-status -1 -- docs/handoff
 
 | 日期 | 类型 | 内容 | 文档 |
 | --- | --- | --- | --- |
+| 2026-11-09 | data | 更新部件字体子集并重建图鉴索引以包含“戢”；确认 `.zsave` v0/v1 与存档码 v1/v2/v3 的向后兼容 | [save-archive.md](features/save-archive.md)、[save-code.md](features/save-code.md) |
+| 2026-11-09 | balance | 实装试炼 Cris 奖励：进阶基准、后置幕数进度、完美加成与提前结算防刷 | [trial-mode.md](features/trial-mode.md)、[trial-rules-plan.md](../trial-rules-plan.md) |
+| 2026-11-09 | feature | 实装进阶 0–4 的累计效果；首页改为基础规则/增量规则展示，进阶 5–7 锁定为“尚未开放”，首次通关显示下一进阶解锁 | [trial-mode.md](features/trial-mode.md)、[trial-rules-plan.md](../trial-rules-plan.md) |
 | 2026-11-07 | bugfix | 同步 `origin/main@4c3ce9f`；写字台“结算本轮”改为卡片区右上角渐变条，并同步试炼 smoke 文案 | [gacha-rewards.md](features/gacha-rewards.md)、[bugfix.md](bugfix.md) |
+| 2026-11-09 | ui | 区分进阶的普通通关紫星与完美通关金星，并纳入两种存档；星标进一步贴近数字 | [trial-mode.md](features/trial-mode.md)、[save-code.md](features/save-code.md) |
+| 2026-11-09 | feature | 将试炼难度口径改为进阶 0–7；加入顺序解锁、通关星标、锁定开始态和存档持久化 | [trial-mode.md](features/trial-mode.md)、[save-code.md](features/save-code.md) |
+| 2026-11-09 | ui | 试炼游戏信息栏加入当前制限的缩略徽记，沿用开始页墨晕、直角与星级样式 | [trial-mode.md](features/trial-mode.md) |
+| 2026-11-09 | trial | 换题复活不再记失败；三秋树仅收录简体；题目词库迁移；星级调整；修半韵守幕复沓重复显示；回声室叠加时间规则 | [trial-mode.md](features/trial-mode.md) |
 | 2026-11-07 | trial | 化约论的两张展开部件卡复用黄色提示样式；BOSS 两次展开的四张卡统一标黄 | [trial-mode.md](features/trial-mode.md) |
 | 2026-11-07 | trial | 三星制限统一加时 30%；茁轧限定三级字；预制件改用普通卡样式并归档旧黄色样式 | [trial-mode.md](features/trial-mode.md) |
 | 2026-11-07 | trial | 中止后可消耗换题额度复活；所有换题只替换当前题面；失与得改为 90 秒；失韵法重新启用按字序分组 | [trial-mode.md](features/trial-mode.md) |
@@ -79,7 +86,7 @@ git log --name-status -1 -- docs/handoff
 | 2026-11-01 | bugfix | 囗注记、换题揭示、教程计数、写字台方点、Cris 不足按钮、新增 SVG | [bugfix.md](bugfix.md) |
 | 2026-11-01 | feature | 汉字释义浮窗的静态分片和按需加载方案 | [char-detail.md](features/char-detail.md) |
 
-## 当前状态（2026-11-07）
+## 当前状态（2026-11-09）
 
 - `feature/trial-mode` 已同步到 `origin/main` 的 `e5d3903`，并保留指差确认等未提交工作。
 - `bugfix/internal` 已在工作区合入该版本，但按约定没有创建 merge commit；
@@ -90,5 +97,6 @@ git log --name-status -1 -- docs/handoff
 - 试炼已接入四分法、急板、失与得、拾级、五个奇境、五个厄境、指差确认、三秋树、
   化约论、预制件、通配符、枝指、茁轧、格式塔、简赅、短视、繁缛、
   盲视与回声室。赋格曲与双重曝光已统一归档，代码与测试保留但不再可进入。
+- 进阶 0–4 已按累积方式实装；进阶 5–7 显示“尚未开放”，不可解锁或游玩。
 - 完整制限规则目录与实装批次见 `docs/trial-rules-plan.md`。
 - 未提交或合并任务仍以 `git status`、`git diff` 的实际结果为准。

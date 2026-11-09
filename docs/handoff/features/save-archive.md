@@ -29,10 +29,24 @@
 
 - `readSaveArchive()` 先识别 envelope 的 `formatVersion`，再解密正文并调用
   `migrateSavePayload()`。
-- 当前迁移链至少包含 payload v0 → v1。未来修改存档字段时，应新增迁移步骤，
-  不修改历史版本解析逻辑。
+- 当前迁移链支持 payload v0 → v1 与现有 payload v1。
+- payload v0/v1 只包含当时存在的托管键即可正常导入；不要求包含后来新增的
+  `zigsaw.trial.progress.v1`。
+- 导入仍是完整快照替换：旧文件缺少新托管键时，不会报错，但该键会恢复为
+  “不存在”，随后由运行时按默认值初始化。
 - 当前页面拒绝高于自身支持版本的存档；新版本应用负责读取旧版本文件。
 - 托管键使用白名单。存档中若出现未知键会拒绝导入，避免向站点存储注入任意项。
+
+兼容矩阵：
+
+| 来源 | 当前页面是否可导入 | 缺失试炼进阶数据时 |
+| --- | --- | --- |
+| `.zsave` payload v0 | 是 | 使用默认未通关进度 |
+| `.zsave` payload v1，且无 trial key | 是 | 使用默认未通关进度 |
+| `.zsave` payload v1，且有 trial key | 是 | 保留最高通关与完美位图 |
+
+部件或汉字表新增内容不需要升级 `.zsave` 版本；部件使用数值 symbol ID，
+汉字收集按字符记录，图鉴关联部件会在导入后根据当前字表重建。
 
 ## 托管数据
 
@@ -43,6 +57,7 @@
 - `zigsaw.records.v1`
 - `char-rush.records.v1`（旧纪录兼容）
 - `zigsaw.cris.v1`
+- `zigsaw.trial.progress.v1`
 - `zigsaw.trial.inspissation.recentLongChars`
 
 导出只包含实际存在的键；导入后，托管键中文件未包含的项会被移除。托管键之外的
