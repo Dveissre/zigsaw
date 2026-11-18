@@ -1534,7 +1534,7 @@ try {
     (await page.locator(".play-actions button").allTextContents()).map(
       (text) => text.trim(),
     ),
-    ["结算"],
+    ["结算", "换题1"],
   );
   const settlementActionWidth = await page
     .locator(".play-actions")
@@ -1549,7 +1549,7 @@ try {
   assert.match(await page.locator(".record-row").innerText(), /纪录：3/);
   assert.match(
     await page.locator(".result-score").innerText(),
-    /阶段2 · 3题 · 平均\d+\.\ds/,
+    /普通 · 阶段2 · 3题 · 平均\d+\.\ds/,
   );
   assert.equal(await page.locator(".result-cris strong").innerText(), "+4");
   assert.equal(
@@ -1884,6 +1884,23 @@ try {
     await page.locator("[data-mode]").allTextContents(),
     ["挑战", "试炼", "练习"],
   );
+  await page.getByRole("button", { name: "试炼", exact: true }).click();
+  await page.locator("[data-trial-entry-locked]").waitFor();
+  assert.match(
+    await page.locator("[data-trial-entry-locked]").innerText(),
+    /未开放[\s\S]*开放条件：挑战模式 · 普通 通过 50 题/,
+  );
+  assert.equal(await page.locator(".start-button:visible").count(), 0);
+  await page.evaluate(() => {
+    const raw = localStorage.getItem("zigsaw.records.v1");
+    const parsed = raw ? JSON.parse(raw) : {};
+    parsed[
+      "challenge|difficulty=standard|questions=5|size=1500|shift=300|seconds=40|ex=1"
+    ] = 50;
+    localStorage.setItem("zigsaw.records.v1", JSON.stringify(parsed));
+  });
+  await page.reload({ waitUntil: "networkidle" });
+  await page.locator(".start-button:not([disabled])").waitFor();
   await page.getByRole("button", { name: "试炼", exact: true }).click();
   await page.getByRole("button", { name: "开始", exact: true }).click();
   await page.locator(".trial-intro-surface").waitFor();

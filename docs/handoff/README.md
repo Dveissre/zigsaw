@@ -12,6 +12,24 @@
 
 不要依赖另一个对话的记忆。代码、测试和本目录中的已提交文档才是共享依据。
 
+## 迁移快照（2026-11-10）
+
+- 仓库：`C:\Projects\Web\zigsaw`
+- 分支：`feature/trial-mode`
+- 当前提交：`2bef4a9 feat: Trial Ascension`
+- `feature/trial-mode`、`main`、`origin/main` 在维护本快照时均指向
+  `2bef4a9`。
+- 维护前的代码工作区干净；本次迁移整理（文档、项目级 `AGENTS.md`、LF/sourceHash
+  规范化及对应生成哈希）尚未自动提交。
+- 项目级规则位于仓库内 `AGENTS.md`；迁移时应随仓库一起保留。
+- 迁移必须保留 `src/`、`tests/`、`scripts/`、`public/data/`、
+  `public/component_svg/`、`data-source/wordlists/`、`docs/`、字体资产与
+  `.gitattributes`。
+- 旧 bug worktree `C:\Projects\Web\zigsaw-bugs` 是迁移前并行开发环境，
+  不是当前仓库运行的依赖。
+- 新环境先执行 `npm ci`，再执行 `npm test` 与 `npx vite build`；只有明确
+  需要刷新生成数据时才执行带 pre-hook 的 `npm run build`。
+
 ## 开始工作或合并其它分支前
 
 先查看本目录近期变化：
@@ -23,7 +41,7 @@ git log --name-status -1 -- docs/handoff
 
 其它分支合并 `main` 后，应再次执行这些命令，并阅读本次变化的文件。
 
-## 当前分工
+## 迁移前工作区（历史）
 
 | 工作区 | 分支 | 默认端口 | 责任 |
 | --- | --- | --- | --- |
@@ -36,6 +54,15 @@ git log --name-status -1 -- docs/handoff
 
 | 日期 | 类型 | 内容 | 文档 |
 | --- | --- | --- | --- |
+| 2026-11-19 | feature | 实装试炼模式准入门槛与 Cris 试玩券机制：进阶 0（试炼入口）需挑战普通 50 题解锁，进阶 1–4 需普通 80/120 或专家 50/80 题并结合前置通关；未达门槛可消耗分光水晶购买单次试玩券体验，试玩通关视作达成门槛并解锁下一级 | [trial-mode.md](features/trial-mode.md) |
+| 2026-11-18 | feature | 挑战模式入门与普通难度新增 EX 换题奖励（进入 EX 获得 1 次、之后每 5 题获得 1 次）并更新难度说明文案；挑战模式主动弃权在有剩余换题次数时同样提供复活选项 | [trial-mode.md](features/trial-mode.md) |
+| 2026-11-18 | feature | 进阶 4 取消“答错扣除 3 秒作答时间”并归档至 `docs/archive/trial-wrong-answer-penalty.md`；记录低优先级全局“诅咒”计划；挑战模式结算页显示难度（入门/普通/专家）并支持时间耗尽后消耗换题次数复活（不计失败）；同步最新拆字表（新增 `乑`、`见`）并重建部件字体、图鉴分片与测试断言 | [trial-mode.md](features/trial-mode.md)、[trial-rules-plan.md](../trial-rules-plan.md)、[trial-wrong-answer-penalty.md](../archive/trial-wrong-answer-penalty.md) |
+| 2026-11-17 | bugfix | 修复试炼词组道中题将多字词写入图鉴导致存档码“获取”报“存档码包含无效字符”，并自动拆分清理已有本地存档中的多字键 | [bugfix.md](bugfix.md)、[save-code.md](features/save-code.md) |
+| 2026-11-17 | data | 新增 `composition_excluded.txt`，从构词法出题池批量排除低频区间全部 1,107 个二字词（保留于可接受答案池） | [trial-mode.md](features/trial-mode.md)、[DATA_PROVENANCE.md](../DATA_PROVENANCE.md) |
+| 2026-11-17 | data | 整理词表目录：`words_2to4.txt` 统一归位至 `data-source/wordlists/`；将 3 份低频二字词筛选清单归档至 `docs/archive/wordlists/`，并生成 `assonance_excluded.txt` 从半韵法/失韵法出题池排除 62 个不常用词 | [trial-mode.md](features/trial-mode.md)、[DATA_PROVENANCE.md](../DATA_PROVENANCE.md) |
+| 2026-11-17 | feature | 同步更新后拆字表的下游数据与 `tests/data.test.ts` 断言；全局调试模式支持解锁并游玩全部已开放进阶（0–4） | [trial-mode.md](features/trial-mode.md) |
+| 2026-11-17 | balance | 调整进阶 4：一、二星制限作答时间改为减少 15%（×0.85），新增答错扣除 3 秒作答时间及倒计时圆环 `is-penalty-cut` 扣时动效 | [trial-mode.md](features/trial-mode.md)、[trial-rules-plan.md](../trial-rules-plan.md) |
+| 2026-11-10 | migration | 固化迁移前快照；补齐项目级 `AGENTS.md` 与根 README；统一 LF/sourceHash 口径，清理当前状态和历史工作流说明 | [trial-mode.md](features/trial-mode.md)、[bugfix.md](bugfix.md)、[README.md](../../README.md) |
 | 2026-11-09 | data | 更新部件字体子集并重建图鉴索引以包含“戢”；确认 `.zsave` v0/v1 与存档码 v1/v2/v3 的向后兼容 | [save-archive.md](features/save-archive.md)、[save-code.md](features/save-code.md) |
 | 2026-11-09 | balance | 实装试炼 Cris 奖励：进阶基准、后置幕数进度、完美加成与提前结算防刷 | [trial-mode.md](features/trial-mode.md)、[trial-rules-plan.md](../trial-rules-plan.md) |
 | 2026-11-09 | feature | 实装进阶 0–4 的累计效果；首页改为基础规则/增量规则展示，进阶 5–7 锁定为“尚未开放”，首次通关显示下一进阶解锁 | [trial-mode.md](features/trial-mode.md)、[trial-rules-plan.md](../trial-rules-plan.md) |
@@ -86,17 +113,24 @@ git log --name-status -1 -- docs/handoff
 | 2026-11-01 | bugfix | 囗注记、换题揭示、教程计数、写字台方点、Cris 不足按钮、新增 SVG | [bugfix.md](bugfix.md) |
 | 2026-11-01 | feature | 汉字释义浮窗的静态分片和按需加载方案 | [char-detail.md](features/char-detail.md) |
 
-## 当前状态（2026-11-09）
+## 当前状态（2026-11-10）
 
-- `feature/trial-mode` 已同步到 `origin/main` 的 `e5d3903`，并保留指差确认等未提交工作。
-- `bugfix/internal` 已在工作区合入该版本，但按约定没有创建 merge commit；
-  后续提交、推送和 `main` 合并由用户执行。
+- `feature/trial-mode`、`main`、`origin/main` 均为
+  `2bef4a9 feat: Trial Ascension`。
+- 代码基线为干净的 `2bef4a9`；在其上完成了迁移文档、项目级 `AGENTS.md`、
+  LF 策略与跨平台 sourceHash 修正。迁移前 bug worktree `zigsaw-bugs`
+  不属于本仓库迁移依赖。
 - `/test/` 提供挑战、试炼与练习入口；正式 `/` 仍只提供挑战与练习。
 - 练习模式下的“无尽”已改为题数行右侧单键开关；开启时题数控件置灰禁用。
-- Bug worktree 的开发端口仍为 `5174`，试炼主线 worktree 为 `5173`。
+- 开发端口默认仍为 `5173`；并行 worktree 的 `5174` 约定仅属于迁移前历史。
 - 试炼已接入四分法、急板、失与得、拾级、五个奇境、五个厄境、指差确认、三秋树、
   化约论、预制件、通配符、枝指、茁轧、格式塔、简赅、短视、繁缛、
   盲视与回声室。赋格曲与双重曝光已统一归档，代码与测试保留但不再可进入。
 - 进阶 0–4 已按累积方式实装；进阶 5–7 显示“尚未开放”，不可解锁或游玩。
+- Cris 奖励按完整通关与后置幕数进度发奖；进阶 1 普通 150、完美 180。
+- `.zsave` payload v0/v1 与紧凑码正文 v1/v2/v3 保持向后兼容。
+- 图鉴、部件字体、报表与词池生成物是迁移仓库的一部分，不应遗漏。
+- 文本文件统一使用 LF；数据生成器与测试在计算 sourceHash 前也会把 CRLF
+  规范化为 LF，避免跨平台换行导致迁移后误报数据过期。
 - 完整制限规则目录与实装批次见 `docs/trial-rules-plan.md`。
-- 未提交或合并任务仍以 `git status`、`git diff` 的实际结果为准。
+- 迁移后若远端历史或分支结构变化，以实际 `git status`、`git log` 为准。

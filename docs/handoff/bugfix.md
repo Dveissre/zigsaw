@@ -3,27 +3,30 @@
 总索引见 `docs/handoff/README.md`。复杂的跨分支功能单独记录在
 `docs/handoff/features/`；本文件只保存 Bug 工作流和修复汇总。
 
-本文用于另开一个对话集中处理内测 Bug，让主线对话继续推进“试炼模式”。
+本文保留迁移前的 Bug 排查流程、严重级别和修复记录。当前项目快照见
+`README.md`；新迁移环境不应依赖旧的绝对 worktree 路径。
 
-## 当前开发分工
+## 迁移前开发分工（历史）
 
 - 主线对话：负责试炼模式的架构、规则、UI 和功能实现。
 - Bug 对话：只处理现版本的复现、紧急修复、回归测试和发布前阻塞问题。
 - 两边同时工作时必须使用不同的 Git worktree，不能同时编辑同一个目录。
 - 未经用户明确要求，不提交、不推送。
 
-## 项目快照（2026-11-04）
+## 项目快照（2026-11-10）
 
-- 项目目录：`C:\Projects\Web\zigsaw`
-- Bug worktree：`C:\Projects\Web\zigsaw-bugs`
+- 当前仓库：原路径 `C:\Projects\Web\zigsaw`；迁移后以新路径为准。
+- 当前分支：`feature/trial-mode`
+- 当前提交：`2bef4a9 feat: Trial Ascension`
+- `feature/trial-mode`、`main`、`origin/main` 在迁移快照时一致。
+- 旧 bug worktree：`C:\Projects\Web\zigsaw-bugs`，仅作迁移前历史记录。
 - 技术栈：Vite + TypeScript
 - 部署：GitHub Pages
 - 数据存储：localStorage；没有后端
-- 当前主线分支：`feature/trial-mode`，位于主 worktree
-- 当前修复分支：`bugfix/internal`，位于 Bug worktree
-- 最新已知 `origin/main` 为 `21cce3e TBC`，包含试炼模式更新
-- `bugfix/internal` 已将该版本合入工作区，但未创建 merge commit
-- Bug worktree 合并前应重新 fetch，并以各自 `git status` 为准
+- 新环境先执行 `npm ci`，再根据任务运行 `npm test`、`npm run test:trial`
+  或 `npx vite build`。
+- 旧分支和 worktree 的合并状态不再代表当前仓库；操作前以实际
+  `git status`、`git branch -vv` 和 `git log --all` 为准。
 
 ## 开始 Bug 对话时先做什么
 
@@ -38,11 +41,11 @@
    - 是否在无痕模式、其它浏览器或刷新后仍出现
 4. 能稳定复现后，再定位代码；不要仅凭截图猜测原因。
 
-推荐的新 worktree：
+迁移后如需并行修复，建议在新仓库的相邻目录创建 worktree：
 
 ```powershell
 git fetch origin
-git worktree add C:\Projects\Web\zigsaw-bugs -b bugfix/live-internal origin/main
+git worktree add ..\zigsaw-bugs -b bugfix/live-internal origin/main
 ```
 
 如 `bugfix/live-internal` 已存在，更换分支名。
@@ -60,19 +63,19 @@ git worktree add C:\Projects\Web\zigsaw-bugs -b bugfix/live-internal origin/main
 ```powershell
 npm ci
 npm test
-npm run build
 npm run smoke
 npm run check:viewports
-npm run dev -- --host 127.0.0.1 --port 5174
+npx vite build
+npx vite --host 127.0.0.1 --port 5174 --strictPort
 ```
 
-- 主线 `feature/trial-mode` 固定使用 `127.0.0.1:5173`，在
-  `C:\Projects\Web\zigsaw` 中运行
-  `npm run dev -- --host 127.0.0.1 --port 5173`。
-- Bug 分支固定使用 `127.0.0.1:5174`。
-- 两个分支可以同时打开；每个端口只保留一个 Vite 进程。
+- 主 worktree 默认使用 `127.0.0.1:5173`；并行 Bug worktree 使用另一个端口
+  （迁移前的约定为 `5174`）。
+- 每个端口只保留一个 Vite 进程。
+- `npm run dev` 和 `npm run build` 会运行 pre-hook 并重写受版本控制的生成物；
+  只读检查优先使用 `npx vite`，不要求刷新生成数据时使用 `npx vite build`。
+- 只有明确需要同步词表、图鉴、规则池和构词池时才运行 `npm run build`。
 - 若页面突然出现旧版本，先检查监听进程，再改源码。
-- `npm run build` 和 `npm run dev` 的 pre-hook 会重新生成图鉴索引和部件统计。
 
 ## 不可破坏的数据
 
@@ -95,10 +98,18 @@ npm run dev -- --host 127.0.0.1 --port 5174
 相关生成命令：
 
 ```powershell
+npm run sync:wordlists
 npm run build:component-usage
 npm run build:atlas
+npm run build:component-font
 npm run build:trial-reports
+npm run analyze:trial-rule-pools
+npm run build:composition-pools
 ```
+
+`build:component-font` 需要能导入 FontTools 与 Brotli 的 Python，以及本地
+Source Han Serif CN Bold 源字体；路径可通过 `ZIGSAW_PYTHON` 和
+`ZIGSAW_FONT_SOURCE` 指定。
 
 ## localStorage 数据
 
@@ -120,6 +131,11 @@ Bug 修复不得要求用户随意清除网站数据，否则可能丢失：
 | `src/game/session.ts` | 游戏状态机、计时、答题、挑战进度 |
 | `src/game/data.ts` | 字表、部件和拆法数据 |
 | `src/game/save.ts` | 加密存档、版本迁移与托管存储键替换 |
+| `src/game/save-code.ts` | 紧凑存档码 v1–v3 编解码 |
+| `src/game/trial.ts` | 试炼状态机、题库、规则行为与 Cris 结算 |
+| `src/game/trial-advancement.ts` | 进阶 0–7 配置与解锁规则 |
+| `src/game/trial-progress.ts` | 进阶通关/完美存档 |
+| `src/game/trial-rules.ts` | 试炼规则数据校验与选择 |
 | `src/game/records.ts` | 挑战纪录 |
 | `src/game/collection.ts` | 图鉴和收集进度 |
 | `src/game/gacha.ts` | 写字台抽卡算法 |
@@ -134,6 +150,18 @@ Bug 修复不得要求用户随意清除网站数据，否则可能丢失：
 `src/main.ts` 和 `src/styles.css` 是最容易发生主线/Bug 分支冲突的文件。两边并行时不要直接共用同一 worktree。
 
 ## 最近完成的修复
+
+### 2026-11-17：修复试炼词组道中题写入多字键导致存档码导出报“存档码包含无效字符”
+
+- 试炼模式下，构词法（`composition`）、半韵法（`assonance`）与失韵法（`dissonance`）的
+  道中关卡此前在 `TrialSession.showNormalQuestion()` 中直接将整词（2 字）传入
+  `recordEncounter()`，写入 `localStorage["zigsaw.collection.v2"]`。
+- 紧凑存档码导出时 `codePointOf()` 要求每个键恰好为单字符，导致点击“获取”抛出
+  “存档码包含无效字符”。
+- 修复：`showNormalQuestion()` 对词组规则按字逐个调用 `recordEncounter()`；
+  `CollectionStore.recordEncounter()` 拒绝多字键，并在 `needsReconcile()` /
+  `reconcile()` 中拆分清理既有存档中的多字键；`save-code.ts` 在读取旧集合键时也按
+  码点展开并忽略空键，确保已受污染的本地存档可直接获取存档码。
 
 ### 2026-11-04：试炼主线同步与首页交互
 
@@ -261,10 +289,11 @@ npm run build
 
 ## 主线交接说明
 
-主线下一步是试炼模式，当前方向为：
-
-- 7 个阶段，每阶段 8 道普通题 + 1 道双字 BOSS。
-- 普通题基础时间 30 秒，BOSS 基础时间 60 秒。
-- 优先实现独立 `TrialSession`，不要继续把试炼分支塞进挑战模式状态机。
-- 先完成无制限的完整七阶段流程，再逐条接入制限规则。
-- 主线未完成的试炼代码不应成为内测 Bug 修复分支的依赖。
+- 试炼使用独立的 `TrialSession`，不要并回挑战模式状态机。
+- 七幕制限按星级池随机，规则内容由 `trial-rules.json` 驱动。
+- 进阶 0 为 7 道道中 + 1 道守幕；进阶 1 起为 8 + 1。
+- 进阶 0–4 可用，进阶 5–7 显示“尚未开放”。
+- Cris 奖励按已通关幕数后置发放，前两幕结算为 0。
+- `.zsave` v0/v1 和紧凑码正文 v1/v2/v3 需要持续兼容。
+- 迁移后的当前事项、已知限制和测试命令以
+  `docs/handoff/README.md` 与 `features/trial-mode.md` 为准。

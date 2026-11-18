@@ -11,7 +11,15 @@ const root = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 const dataDir = resolve(root, "public/data");
 const wordPath = resolve(
   root,
-  "docs/words_2to4.txt",
+  "data-source/wordlists/words_2to4.txt",
+);
+const compositionExcludedPath = resolve(
+  root,
+  "data-source/wordlists/composition_excluded.txt",
+);
+const assonanceExcludedPath = resolve(
+  root,
+  "data-source/wordlists/assonance_excluded.txt",
 );
 const commonWordPath = resolve(
   root,
@@ -22,6 +30,11 @@ const answerWordsPath = resolve(dataDir, "word-answers.json");
 
 const readJson = (name) =>
   JSON.parse(readFileSync(resolve(dataDir, name), "utf8"));
+const normalizedBytes = (path) =>
+  Buffer.from(
+    readFileSync(path, "utf8").replace(/\r\n?/g, "\n"),
+    "utf8",
+  );
 const symData = readJson("char_sym.json");
 const levelData = readJson("tongyong_hanzi.json");
 const assetData = readJson("component-assets.json");
@@ -29,22 +42,27 @@ const answerCompatibility = readJson(
   "char_sym_answer_compat.json",
 );
 
-const sourceHash = createHash("sha256")
-  .update(readFileSync(wordPath))
-  .digest("hex");
-const answerSourceHash = createHash("sha256")
-  .update(readFileSync(commonWordPath))
-  .digest("hex");
-const symbolHash = createHash("sha256")
-  .update(readFileSync(resolve(dataDir, "char_sym.json")))
-  .digest("hex");
-const answerCompatibilityHash = createHash("sha256")
-  .update(
-    readFileSync(
-      resolve(dataDir, "char_sym_answer_compat.json"),
-    ),
-  )
-  .digest("hex");
+const hashFile = (path) =>
+  createHash("sha256")
+    .update(normalizedBytes(path))
+    .digest("hex");
+const readWordList = (path) => [
+  ...new Set(
+    readFileSync(path, "utf8")
+      .split(/\r?\n/)
+      .map((word) => word.trim())
+      .filter(Boolean),
+  ),
+];
+
+const sourceHash = hashFile(wordPath);
+const compositionExcludedHash = hashFile(compositionExcludedPath);
+const assonanceExcludedHash = hashFile(assonanceExcludedPath);
+const answerSourceHash = hashFile(commonWordPath);
+const symbolHash = hashFile(resolve(dataDir, "char_sym.json"));
+const answerCompatibilityHash = hashFile(
+  resolve(dataDir, "char_sym_answer_compat.json"),
+);
 
 const assetIds = new Set(
   Object.keys(assetData.symbols ?? {}).map(Number),
@@ -69,14 +87,13 @@ for (const [level, key] of [
   }
 }
 
-const words = [
-  ...new Set(
-    readFileSync(wordPath, "utf8")
-      .split(/\r?\n/)
-      .map((word) => word.trim())
-      .filter(Boolean),
-  ),
-];
+const words = readWordList(wordPath);
+const compositionExcludedWords = new Set(
+  readWordList(compositionExcludedPath),
+);
+const assonanceExcludedWords = new Set(
+  readWordList(assonanceExcludedPath),
+);
 const charWays = (char) => {
   const rawWays = symData.chars[char] ?? [];
   if (
@@ -136,88 +153,92 @@ for (const word of words) {
     new Set(chars).size !== chars.length;
   if (!hasRepeatedCharacter) {
     assonanceWordsByLength[chars.length].push(word);
-    for (const recipe of recipes) {
-      const counts = new Map();
-      const charCounts = recipe.map((way) => {
-        const current = new Map();
-        for (const symbolId of way) {
-          counts.set(
-            symbolId,
-            (counts.get(symbolId) ?? 0) + 1,
+    if (!assonanceExcludedWords.has(word)) {
+      for (const recipe of recipes) {
+        const counts = new Map();
+        const charCounts = recipe.map((way) => {
+          const current = new Map();
+          for (const symbolId of way) {
+            counts.set(
+              symbolId,
+              (counts.get(symbolId) ?? 0) + 1,
+            );
+            current.set(
+              symbolId,
+              (current.get(symbolId) ?? 0) + 1,
+            );
+          }
+          return current;
+        });
+        const crossSymbols = [...counts.entries()]
+          .filter(
+            ([symbolId]) =>
+              charCounts.filter(
+                (current) =>
+                  (current.get(symbolId) ?? 0) > 0,
+              ).length >= 2,
+          )
+          .map(([symbolId]) => symbolId);
+        const displayedCardCount =
+          crossSymbols.length +
+          [...counts.entries()].reduce(
+            (sum, [symbolId, count]) =>
+              sum +
+              (crossSymbols.includes(symbolId) ? 0 : count),
+            0,
           );
-          current.set(
-            symbolId,
-            (current.get(symbolId) ?? 0) + 1,
+        const everyCharacterHasVisibleCard =
+          charCounts.every((current) =>
+            [...current.keys()].some(
+              (symbolId) => !crossSymbols.includes(symbolId),
+            ),
           );
+        if (
+          chars.length === 2 &&
+          displayedCardCount >= 4 &&
+          displayedCardCount <= 6 &&
+          crossSymbols.length >= 1 &&
+          everyCharacterHasVisibleCard
+        ) {
+          assonanceNormal.push({
+            ...entry,
+            recipes: [recipe],
+          });
         }
-        return current;
-      });
-      const crossSymbols = [...counts.entries()]
-        .filter(
-          ([symbolId]) =>
-            charCounts.filter(
-              (current) =>
-                (current.get(symbolId) ?? 0) > 0,
-            ).length >= 2,
-        )
-        .map(([symbolId]) => symbolId);
-      const displayedCardCount =
-        crossSymbols.length +
-        [...counts.entries()].reduce(
-          (sum, [symbolId, count]) =>
-            sum +
-            (crossSymbols.includes(symbolId) ? 0 : count),
-          0,
-        );
-      const everyCharacterHasVisibleCard =
-        charCounts.every((current) =>
-          [...current.keys()].some(
-            (symbolId) => !crossSymbols.includes(symbolId),
-          ),
-        );
-      if (
-        chars.length === 2 &&
-        displayedCardCount >= 4 &&
-        displayedCardCount <= 6 &&
-        crossSymbols.length >= 1 &&
-        everyCharacterHasVisibleCard
-      ) {
-        assonanceNormal.push({
-          ...entry,
-          recipes: [recipe],
-        });
-      }
-      if (
-        chars.length > 2 &&
-        displayedCardCount >= 6 &&
-        displayedCardCount <= 10 &&
-        crossSymbols.length >= 2
-      ) {
-        assonanceBoss.push({
-          ...entry,
-          recipes: [recipe],
-        });
+        if (
+          chars.length > 2 &&
+          displayedCardCount >= 6 &&
+          displayedCardCount <= 10 &&
+          crossSymbols.length >= 2
+        ) {
+          assonanceBoss.push({
+            ...entry,
+            recipes: [recipe],
+          });
+        }
       }
     }
   }
-  if (chars.length === 2) {
-    const matching = recipes.filter(
-      (recipe) =>
-        recipe.reduce((sum, way) => sum + way.length, 0) === 4,
-    );
-    if (matching.length > 0) {
-      normal.push({ ...entry, recipes: matching });
-    }
-  } else {
-    const matching = recipes.filter((recipe) => {
-      const cardCount = recipe.reduce(
-        (sum, way) => sum + way.length,
-        0,
+  if (!compositionExcludedWords.has(word)) {
+    if (chars.length === 2) {
+      const matching = recipes.filter(
+        (recipe) =>
+          recipe.reduce((sum, way) => sum + way.length, 0) === 4,
       );
-      return cardCount >= 6 && cardCount <= 8;
-    });
-    if (matching.length > 0) {
-      boss.push({ ...entry, recipes: matching });
+      if (matching.length > 0) {
+        normal.push({ ...entry, recipes: matching });
+      }
+    } else {
+      const matching = recipes.filter((recipe) => {
+        const cardCount = recipe.reduce(
+          (sum, way) => sum + way.length,
+          0,
+        );
+        return cardCount >= 6 && cardCount <= 8;
+      });
+      if (matching.length > 0) {
+        boss.push({ ...entry, recipes: matching });
+      }
     }
   }
 }
@@ -304,6 +325,7 @@ writeFileSync(
     {
       format: "zigsaw-composition-words/1",
       sourceHash,
+      excludedHash: compositionExcludedHash,
       symbolHash,
       answerCompatibilityHash,
       weighting:
@@ -323,6 +345,7 @@ writeFileSync(
     {
       format: "zigsaw-assonance-words/1",
       sourceHash,
+      excludedHash: assonanceExcludedHash,
       symbolHash,
       answerCompatibilityHash,
       weighting:

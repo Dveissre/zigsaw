@@ -128,4 +128,41 @@ describe("component collection", () => {
     ).toBe(40);
   });
 
+  it("ignores multi-character encounters and splits legacy multi-character keys during reconcile", () => {
+    const storage = new MemoryStorage();
+    storage.setItem(
+      "zigsaw.collection.v2",
+      JSON.stringify({
+        version: 2,
+        sourceHash: "same",
+        chars: {
+          上台: [1, 2, 90],
+        },
+        externalChars: ["上台"],
+        directComponents: [],
+      }),
+    );
+    const collection = new CollectionStore(storage);
+    collection.recordEncounter("木林", [140]);
+    expect(collection.hasSeenChar("木林")).toBe(false);
+    expect(collection.needsReconcile("same")).toBe(true);
+
+    collection.reconcile(
+      new Map([
+        ["上", [[1, 2]]],
+        ["台", [[28, 90]]],
+      ]),
+      (symbolId) => String(symbolId),
+      "same",
+      () => false,
+    );
+
+    expect(collection.hasSeenChar("上台")).toBe(false);
+    expect(collection.seenChars()).toEqual(["上", "台"]);
+    expect(collection.componentsForChar("上")).toEqual([1, 2]);
+    expect(collection.componentsForChar("台")).toEqual([28, 90]);
+    expect(collection.isExternalChar("上台")).toBe(false);
+    expect(collection.needsReconcile("same")).toBe(false);
+  });
+
 });

@@ -51,7 +51,9 @@ for (let index = 0; index < bucketCount; index += 1) {
 sizes.sort((left, right) => left - right);
 const percentile = (ratio) =>
   sizes[Math.min(sizes.length - 1, Math.floor(sizes.length * ratio))];
-const sourceHash = createHash("sha256").update(source).digest("hex");
+const sourceHash = createHash("sha256")
+  .update(source.replace(/\r\n?/g, "\n"))
+  .digest("hex");
 
 console.log(
   [

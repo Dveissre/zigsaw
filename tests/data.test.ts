@@ -44,6 +44,7 @@ type GestaltPairsTable = {
 type CompositionWordsTable = {
   format: string;
   sourceHash: string;
+  excludedHash: string;
   symbolHash: string;
   answerCompatibilityHash: string;
   words: Record<"2" | "3" | "4", string[]>;
@@ -64,6 +65,7 @@ type AssonanceWordsTable = Omit<
   "format"
 > & {
   format: "zigsaw-assonance-words/1";
+  excludedHash: string;
 };
 
 type WordAnswersTable = {
@@ -140,6 +142,15 @@ type ComponentCharacterShard = {
 
 const readJson = <T>(path: string): T =>
   JSON.parse(readFileSync(resolve(process.cwd(), path), "utf8")) as T;
+const hashTextFile = (path: string): string =>
+  createHash("sha256")
+    .update(
+      readFileSync(
+        resolve(process.cwd(), path),
+        "utf8",
+      ).replace(/\r\n?/g, "\n"),
+    )
+    .digest("hex");
 
 describe("static game data", () => {
   it("keeps copied lexicon assets synchronized with their sources", () => {
@@ -175,43 +186,49 @@ describe("static game data", () => {
       "zigsaw-composition-words/1",
     );
     expect(composition.sourceHash).toBe(
-      createHash("sha256")
-        .update(
-          readFileSync(
-            resolve(
-              process.cwd(),
-              "docs/words_2to4.txt",
-            ),
-          ),
-        )
-        .digest("hex"),
+      hashTextFile("data-source/wordlists/words_2to4.txt"),
+    );
+    expect(composition.excludedHash).toBe(
+      hashTextFile(
+        "data-source/wordlists/composition_excluded.txt",
+      ),
     );
     expect(composition.symbolHash).toBe(
-      createHash("sha256")
-        .update(
-          readFileSync(
-            resolve(process.cwd(), "public/data/char_sym.json"),
-          ),
-        )
-        .digest("hex"),
+      hashTextFile("public/data/char_sym.json"),
     );
     expect(composition.answerCompatibilityHash).toBe(
-      createHash("sha256")
-        .update(
-          readFileSync(
-            resolve(
-              process.cwd(),
-              "public/data/char_sym_answer_compat.json",
-            ),
-          ),
-        )
-        .digest("hex"),
+      hashTextFile(
+        "public/data/char_sym_answer_compat.json",
+      ),
     );
-    expect(composition.normal).toHaveLength(6117);
-    expect(composition.boss).toHaveLength(6370);
+    expect(composition.normal).toHaveLength(5094);
+    expect(composition.boss).toHaveLength(6459);
     expect(composition.words["2"]).toHaveLength(29125);
     expect(composition.words["3"]).toHaveLength(6858);
     expect(composition.words["4"]).toHaveLength(8341);
+    const excludedCompositionWords = new Set(
+      readFileSync(
+        resolve(
+          process.cwd(),
+          "data-source/wordlists/composition_excluded.txt",
+        ),
+        "utf8",
+      )
+        .split(/\r?\n/)
+        .map((word) => word.trim())
+        .filter(Boolean),
+    );
+    expect(excludedCompositionWords.size).toBe(1107);
+    expect(
+      composition.normal.some((entry) =>
+        excludedCompositionWords.has(entry.word),
+      ),
+    ).toBe(false);
+    expect(
+      composition.boss.some((entry) =>
+        excludedCompositionWords.has(entry.word),
+      ),
+    ).toBe(false);
     expect(
       composition.normal.every(
         (entry) =>
@@ -277,43 +294,49 @@ describe("static game data", () => {
       "zigsaw-assonance-words/1",
     );
     expect(assonance.sourceHash).toBe(
-      createHash("sha256")
-        .update(
-          readFileSync(
-            resolve(
-              process.cwd(),
-              "docs/words_2to4.txt",
-            ),
-          ),
-        )
-        .digest("hex"),
+      hashTextFile("data-source/wordlists/words_2to4.txt"),
+    );
+    expect(assonance.excludedHash).toBe(
+      hashTextFile(
+        "data-source/wordlists/assonance_excluded.txt",
+      ),
     );
     expect(assonance.symbolHash).toBe(
-      createHash("sha256")
-        .update(
-          readFileSync(
-            resolve(process.cwd(), "public/data/char_sym.json"),
-          ),
-        )
-        .digest("hex"),
+      hashTextFile("public/data/char_sym.json"),
     );
     expect(assonance.answerCompatibilityHash).toBe(
-      createHash("sha256")
-        .update(
-          readFileSync(
-            resolve(
-              process.cwd(),
-              "public/data/char_sym_answer_compat.json",
-            ),
-          ),
-        )
-        .digest("hex"),
+      hashTextFile(
+        "public/data/char_sym_answer_compat.json",
+      ),
     );
-    expect(assonance.normal).toHaveLength(2425);
-    expect(assonance.boss).toHaveLength(715);
+    expect(assonance.normal).toHaveLength(2363);
+    expect(assonance.boss).toHaveLength(713);
     expect(assonance.words["2"]).toHaveLength(28933);
     expect(assonance.words["3"]).toHaveLength(6586);
     expect(assonance.words["4"]).toHaveLength(7603);
+    const excludedAssonanceWords = new Set(
+      readFileSync(
+        resolve(
+          process.cwd(),
+          "data-source/wordlists/assonance_excluded.txt",
+        ),
+        "utf8",
+      )
+        .split(/\r?\n/)
+        .map((word) => word.trim())
+        .filter(Boolean),
+    );
+    expect(excludedAssonanceWords.size).toBe(62);
+    expect(
+      assonance.normal.some((entry) =>
+        excludedAssonanceWords.has(entry.word),
+      ),
+    ).toBe(false);
+    expect(
+      assonance.boss.some((entry) =>
+        excludedAssonanceWords.has(entry.word),
+      ),
+    ).toBe(false);
     for (const words of Object.values(assonance.words)) {
       expect(
         words.every(
@@ -389,25 +412,12 @@ describe("static game data", () => {
     );
     expect(answers.format).toBe("zigsaw-word-answers/1");
     expect(answers.sourceHash).toBe(
-      createHash("sha256")
-        .update(
-          readFileSync(
-            resolve(
-              process.cwd(),
-              "data-source/wordlists/common_word.txt",
-            ),
-          ),
-        )
-        .digest("hex"),
+      hashTextFile(
+        "data-source/wordlists/common_word.txt",
+      ),
     );
     expect(answers.symbolsHash).toBe(
-      createHash("sha256")
-        .update(
-          readFileSync(
-            resolve(process.cwd(), "public/data/char_sym.json"),
-          ),
-        )
-        .digest("hex"),
+      hashTextFile("public/data/char_sym.json"),
     );
     expect(answers.words["2"]).toHaveLength(108685);
     expect(answers.words["3"]).toHaveLength(11143);
@@ -466,28 +476,15 @@ describe("static game data", () => {
       "zigsaw-gestalt-pairs/1",
     );
     expect(gestalt.sourceHash).toBe(
-      createHash("sha256")
-        .update(
-          readFileSync(
-            resolve(process.cwd(), "public/data/char_sym.json"),
-          ),
-        )
-        .digest("hex"),
+      hashTextFile("public/data/char_sym.json"),
     );
     expect(gestalt.answerCompatibilityHash).toBe(
-      createHash("sha256")
-        .update(
-          readFileSync(
-            resolve(
-              process.cwd(),
-              "public/data/char_sym_answer_compat.json",
-            ),
-          ),
-        )
-        .digest("hex"),
+      hashTextFile(
+        "public/data/char_sym_answer_compat.json",
+      ),
     );
     expect(gestalt.excludedComponents).toContain("𰀁");
-    expect(gestalt.pairs).toHaveLength(4487);
+    expect(gestalt.pairs).toHaveLength(4503);
     expect(
       gestalt.pairs.find(
         (pair) =>
@@ -534,11 +531,13 @@ describe("static game data", () => {
     const data = readJson<SymTable>("public/data/char_sym.json");
 
     expect(data.counts.chars).toBe(27692);
-    expect(data.counts.symbols).toBe(429);
+    expect(data.counts.symbols).toBe(431);
     expect(data.chars["氢"]).toEqual([[168, 429, 75]]);
     expect(
       data.chars["氢"][0].map((symbolId) => data.symbols[String(symbolId)]),
     ).toEqual(["气", "ス", "工"]);
+    expect(data.symbols["436"]).toBe("乑");
+    expect(data.symbols["437"]).toBe("见");
     expect(
       data.chars["里"].map((way) =>
         way.map((symbolId) => data.symbols[String(symbolId)]).join("+"),
@@ -553,7 +552,7 @@ describe("static game data", () => {
       data.chars["觑"].map((way) =>
         way.map((symbolId) => data.symbols[String(symbolId)]).join("+"),
       ),
-    ).toContain("虍+业+冂+丿+乚");
+    ).toContain("虍+业+见");
     expect(
       data.chars["浉"].map((way) =>
         way.map((symbolId) => data.symbols[String(symbolId)]).join("+"),
@@ -628,21 +627,17 @@ describe("static game data", () => {
     const svgFiles = readdirSync(resolve(process.cwd(), "public/component_svg"))
       .filter((name) => name.endsWith(".svg"))
       .sort();
+    const archivedSvgFiles = readdirSync(
+      resolve(process.cwd(), "docs/archive/component_svg"),
+    )
+      .filter((name) => name.endsWith(".svg"))
+      .sort();
     const mappedFiles = Object.values(assets.symbols)
       .map((asset) => asset.source.replace(/^component_svg\//, ""))
       .sort();
-    const supersededFiles = svgFiles.filter((filename) => {
-      const base = filename.replace(/\.svg$/, "");
-      return (
-        /[0-9]$/.test(base) &&
-        mappedFiles.includes(`${base}N.svg`)
-      );
-    });
 
-    expect(mappedFiles).toEqual(
-      svgFiles.filter((filename) => !supersededFiles.includes(filename)),
-    );
-    expect(supersededFiles).toEqual([
+    expect(mappedFiles).toEqual(svgFiles);
+    expect(archivedSvgFiles).toEqual([
       "121.svg",
       "159.svg",
       "182.svg",
@@ -707,13 +702,13 @@ describe("static game data", () => {
 
   it("keeps the generated component usage index internally consistent", () => {
     const usage = readJson<ComponentUsageTable>(
-      "public/data/component-usage.json",
+      "docs/component-usage.json",
     );
     const ids = usage.symbols.map((symbol) => symbol.symbolId);
 
     expect(usage.format).toBe("zigsaw-component-usage/1");
     expect(usage.characterCount).toBe(8105);
-    expect(usage.decompositionCount).toBe(9196);
+    expect(usage.decompositionCount).toBe(9199);
     expect(usage.componentCount).toBe(usage.symbols.length);
     expect(new Set(ids).size).toBe(ids.length);
     expect(usage.totalUsageCount).toBe(
@@ -732,7 +727,7 @@ describe("static game data", () => {
     expect(usage.symbols[0]).toMatchObject({
       symbolId: 90,
       name: "口",
-      count: 1859,
+      count: 1858,
     });
     expect(
       usage.symbols.find((symbol) => symbol.symbolId === 425)
@@ -747,15 +742,15 @@ describe("static game data", () => {
 
     expect(atlas.format).toBe("zigsaw-component-atlas/3");
     expect(atlas.sourceHash).toHaveLength(16);
-    expect(atlas.componentCount).toBe(364);
+    expect(atlas.componentCount).toBe(366);
     expect(atlas.exclusiveCount).toBe(35);
     expect(atlas.xrCount).toBe(15);
     expect(atlas.characterCount).toBe(8105);
     expect(atlas.byRarity).toEqual({
       N: 73,
-      R: 141,
+      R: 142,
       SR: 109,
-      SSR: 35,
+      SSR: 36,
       UR: 41,
       XR: 15,
     });
@@ -821,7 +816,7 @@ describe("static game data", () => {
         component.chars,
       ]),
     );
-    expect(charactersByComponent.size).toBe(414);
+    expect(charactersByComponent.size).toBe(416);
     expect(
       atlas.components.every((component) => {
           const chars =

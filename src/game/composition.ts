@@ -7,6 +7,7 @@ export interface CompositionWordEntry {
 export interface CompositionData {
   format: "zigsaw-composition-words/1";
   sourceHash: string;
+  excludedHash?: string;
   symbolHash: string;
   answerCompatibilityHash: string;
   weighting: string;

@@ -188,7 +188,7 @@ export class CollectionStore {
     isExternal = false,
     expandToAllWays = true,
   ): void {
-    if (char in this.data.chars) {
+    if ([...char].length !== 1 || char in this.data.chars) {
       return;
     }
     const current = expandToAllWays
@@ -273,8 +273,9 @@ export class CollectionStore {
 
   needsReconcile(sourceHash: string): boolean {
     return (
-      this.data.sourceHash !== sourceHash &&
-      this.seenChars().length > 0
+      (this.data.sourceHash !== sourceHash &&
+        this.seenChars().length > 0) ||
+      this.seenChars().some((char) => [...char].length !== 1)
     );
   }
 
@@ -294,18 +295,29 @@ export class CollectionStore {
   ): boolean {
     this.currentWays = ways;
     const nextChars: Record<string, number[]> = {};
-    for (const char of this.seenChars()) {
-      const componentIds = new Set<number>();
-      for (const way of ways.get(char) ?? []) {
-        for (const symbolId of way) {
-          if (componentName(symbolId) !== "?") {
-            componentIds.add(symbolId);
+    for (const rawChar of this.seenChars()) {
+      const points = [...rawChar];
+      if (points.length === 0) {
+        continue;
+      }
+      const targetChars =
+        points.length === 1 ? [rawChar] : points;
+      for (const char of targetChars) {
+        if (char in nextChars) {
+          continue;
+        }
+        const componentIds = new Set<number>();
+        for (const way of ways.get(char) ?? []) {
+          for (const symbolId of way) {
+            if (componentName(symbolId) !== "?") {
+              componentIds.add(symbolId);
+            }
           }
         }
+        nextChars[char] = [...componentIds].sort(
+          (left, right) => left - right,
+        );
       }
-      nextChars[char] = [...componentIds].sort(
-        (left, right) => left - right,
-      );
     }
     this.data.chars = nextChars;
     this.data.externalChars = this.seenChars().filter(

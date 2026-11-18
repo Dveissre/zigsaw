@@ -441,6 +441,74 @@ describe("question replacement", () => {
     expect(session.state.current?.char).not.toBe(before?.char);
     session.destroy();
   });
+
+  it("revives a timed-out challenge question with a remaining skip without recording a failure", () => {
+    vi.useFakeTimers();
+    const session = createSession("challenge");
+    const first = session.state.current;
+    expect(session.state.skipsRemaining).toBe(1);
+
+    vi.advanceTimersByTime(20_000);
+    expect(session.state.revealing).toBe(true);
+    expect(session.state.canRevive).toBe(true);
+    expect(session.state.history).toHaveLength(1);
+    expect(session.state.history[0]?.ok).toBe(false);
+
+    session.reviveWithSkip();
+    expect(session.state.revealing).toBe(false);
+    expect(session.state.canRevive).toBe(false);
+    expect(session.state.skipsRemaining).toBe(0);
+    expect(session.state.index).toBe(1);
+    expect(session.state.history).toHaveLength(0);
+    expect(session.state.current?.char).not.toBe(first?.char);
+
+    vi.advanceTimersByTime(4_000);
+    session.setDraft(session.state.current?.char ?? "");
+    session.submit();
+    vi.advanceTimersByTime(900);
+
+    vi.advanceTimersByTime(20_000);
+    expect(session.state.revealing).toBe(true);
+    expect(session.state.canRevive).toBe(false);
+    session.advance();
+    expect(session.state.phase).toBe("results");
+    expect(session.state.correctCount).toBe(1);
+    expect(session.state.history).toHaveLength(2);
+    expect(session.state.history[0]?.ok).toBe(true);
+    expect(session.state.history[1]?.ok).toBe(false);
+    expect(session.state.result?.averageQuestionSeconds).toBeCloseTo(12, 0);
+    session.destroy();
+  });
+
+  it("revives a manually surrendered challenge question with a remaining skip without recording a failure", () => {
+    vi.useFakeTimers();
+    const session = createSession("challenge");
+    const first = session.state.current;
+    expect(session.state.skipsRemaining).toBe(1);
+
+    session.surrender();
+    expect(session.state.revealing).toBe(true);
+    expect(session.state.canRevive).toBe(true);
+    expect(session.state.history).toHaveLength(1);
+    expect(session.state.history[0]?.ok).toBe(false);
+
+    session.reviveWithSkip();
+    expect(session.state.revealing).toBe(false);
+    expect(session.state.canRevive).toBe(false);
+    expect(session.state.skipsRemaining).toBe(0);
+    expect(session.state.index).toBe(1);
+    expect(session.state.history).toHaveLength(0);
+    expect(session.state.current?.char).not.toBe(first?.char);
+
+    session.surrender();
+    expect(session.state.revealing).toBe(true);
+    expect(session.state.canRevive).toBe(false);
+    session.advance();
+    expect(session.state.phase).toBe("results");
+    expect(session.state.history).toHaveLength(1);
+    expect(session.state.history[0]?.ok).toBe(false);
+    session.destroy();
+  });
 });
 
 describe("challenge skip rewards", () => {
@@ -490,6 +558,86 @@ describe("challenge skip rewards", () => {
 
     expect(session.state.skipsRemaining).toBe(2);
     session.destroy();
+  });
+
+  it("awards beginner and standard skips on EX entry and every 5 EX questions, while expert stays every 10", () => {
+    vi.useFakeTimers();
+    const exChars = ["丁", "七", "万", "丈", "三", "上", "下", "不", "与", "丐", "丑", "专"];
+    const chars: Record<string, number[][]> = {
+      二: [[1, 2]],
+      十: [[1, 2]],
+      川: [[1, 2, 3]],
+      ...Object.fromEntries(exChars.map((char) => [char, [[1, 2, 3]]])),
+    };
+    const game = new GameData(
+      {
+        symbols: { "1": "一", "2": "丨", "3": "丿" },
+        chars,
+      },
+      {
+        levels: {
+          一级: ["二", "十", "川"],
+          二级: [],
+          三级: [],
+        },
+      },
+      null,
+      "https://example.com/",
+    );
+
+    const runToEx = (
+      difficulty: "beginner" | "standard" | "expert",
+      exQuestionCount: number,
+    ) => {
+      const session = new GameSession(
+        game,
+        {
+          ...challenge,
+          levels: [1],
+          difficulty,
+          stageQuestions: 1,
+          stageSize: 10,
+          stageShift: 1,
+          exEnabled: true,
+        },
+        { load: () => 0, save: () => undefined },
+        () => undefined,
+        () => 0,
+      );
+      const answerCurrent = () => {
+        const answer = session.state.current?.char ?? "";
+        session.setDraft(answer);
+        session.submit();
+        vi.advanceTimersByTime(900);
+      };
+
+      // Stage 1 question -> advances into EX on question 2.
+      answerCurrent();
+      const onExEntry = session.state.skipsRemaining;
+      const skipsByExCount: number[] = [];
+      for (let i = 0; i < exQuestionCount; i += 1) {
+        const answer = session.state.current?.char ?? "";
+        session.setDraft(answer);
+        session.submit();
+        skipsByExCount.push(session.state.skipsRemaining);
+        vi.advanceTimersByTime(1600);
+      }
+      session.destroy();
+      return { onExEntry, skipsByExCount };
+    };
+
+    const beginner = runToEx("beginner", 5);
+    expect(beginner.onExEntry).toBe(3); // 1 initial + 1 stage clear + 1 EX entry
+    expect(beginner.skipsByExCount).toEqual([3, 3, 3, 3, 4]);
+
+    const standard = runToEx("standard", 5);
+    expect(standard.onExEntry).toBe(2); // 1 initial + 1 EX entry
+    expect(standard.skipsByExCount).toEqual([2, 2, 2, 2, 3]);
+
+    const expert = runToEx("expert", 10);
+    expect(expert.onExEntry).toBe(1); // 0 initial + 1 EX entry
+    expect(expert.skipsByExCount[4]).toBe(1);
+    expect(expert.skipsByExCount[9]).toBe(2);
   });
 });
 

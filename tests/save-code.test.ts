@@ -235,4 +235,29 @@ describe("compact beta save code", () => {
     expect(decoded.trialHighestCleared).toBe(4);
     expect(decoded.trialPerfectMask).toBe(0);
   });
+
+  it("normalizes legacy multi-character collection keys when exporting a save code", async () => {
+    const storage = createStorage();
+    storage.setItem(
+      "zigsaw.collection.v2",
+      JSON.stringify({
+        version: 2,
+        sourceHash: "same",
+        chars: {
+          上台: [1, 2, 90],
+          二: [1, 2],
+          "": [1],
+        },
+        externalChars: ["上台"],
+        directComponents: [9],
+      }),
+    );
+
+    const state = readCompactSaveState(storage);
+    expect(state.seenChars).toEqual(["上", "二", "台"]);
+
+    const code = await encodeSaveCode(state);
+    const decoded = await decodeSaveCode(code);
+    expect(decoded.seenChars).toEqual(["上", "二", "台"]);
+  });
 });

@@ -70,7 +70,7 @@ const output = {
 
 const outputPath = resolve(
   projectRoot,
-  "public/data/component-usage.json",
+  "docs/component-usage.json",
 );
 writeFileSync(outputPath, `${JSON.stringify(output, null, 2)}\n`);
 

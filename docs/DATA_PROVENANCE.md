@@ -8,13 +8,15 @@ Web 版只复制游戏运行时需要的成品 JSON，不复制原始素材或�
 | `public/data/tongyong_hanzi.json` | `C:\Projects\Python\wordlist\tongyong_hanzi.json` | 三级通规字顺序 |
 | `public/data/char-detail/*.json` | `C:\Projects\Python\wordlist\char_detail.json` | 结算卡按需读取的汉字读音、释义、例词与古籍征引 |
 | `public/data/char-school.json` | `C:\Projects\Python\wordlist\shizi_biao.json`、`xiezi_biao.json` | 识字表、写字表所在年级与册次 |
-| `public/data/component-usage.json` | 由通规字表和 `char_sym.json` 生成 | 每个部件在全部通规拆法中的使用次数，供图鉴使用 |
+| `docs/component-usage.json` | 由通规字表和 `char_sym.json` 生成 | 每个部件在全部通规拆法中的使用次数 |
 | `public/data/component-atlas.json` | 由可玩的通规多部件拆法生成 | 部件稀有度、可收集状态和按字表顺序排列的汉字列表 |
 | `public/component_svg/*.svg` | 项目内试行矢量图 | 未收录或 Unicode 支持较差的 sym |
 | `docs/component-usage.csv` | 从 `component-usage.json` 导出 | 可直接查看的部件使用次数表 |
 | `docs/component-glyph-priority.csv` | `C:\Projects\Python\char_components\component_glyph_priority.csv` | 多字符 sym 名的补字优先级 |
 | `docs/component-glyph-priority-missing.csv` | 本地根据 `component-assets.json` 导出 | 尚未配置 SVG 的补齐清单 |
 | `data-source/wordlists/words_2to4.txt` | 用户维护 | 构词法、半韵法、失韵法的出题词表 |
+| `data-source/wordlists/composition_excluded.txt` | 用户维护 | 构词法出题排除的不常用低频二字词表（仍保留在可接受答案池） |
+| `data-source/wordlists/assonance_excluded.txt` | 用户维护 | 半韵法、失韵法出题排除的不常用词表（仍保留在可接受答案池） |
 | `data-source/wordlists/common_word.txt` | 用户维护 | 三种词语规则的扩展答案词表 |
 | `data-source/wordlists/hanzi_pinyin12.json` | 用户维护 | 指差确认的拼音源数据 |
 | `data-source/wordlists/tongyong12_trad.json` | 用户维护 | 三秋树的繁简映射源数据 |
@@ -23,12 +25,16 @@ Web 版只复制游戏运行时需要的成品 JSON，不复制原始素材或�
 
 数据按原文件逐字节复制。更新数据时应从对应的成品文件重新复制，并重新运行 `npm test`。
 
+文本数据与生成物统一使用 LF 换行；`.gitattributes` 负责工作区换行策略。
+依赖 `sourceHash` 的生成器和测试在计算 SHA-256 前会将 CRLF/CR 规范化为
+LF，因此同一内容在 Windows、Linux 和 macOS 上得到相同哈希。
+
 `component-assets.json` 使用 sym ID 映射 SVG。SVG 保留原始
 `0 0 1024 1024` 画布，通过 CSS mask 继承部件文字颜色；未配置 SVG 的
 sym 自动回退到 `char_sym.json` 中的文字名称。
 
 带 `N` 后缀的 SVG 是同一 sym ID 的定稿替代版本。例如 sym `425` 应引用
-`component_svg/425N.svg`；无后缀旧文件只作为设计过程稿保留，不参与运行时映射。
+`component_svg/425N.svg`；无后缀旧文件已归档至 `docs/archive/component_svg/`，不随运行时资源发布。
 
 `component-usage.json` 与 `component-usage.csv` 由
 `npm run build:component-usage` 自动生成。`npm run dev` 和 `npm run build`

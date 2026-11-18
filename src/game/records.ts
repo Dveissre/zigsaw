@@ -1,4 +1,8 @@
-import type { GameSettings } from "./data";
+import {
+  CHALLENGE_DIFFICULTY_SECONDS,
+  type ChallengeDifficulty,
+  type GameSettings,
+} from "./data";
 
 const STORAGE_KEY = "zigsaw.records.v1";
 const LEGACY_STORAGE_KEY = "char-rush.records.v1";
@@ -16,6 +20,25 @@ export function recordKey(settings: GameSettings): string {
     return `challenge|difficulty=${settings.difficulty}|questions=${settings.stageQuestions}|size=${settings.stageSize}|shift=${settings.stageShift}|seconds=${settings.seconds}|ex=${settings.exEnabled ? 1 : 0}`;
   }
   return "";
+}
+
+export function bestStandardChallengeScore(
+  records: RecordStore,
+  difficulty: ChallengeDifficulty,
+): number {
+  const seconds = CHALLENGE_DIFFICULTY_SECONDS[difficulty];
+  const base = `questions=5|size=1500|shift=300|seconds=${seconds}`;
+  const candidates = [
+    `challenge|difficulty=${difficulty}|${base}|ex=1`,
+    `challenge|difficulty=${difficulty}|${base}|ex=0`,
+  ];
+  if (difficulty === "standard") {
+    candidates.push(`challenge|${base}`);
+  }
+  return Math.max(
+    0,
+    ...candidates.map((key) => records.load(key)),
+  );
 }
 
 export class LocalRecordStore implements RecordStore {

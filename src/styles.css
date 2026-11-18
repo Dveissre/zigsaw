@@ -900,6 +900,65 @@ input:focus-visible {
   align-items: start;
 }
 
+.trial-entry-locked {
+  display: flex;
+  grid-column: 1 / -1;
+  justify-self: center;
+  flex-direction: column;
+  align-items: center;
+  width: min(100%, 340px);
+  padding: 4px 0 2px;
+  text-align: center;
+}
+
+.trial-entry-locked-emblem {
+  display: grid;
+  width: clamp(136px, 24vh, 176px);
+  height: clamp(136px, 24vh, 176px);
+  margin-bottom: 10px;
+  color: color-mix(in srgb, var(--ink) 76%, var(--muted));
+  place-items: center;
+}
+
+.trial-lock-emblem-svg {
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+
+.trial-entry-locked-status {
+  margin: 0;
+  color: var(--ink);
+  font-size: 18px;
+  font-weight: 600;
+  letter-spacing: 0.18em;
+  text-indent: 0.18em;
+}
+
+.trial-entry-locked-condition {
+  margin: 6px 0 0;
+  color: var(--muted);
+  font-size: 12px;
+  font-variant-numeric: tabular-nums;
+}
+
+.trial-entry-locked-bar {
+  position: relative;
+  width: min(100%, 196px);
+  height: 3px;
+  margin-top: 9px;
+  overflow: hidden;
+  background: var(--line);
+}
+
+.trial-entry-locked-bar span {
+  display: block;
+  width: var(--gate-progress, 0%);
+  height: 100%;
+  background: var(--ink);
+  transition: width 220ms ease;
+}
+
 .trial-entry-setting .setting-label {
   display: flex;
   min-height: 62px;
@@ -1001,6 +1060,11 @@ input:focus-visible {
   color: var(--muted);
 }
 
+.trial-difficulty-item.is-ticket-only,
+.trial-difficulty-item.is-ticket-only.is-center {
+  color: var(--accent);
+}
+
 .trial-difficulty-item.is-locked .trial-difficulty-number {
   opacity: 0.72;
 }
@@ -1089,6 +1153,11 @@ input:focus-visible {
 .trial-difficulty-notes
   .trial-advancement-status[data-locked="true"] {
   color: var(--muted);
+}
+
+.trial-difficulty-notes
+  .trial-advancement-status[data-ticket-only="true"] {
+  color: var(--accent);
 }
 
 .ex-toggle,
@@ -1365,7 +1434,7 @@ input:focus-visible {
   display: flex;
   flex-direction: column;
   align-items: center;
-  justify-content: center;
+  justify-content: flex-start;
   gap: 14px;
   min-height: 90px;
   padding-top: 22px;
@@ -1390,6 +1459,88 @@ input:focus-visible {
 .start-button:disabled {
   border-color: var(--line-strong);
   background: var(--line-strong);
+}
+
+.trial-ticket-button {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  min-width: 136px;
+  min-height: 38px;
+  padding: 7px 22px;
+  border: 1px solid var(--accent);
+  color: var(--surface);
+  background: var(--accent);
+  font-size: 15px;
+  line-height: 1;
+  -webkit-mask-image:
+    radial-gradient(circle at 0 50%, transparent 5.5px, #000 6px),
+    radial-gradient(circle at 100% 50%, transparent 5.5px, #000 6px);
+  mask-image:
+    radial-gradient(circle at 0 50%, transparent 5.5px, #000 6px),
+    radial-gradient(circle at 100% 50%, transparent 5.5px, #000 6px);
+  -webkit-mask-composite: source-in;
+  mask-composite: intersect;
+}
+
+.trial-ticket-button::before {
+  content: "";
+  position: absolute;
+  inset: 3px 9px;
+  border: 1px dashed rgba(251, 250, 246, 0.44);
+  pointer-events: none;
+}
+
+.trial-ticket-button:hover:not(:disabled) {
+  border-color: color-mix(in srgb, var(--accent) 82%, var(--ink));
+  background: color-mix(in srgb, var(--accent) 82%, var(--ink));
+}
+
+.trial-ticket-button:disabled {
+  border-color: var(--line-strong);
+  background: var(--line-strong);
+  color: var(--surface);
+}
+
+.trial-ticket-button:disabled::before {
+  border-color: rgba(251, 250, 246, 0.32);
+}
+
+.trial-ticket-label {
+  display: inline-flex;
+  align-items: center;
+  line-height: 1;
+}
+
+.trial-ticket-cost {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  line-height: 1;
+}
+
+.trial-ticket-cost .cris-icon {
+  display: block;
+  width: 18px;
+  height: 18px;
+}
+
+.trial-ticket-cost strong {
+  color: inherit;
+  font-family: var(--display-font-family);
+  font-size: 16px;
+  font-variant-numeric: tabular-nums;
+  line-height: 1;
+}
+
+.trial-gate-hint {
+  margin-top: -5px;
+  color: var(--muted);
+  font-size: 12px;
+  line-height: 1.45;
+  text-align: center;
 }
 
 .start-record {
@@ -2492,11 +2643,17 @@ input:focus-visible {
   width: min(100%, 320px);
 }
 
+.play-actions.is-two-actions {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  width: min(100%, 320px);
+}
+
 .play-actions.is-single-action {
   grid-template-columns: minmax(0, 1fr);
   width: min(100%, 320px);
 }
 
+.play-actions.is-two-actions .primary-action,
 .play-actions.is-single-action .primary-action {
   grid-column: auto;
 }

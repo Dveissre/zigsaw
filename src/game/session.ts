@@ -49,6 +49,7 @@ export interface GameState {
   remaining: number;
   paused: boolean;
   revealing: boolean;
+  canRevive: boolean;
   pendingSettlement: boolean;
   skipsRemaining: number;
   feedback: string;
@@ -213,6 +214,7 @@ export class GameSession {
   private questionElapsedMs = 0;
   private totalQuestionTimeMs = 0;
   private timedQuestionCount = 0;
+  private lastRecordedElapsedMs = 0;
   private challengeExEntered = false;
   private challengeExCorrectCount = 0;
 
@@ -239,6 +241,7 @@ export class GameSession {
       remaining: settings.seconds,
       paused: false,
       revealing: false,
+      canRevive: false,
       pendingSettlement: false,
       skipsRemaining:
         settings.mode === "challenge"
@@ -295,6 +298,7 @@ export class GameSession {
     this.state.remaining = this.state.settings.seconds;
     this.state.paused = false;
     this.state.revealing = false;
+    this.state.canRevive = false;
     this.state.pendingSettlement = false;
     this.state.feedback = "";
     this.state.draft = "";
@@ -596,6 +600,7 @@ export class GameSession {
     this.skipReplacement = replacement;
     this.state.paused = false;
     this.state.revealing = true;
+    this.state.canRevive = false;
     this.state.pendingSettlement = false;
     this.state.feedback = "skipped";
     this.state.draft = "";
@@ -707,6 +712,7 @@ export class GameSession {
     this.revealCurrent(
       this.experimentalPlay || !practice ? "结算" : "继续",
       this.experimentalPlay || !practice,
+      this.canChallengeRevive(),
     );
   }
 
@@ -762,6 +768,50 @@ export class GameSession {
     }
   }
 
+  reviveWithSkip(): void {
+    if (
+      this.state.phase !== "playing" ||
+      !this.state.revealing ||
+      !this.state.canRevive ||
+      !this.state.current ||
+      this.state.settings.mode !== "challenge" ||
+      this.state.skipsRemaining <= 0
+    ) {
+      return;
+    }
+
+    const current = this.state.current;
+    let replacement: Question;
+    try {
+      replacement = this.pickQuestion(
+        current.symbolIds.length,
+        current.char,
+      );
+    } catch {
+      try {
+        replacement = this.pickQuestion(undefined, current.char);
+      } catch {
+        return;
+      }
+    }
+
+    const failed = this.state.history.at(-1);
+    if (failed && !failed.ok) {
+      this.state.history.pop();
+      this.totalQuestionTimeMs = Math.max(
+        0,
+        this.totalQuestionTimeMs - this.lastRecordedElapsedMs,
+      );
+      this.timedQuestionCount = Math.max(
+        0,
+        this.timedQuestionCount - 1,
+      );
+      this.lastRecordedElapsedMs = 0;
+    }
+    this.state.skipsRemaining -= 1;
+    this.showQuestion(replacement);
+  }
+
   private revealTimeout(): void {
     if (!this.state.current) {
       return;
@@ -772,14 +822,27 @@ export class GameSession {
     this.revealCurrent(
       practice ? "继续" : "结算",
       !practice,
+      this.canChallengeRevive(),
     );
   }
 
-  private revealCurrent(advanceLabel: string, pendingSettlement: boolean): void {
+  private canChallengeRevive(): boolean {
+    return (
+      this.state.settings.mode === "challenge" &&
+      this.state.skipsRemaining > 0
+    );
+  }
+
+  private revealCurrent(
+    advanceLabel: string,
+    pendingSettlement: boolean,
+    canRevive = false,
+  ): void {
     if (!this.state.current) {
       return;
     }
     this.state.revealing = true;
+    this.state.canRevive = canRevive;
     this.state.feedback = "wrong";
     this.state.revealAnswer = this.state.current.char;
     this.state.revealMeta = this.metaFor(this.state.current.char);
@@ -846,11 +909,7 @@ export class GameSession {
       return;
     }
     this.challengeExEntered = true;
-    if (
-      this.state.settings.difficulty === "expert"
-    ) {
-      this.addChallengeSkip();
-    }
+    this.addChallengeSkip();
   }
 
   private grantChallengeProgressReward(): void {
@@ -859,11 +918,10 @@ export class GameSession {
     }
     const bounds = this.challengeBounds();
     if (bounds.isEx) {
-      if (this.state.settings.difficulty !== "expert") {
-        return;
-      }
+      const interval =
+        this.state.settings.difficulty === "expert" ? 10 : 5;
       this.challengeExCorrectCount += 1;
-      if (this.challengeExCorrectCount % 10 === 0) {
+      if (this.challengeExCorrectCount % interval === 0) {
         this.addChallengeSkip();
       }
       return;
@@ -983,6 +1041,7 @@ export class GameSession {
     );
     this.totalQuestionTimeMs += elapsed;
     this.timedQuestionCount += 1;
+    this.lastRecordedElapsedMs = elapsed;
     this.questionElapsedMs = 0;
   }
 

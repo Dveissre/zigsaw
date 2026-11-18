@@ -9,6 +9,11 @@ const outputDir = resolve(root, "docs/reports/trial-rule-pools");
 
 const readJson = (name) =>
   JSON.parse(readFileSync(resolve(dataDir, name), "utf8"));
+const normalizedBytes = (path) =>
+  Buffer.from(
+    readFileSync(path, "utf8").replace(/\r\n?/g, "\n"),
+    "utf8",
+  );
 
 const symData = readJson("char_sym.json");
 const levelData = readJson("tongyong_hanzi.json");
@@ -18,11 +23,11 @@ const answerCompatibility = readJson(
   "char_sym_answer_compat.json",
 );
 const sourceHash = createHash("sha256")
-  .update(readFileSync(resolve(dataDir, "char_sym.json")))
+  .update(normalizedBytes(resolve(dataDir, "char_sym.json")))
   .digest("hex");
 const answerCompatibilityHash = createHash("sha256")
   .update(
-    readFileSync(
+    normalizedBytes(
       resolve(dataDir, "char_sym_answer_compat.json"),
     ),
   )

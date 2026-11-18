@@ -306,6 +306,17 @@ function recordKey(record: CompactSaveRecord): string {
   return `challenge|${difficulty}questions=${record.questions}|size=${record.size}|shift=${record.shift}|seconds=${record.seconds}${record.hasEx ? `|ex=${record.ex ? 1 : 0}` : ""}`;
 }
 
+function normalizeSeenChars(chars: string[]): string[] {
+  return [
+    ...new Set(
+      chars.flatMap((char) => {
+        const points = [...char];
+        return points.length >= 1 ? points : [];
+      }),
+    ),
+  ].sort((left, right) => codePointOf(left) - codePointOf(right));
+}
+
 function readSeenCharacters(storage: SaveStorage): {
   seenChars: string[];
   directComponents: number[];
@@ -326,10 +337,7 @@ function readSeenCharacters(storage: SaveStorage): {
           .filter((value) => value > 0)
       : [];
     return {
-      seenChars: chars.sort(
-        (left, right) =>
-          codePointOf(left) - codePointOf(right),
-      ),
+      seenChars: normalizeSeenChars(chars),
       directComponents: [...new Set(directComponents)].sort(
         (left, right) => left - right,
       ),
@@ -346,10 +354,7 @@ function readSeenCharacters(storage: SaveStorage): {
       ? Object.keys(legacy.chars)
       : [];
   return {
-    seenChars: chars.sort(
-      (left, right) =>
-        codePointOf(left) - codePointOf(right),
-    ),
+    seenChars: normalizeSeenChars(chars),
     directComponents: [],
   };
 }

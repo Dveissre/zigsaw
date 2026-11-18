@@ -3,6 +3,7 @@ import type { CompositionWordEntry } from "./composition";
 export interface AssonanceData {
   format: "zigsaw-assonance-words/1";
   sourceHash: string;
+  excludedHash?: string;
   symbolHash: string;
   answerCompatibilityHash: string;
   weighting: string;

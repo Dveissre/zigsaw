@@ -1,0 +1,31 @@
+<svg class="trial-lock-emblem-svg" viewBox="0 0 160 160" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+  <defs>
+    <clipPath id="clip-e">
+      <path d="M 80 20.5 L 139.5 80 L 80 139.5 L 20.5 80 Z"></path>
+    </clipPath>
+    <g id="e-l1"><path d="M 68 126 C 75.82 100.17 61.77 68.78 46 44 C 40.1 74.59 43.95 108.72 68 126 Z"></path><path d="M 84 128 C 110.83 119.9 122.46 90.84 124 62 C 103.27 79.21 82.61 102.79 84 128 Z"></path></g>
+    <g id="e-l2"><path d="M 68 138 C 68.45 115.66 48.58 94.88 29 79 C 31 106.5 42.59 132.75 68 138 Z"></path><path d="M 82 138 C 108.16 136.12 123.77 111.33 130 84 C 108.01 97.32 84.99 115.52 82 138 Z"></path></g>
+    <g id="e-l3"><path d="M 74 139 C 97.57 111.96 96.28 66.97 89 29 C 64.61 62.65 51 105.61 74 139 Z"></path><path d="M 74 144 C 78.8 125.31 65.98 104.49 52 88 C 49.52 110.95 54.6 134.82 74 144 Z"></path><path d="M 78 144 C 98.41 138.56 106.98 116.51 108 94 C 91.81 107.41 76.11 125.19 78 144 Z"></path></g>
+    <mask id="e-m1">
+      <rect width="160" height="160" fill="white"></rect>
+      <path d="M 68.52 127.93 C 65.04 114.74 57.28 88.56 50.84 62.04 C 54.39 89.34 60.79 115.88 68.52 127.93 Z" fill="black"></path><path d="M 66.75 110.1 L 86.07 89.69 L 82.38 86.97 Z" fill="black"></path><path d="M 57.48 112.59 L 33.23 98.38 L 31.41 102.58 Z" fill="black"></path><path d="M 60.2 89.01 L 79.52 68.59 L 75.84 65.87 Z" fill="black"></path><path d="M 50.93 91.49 L 26.69 77.28 L 24.86 81.48 Z" fill="black"></path><path d="M 55.09 67.52 L 74.41 47.11 L 70.72 44.38 Z" fill="black"></path><path d="M 45.82 70.01 L 21.57 55.79 L 19.75 60 Z" fill="black"></path><path d="M 82.96 129.71 C 93.13 121.32 105.42 99.68 115.2 76.52 C 102.86 98.13 89.36 119.04 82.96 129.71 Z" fill="black"></path><path d="M 96.96 119.51 L 125.07 119.35 L 124.49 114.8 Z" fill="black"></path><path d="M 88.75 114.54 L 82.25 87.19 L 77.95 88.78 Z" fill="black"></path><path d="M 108.1 102.8 L 136.2 102.63 L 135.62 98.08 Z" fill="black"></path><path d="M 99.89 97.82 L 93.39 70.48 L 89.09 72.07 Z" fill="black"></path><path d="M 117.96 85.31 L 146.06 85.14 L 145.48 80.6 Z" fill="black"></path><path d="M 109.75 80.33 L 103.25 52.99 L 98.95 54.58 Z" fill="black"></path>
+      <use href="#e-l2" fill="black" stroke="black" stroke-width="5.5" stroke-linejoin="miter" stroke-miterlimit="10"></use>
+      <use href="#e-l3" fill="black" stroke="black" stroke-width="5.5" stroke-linejoin="miter" stroke-miterlimit="10"></use>
+    </mask>
+    <mask id="e-m2">
+      <rect width="160" height="160" fill="white"></rect>
+      <path d="M 69.1 139.67 C 62.49 130.34 49.29 111.65 37.58 91.98 C 46.79 113.3 58.82 132.76 69.1 139.67 Z" fill="black"></path><path d="M 63.19 126.12 L 75.06 100.65 L 70.7 99.23 Z" fill="black"></path><path d="M 55.18 131.42 L 27.68 125.61 L 27.28 130.17 Z" fill="black"></path><path d="M 42.68 95.6 L 54.55 70.12 L 50.19 68.7 Z" fill="black"></path><path d="M 34.67 100.89 L 7.18 95.08 L 6.77 99.64 Z" fill="black"></path><path d="M 80.67 139.49 C 91.99 133.94 106.97 116.03 119.44 95.88 C 104.74 114.04 88.7 131.02 80.67 139.49 Z" fill="black"></path><path d="M 95.85 133.06 L 123.52 137.97 L 123.77 133.4 Z" fill="black"></path><path d="M 88.67 126.68 L 87.22 98.61 L 82.7 99.4 Z" fill="black"></path><path d="M 121.01 105.16 L 148.68 110.08 L 148.94 105.5 Z" fill="black"></path><path d="M 113.84 98.78 L 112.38 70.71 L 107.87 71.5 Z" fill="black"></path>
+      <use href="#e-l3" fill="black" stroke="black" stroke-width="5.5" stroke-linejoin="miter" stroke-miterlimit="10"></use>
+    </mask>
+    <mask id="e-m3">
+      <rect width="160" height="160" fill="white"></rect>
+      <path d="M 73.73 140.98 C 75.75 123.37 79.84 88.17 85.7 53.2 C 76.88 87.76 71.39 122.78 73.73 140.98 Z" fill="black"></path><path d="M 79.41 118.11 L 105.12 106.78 L 102.78 102.84 Z" fill="black"></path><path d="M 69.89 116.82 L 53.05 94.32 L 49.74 97.49 Z" fill="black"></path><path d="M 82.29 89.38 L 108 78.04 L 105.66 74.1 Z" fill="black"></path><path d="M 72.77 88.08 L 55.93 65.58 L 52.62 68.75 Z" fill="black"></path><path d="M 86.93 60.88 L 112.65 49.54 L 110.31 45.6 Z" fill="black"></path><path d="M 77.42 59.58 L 60.58 37.09 L 57.26 40.26 Z" fill="black"></path><path d="M 74.73 145.86 C 71.6 136.58 63.79 118.62 56.84 100.32 C 61.01 119.71 67.51 138.19 74.73 145.86 Z" fill="black"></path><path d="M 76.97 145.71 C 85.21 139.59 94.38 122.94 101.4 105 C 91.82 121.4 81.44 137.32 76.97 145.71 Z" fill="black"></path>
+    </mask>
+  </defs>
+  <path d="M 80 11 L 149 80 L 80 149 L 11 80 Z" fill="none" stroke="currentColor" stroke-width="5.5" stroke-linejoin="miter"></path>
+  <g clip-path="url(#clip-e)">
+    <use href="#e-l1" fill="currentColor" mask="url(#e-m1)"></use>
+    <use href="#e-l2" fill="currentColor" mask="url(#e-m2)"></use>
+    <use href="#e-l3" fill="currentColor" mask="url(#e-m3)"></use>
+  </g>
+</svg>

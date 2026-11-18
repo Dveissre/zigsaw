@@ -7,12 +7,17 @@ const readJson = (relativePath) =>
   JSON.parse(
     readFileSync(resolve(projectRoot, relativePath), "utf8"),
   );
+const normalizedBytes = (path) =>
+  Buffer.from(
+    readFileSync(path, "utf8").replace(/\r\n?/g, "\n"),
+    "utf8",
+  );
 
-const symSource = readFileSync(
+const symSource = normalizedBytes(
   resolve(projectRoot, "public/data/char_sym.json"),
 );
 const sym = JSON.parse(symSource.toString("utf8"));
-const assetSource = readFileSync(
+const assetSource = normalizedBytes(
   resolve(projectRoot, "public/data/component-assets.json"),
 );
 const assetData = JSON.parse(assetSource.toString("utf8"));

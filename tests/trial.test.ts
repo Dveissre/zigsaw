@@ -32,6 +32,7 @@ import {
   trialAdvancementConfig,
   trialAdvancementTimeMultiplier,
   trialAdvancementUnlockedByFirstClear,
+  trialEffectiveMaxUnlocked,
 } from "../src/game/trial-advancement";
 import {
   acceptedPinyinFor,
@@ -1365,7 +1366,7 @@ describe("trial session", () => {
         initialSkips: 1,
         skipEvery: 3,
         threeStar: 1,
-        lowStar: 0.7,
+        lowStar: 0.85,
       },
     ];
     for (const [level, values] of expected.entries()) {
@@ -1403,7 +1404,7 @@ describe("trial session", () => {
         1,
         trialAdvancementConfig(4),
       ),
-    ).toBe(0.7);
+    ).toBe(0.85);
     expect(
       trialAdvancementTimeMultiplier(
         3,
@@ -1428,6 +1429,10 @@ describe("trial session", () => {
     expect(
       trialAdvancementUnlockedByFirstClear(4, false),
     ).toBeNull();
+    expect(trialEffectiveMaxUnlocked(0, false)).toBe(0);
+    expect(trialEffectiveMaxUnlocked(2, false)).toBe(2);
+    expect(trialEffectiveMaxUnlocked(0, true)).toBe(4);
+    expect(trialEffectiveMaxUnlocked(4, true)).toBe(4);
   });
 
   it("rewards trial progress through back-loaded milestones", () => {
@@ -3368,7 +3373,7 @@ describe("trial session", () => {
     expect(trial.state.remaining).toBe(90);
   });
 
-  it("reduces one- and two-star time at advancement four", () => {
+  it("reduces one- and two-star time by 15% at advancement four", () => {
     vi.useFakeTimers();
     const trial = new TrialSession(
       createData(),
@@ -3382,14 +3387,14 @@ describe("trial session", () => {
     );
     trial.setRuleOverride("presto");
     trial.beginStage();
-    expect(trial.state.timeLimit).toBe(14);
-    expect(trial.state.remaining).toBe(14);
+    expect(trial.state.timeLimit).toBe(17);
+    expect(trial.state.remaining).toBe(17);
 
     (
       trial as unknown as { startBoss: () => void }
     ).startBoss();
-    expect(trial.state.timeLimit).toBe(42);
-    expect(trial.state.remaining).toBe(42);
+    expect(trial.state.timeLimit).toBe(51);
+    expect(trial.state.remaining).toBe(51);
   });
 
   it("leaves unrestricted and three-star rule time unshortened at advancement four", () => {
@@ -3435,12 +3440,12 @@ describe("trial session", () => {
     );
     trial.setRuleOverride("reschedule");
     trial.beginStage();
-    expect(trial.state.timeLimit).toBe(63);
-    expect(trial.state.remaining).toBe(63);
+    expect(trial.state.timeLimit).toBe(77);
+    expect(trial.state.remaining).toBe(77);
 
     trial.togglePause();
     expect(trial.state.paused).toBe(true);
-    expect(trial.state.remaining).toBe(48);
+    expect(trial.state.remaining).toBe(62);
   });
 
   it("adds a weighted N-rarity decoy that creates no unexpected answer", () => {
@@ -4120,6 +4125,70 @@ describe("trial session", () => {
     expect(trial.state.feedback).toBe("correct");
     expect(trial.state.history[0].answer).toBe("问台");
     expect(trial.state.history[0].meta).toBe("2字词");
+  });
+
+  it("records individual single characters for word-mode normal questions", () => {
+    vi.useFakeTimers();
+    const compFixture = createCompositionFixture();
+    const compEncountered: Array<[string, number[]]> = [];
+    const compTrial = new TrialSession(
+      compFixture.data,
+      settings,
+      () => {},
+      seededRandom(77),
+      false,
+      (char, way) => {
+        compEncountered.push([char, way]);
+      },
+      null,
+      trialRulesData,
+      null,
+      null,
+      null,
+      compFixture.composition,
+    );
+    compTrial.setRuleOverride("composition");
+    compTrial.state.phase = "playing";
+    compTrial.state.ruleId = "composition";
+    (
+      compTrial as unknown as { showNormalQuestion: () => void }
+    ).showNormalQuestion();
+    expect(compEncountered).toEqual([
+      ["上", [1, 2]],
+      ["台", [3, 4]],
+    ]);
+
+    const assonanceFixture = createAssonanceFixture();
+    for (const ruleId of ["assonance", "dissonance"]) {
+      const encountered: Array<[string, number[]]> = [];
+      const trial = new TrialSession(
+        assonanceFixture.data,
+        settings,
+        () => {},
+        seededRandom(78),
+        false,
+        (char, way) => {
+          encountered.push([char, way]);
+        },
+        null,
+        trialRulesData,
+        null,
+        null,
+        null,
+        null,
+        assonanceFixture.assonance,
+      );
+      trial.setRuleOverride(ruleId);
+      trial.state.phase = "playing";
+      trial.state.ruleId = ruleId;
+      (
+        trial as unknown as { showNormalQuestion: () => void }
+      ).showNormalQuestion();
+      expect(encountered.length).toBeGreaterThanOrEqual(2);
+      expect(
+        encountered.every(([char]) => [...char].length === 1),
+      ).toBe(true);
+    }
   });
 
   it("collapses only cross-character repeats for assonance and accepts inferred aliases", () => {

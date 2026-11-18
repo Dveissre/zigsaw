@@ -38,3 +38,31 @@
 
 当前包括赋格曲与双重曝光。`public/data/trial-rules.json` 是唯一运行时规则
 来源，归档目录不得被游戏直接加载。
+
+## 休眠试炼机制片段
+
+- `trial-wrong-answer-penalty.md`
+  - 原计划用于进阶 4 的“答错扣除 3 秒作答时间”状态扣时与倒计时圆环
+    `.timer-ring.is-penalty-cut` 非暂停扣时动画窗口实现；进阶 4 已取消该项，
+    保留片段供后续高进阶或新制限复用。
+- `trial-lock-emblem-a.svg` / `trial-lock-emblem-e.svg`
+  - 试炼模式入口锁定徽章的两版多叶草木备选方案（A：折面半镂空叶簇；E：楔形缺刻叶簇），归档备用。
+
+## 词表筛选归档
+
+- `wordlists/temp_xiandai_2char_30000_40000_in_xh.txt`
+  - 现代汉语词频顺位 30000–40000 区间内命中词库的 5,665 个低频二字词。
+  - 其中命中共 1,107 个构词法道中词已直接提取至
+    `data-source/wordlists/composition_excluded.txt`，构建时仅从构词法
+    出题池排除（不影响 `words` 可接受答案池）。
+- `wordlists/temp_assonance_2char_30000_40000.txt`
+  - 上述词表中符合半韵法/失韵法道中出题条件（共 495 词）的初筛清单。
+- `wordlists/temp_assonance_2char_30000_40000_pruned.txt`
+  - 人工复筛保留的 433 词版本；被删去的 62 词已提取至
+    `data-source/wordlists/assonance_excluded.txt`，构建时仅从半韵法/失韵法
+    出题池排除（不影响构词法与可接受答案）。
+
+## 部件过程稿 SVG
+
+- `component_svg/*.svg`（12 个无 `N` 后缀旧文件）
+  - 已被对应 `*N.svg` 定稿替代的早期部件 SVG（`121`、`159`、`182`、`198`、`240`、`266`、`298`、`338`、`347`、`355`、`425`、`431`），从 `public/component_svg/` 归档移出，不再进入发布构建。

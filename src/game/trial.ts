@@ -347,6 +347,7 @@ export interface TrialResultState {
   averageQuestionSeconds: number;
   crisEarned: number;
   unlockedAdvancement?: number;
+  thresholdSatisfied?: boolean;
 }
 
 export interface TrialState {
@@ -4148,11 +4149,21 @@ export class TrialSession {
       TRIAL_NORMAL_SECONDS,
       this.activeRule().timing.normalMultiplier,
     );
-    this.recordEncounter(
-      this.state.current.char,
-      this.state.current.answerWay,
-      this.state.current.displayChar,
-    );
+    const wordRecipe =
+      choice.composition?.recipes[0] ??
+      choice.assonance?.recipes[0] ??
+      choice.dissonance?.recipes[0];
+    if (wordRecipe) {
+      [...this.state.current.char].forEach((char, index) => {
+        this.recordEncounter(char, wordRecipe[index] ?? []);
+      });
+    } else {
+      this.recordEncounter(
+        this.state.current.char,
+        this.state.current.answerWay,
+        this.state.current.displayChar,
+      );
+    }
     this.startTimer();
     this.emit();
   }
