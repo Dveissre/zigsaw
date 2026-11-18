@@ -1829,8 +1829,10 @@ function syncTrialAdvancementAccess(): void {
     const access = getTrialAdvancementAccess(value, scores);
     const locked = access.kind === "locked";
     const ticketOnly = access.kind === "ticket-only";
+    const unavailable = access.kind === "unavailable";
     button.classList.toggle("is-locked", locked);
     button.classList.toggle("is-ticket-only", ticketOnly);
+    button.classList.toggle("is-unavailable", unavailable);
     button.dataset.locked = String(locked);
     button.dataset.ticketOnly = String(ticketOnly);
     button.setAttribute(

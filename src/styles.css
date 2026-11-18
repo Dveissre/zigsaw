@@ -1048,7 +1048,7 @@ input:focus-visible {
   filter: none;
 }
 
-.trial-difficulty-item:not(.is-locked) {
+.trial-difficulty-item:not(.is-locked):not(.is-unavailable) {
   color: var(--ex-purple);
 }
 
@@ -1056,7 +1056,8 @@ input:focus-visible {
   color: var(--trial-perfect-gold);
 }
 
-.trial-difficulty-item.is-locked.is-center {
+.trial-difficulty-item.is-locked.is-center,
+.trial-difficulty-item.is-unavailable.is-center {
   color: var(--muted);
 }
 
@@ -1065,7 +1066,8 @@ input:focus-visible {
   color: var(--accent);
 }
 
-.trial-difficulty-item.is-locked .trial-difficulty-number {
+.trial-difficulty-item.is-locked .trial-difficulty-number,
+.trial-difficulty-item.is-unavailable .trial-difficulty-number {
   opacity: 0.72;
 }
 
