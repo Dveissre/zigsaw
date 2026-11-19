@@ -95,9 +95,7 @@ describe("trial rule helpers", () => {
     expect(new Set(ids).size).toBe(7);
     expect(
       ids.map((id) => rules.rules[id].stars),
-    ).toEqual(
-      expect.arrayContaining([0, 1, 1, 2, 2, 3]),
-    );
+    ).toEqual([0, 1, 1, 2, 2, 2, 3]);
     expect(
       ids.map((id, index) => ({
         actual: rules.rules[id].stars,
@@ -106,10 +104,6 @@ describe("trial rule helpers", () => {
         allowed.includes(actual),
       ),
     ).toBe(true);
-    expect(
-      ["2", "3"].includes(
-        String(rules.rules[ids[5]].stars),
-      ),
-    ).toBe(true);
+    expect(rules.rules[ids[5]].stars).toBe(2);
   });
 });

@@ -1,4 +1,5 @@
 import { crisIconMarkup } from "./cris";
+import { trialLockEmblemMarkup } from "./decorations";
 
 export const TUTORIAL_TRIGGER_MARKUP = `
   <button
@@ -17,12 +18,78 @@ export const TUTORIAL_TRIGGER_MARKUP = `
   </button>
 `;
 
-export function createTutorialDialog(): HTMLDialogElement {
+export interface TutorialTrialViewState {
+  unlocked: boolean;
+  trialActive: boolean;
+}
+
+export function syncTutorialTrialSection(
+  dialog: HTMLDialogElement,
+  state: TutorialTrialViewState,
+): void {
+  const showLocked = !state.unlocked;
+  const showTrialOnly = state.unlocked && state.trialActive;
+  const showTorn = state.unlocked && !state.trialActive;
+
+  dialog
+    .querySelectorAll<HTMLElement>("[data-tutorial-standard-section]")
+    .forEach((section) => {
+      section.hidden = showTrialOnly;
+    });
+  dialog
+    .querySelectorAll<HTMLElement>("[data-tutorial-ellipsis]")
+    .forEach((ellipsis) => {
+      ellipsis.hidden = !showTrialOnly;
+    });
+
+  const locked = dialog.querySelector<HTMLElement>(
+    "[data-tutorial-trial-locked]",
+  );
+  const torn = dialog.querySelector<HTMLElement>(
+    "[data-tutorial-trial-torn]",
+  );
+  const content = dialog.querySelector<HTMLElement>(
+    "[data-tutorial-trial-unlocked]",
+  );
+  if (locked) {
+    locked.hidden = !showLocked;
+  }
+  if (torn) {
+    torn.hidden = !showTorn;
+  }
+  if (content) {
+    content.hidden = !showTrialOnly;
+  }
+}
+
+export function createTutorialDialog(
+  baseUrl = document.baseURI,
+  trialState: TutorialTrialViewState = {
+    unlocked: false,
+    trialActive: false,
+  },
+): HTMLDialogElement {
   const existing =
     document.querySelector<HTMLDialogElement>("#tutorial-dialog");
   if (existing) {
+    syncTutorialTrialSection(existing, trialState);
     return existing;
   }
+
+  const showLocked = !trialState.unlocked;
+  const showTrialOnly = trialState.unlocked && trialState.trialActive;
+  const showTorn = trialState.unlocked && !trialState.trialActive;
+
+  const trialIconUrl = new URL("assets/trial.svg", baseUrl).href
+    .replaceAll("&", "&amp;")
+    .replaceAll('"', "&quot;");
+  const trialEmblemMarkup = `
+    <div class="trial-rule-emblem tutorial-trial-emblem" aria-hidden="true">
+      <span class="trial-rule-icon">
+        <img src="${trialIconUrl}" alt="">
+      </span>
+    </div>
+  `;
 
   document.body.insertAdjacentHTML(
     "beforeend",
@@ -68,7 +135,8 @@ export function createTutorialDialog(): HTMLDialogElement {
           </header>
 
           <div class="tutorial-content">
-            <section class="tutorial-section">
+            <p class="tutorial-ellipsis" data-tutorial-ellipsis data-tutorial-ellipsis-before ${showTrialOnly ? "" : "hidden"}>……</p>
+            <section class="tutorial-section" data-tutorial-standard-section ${showTrialOnly ? "hidden" : ""}>
               <header class="tutorial-section-heading">
                 <span>01</span>
                 <h3>基本玩法</h3>
@@ -107,7 +175,7 @@ export function createTutorialDialog(): HTMLDialogElement {
               </p>
             </section>
 
-            <section class="tutorial-section">
+            <section class="tutorial-section" data-tutorial-standard-section ${showTrialOnly ? "hidden" : ""}>
               <header class="tutorial-section-heading">
                 <span>02</span>
                 <h3>挑战模式</h3>
@@ -146,9 +214,38 @@ export function createTutorialDialog(): HTMLDialogElement {
               <p class="tutorial-disclaimer">阶段EX可在设置中关闭</p>
             </section>
 
-            <section class="tutorial-section">
+            <section class="tutorial-section" data-tutorial-trial-section>
               <header class="tutorial-section-heading">
                 <span>03</span>
+                <h3 data-tutorial-trial-title>试炼模式</h3>
+              </header>
+              <div class="tutorial-trial-locked" data-tutorial-trial-locked ${showLocked ? "" : "hidden"}>
+                <div class="tutorial-trial-locked-emblem">${trialLockEmblemMarkup("tutorial-lock")}</div>
+                <p class="tutorial-trial-locked-status">未开放</p>
+              </div>
+              <div class="tutorial-trial-torn" data-tutorial-trial-torn ${showTorn ? "" : "hidden"}>
+                ${trialEmblemMarkup}
+                <p class="tutorial-copy">
+                  <em>“这一节被刻意撕下了……”</em>
+                </p>
+              </div>
+              <div class="tutorial-trial-unlocked" data-tutorial-trial-unlocked ${showTrialOnly ? "" : "hidden"}>
+                ${trialEmblemMarkup}
+                <p class="tutorial-copy">
+                  叶繁的旅路，雾沉的线索。
+                </p>
+                <p class="tutorial-copy">
+                  未知的巡礼，迷移的航标。
+                </p>
+                <p class="tutorial-copy">
+                  去证明。
+                </p>
+              </div>
+            </section>
+
+            <section class="tutorial-section" data-tutorial-standard-section ${showTrialOnly ? "hidden" : ""}>
+              <header class="tutorial-section-heading">
+                <span>04</span>
                 <h3>练习模式</h3>
               </header>
               <div class="tutorial-mode-pair">
@@ -178,9 +275,9 @@ export function createTutorialDialog(): HTMLDialogElement {
               </p>
             </section>
 
-            <section class="tutorial-section">
+            <section class="tutorial-section" data-tutorial-standard-section ${showTrialOnly ? "hidden" : ""}>
               <header class="tutorial-section-heading">
-                <span>04</span>
+                <span>05</span>
                 <h3>图鉴</h3>
               </header>
               <div class="tutorial-atlas-demo" aria-label="图鉴示意">
@@ -207,6 +304,7 @@ export function createTutorialDialog(): HTMLDialogElement {
                 以更高的收集度为目标吧！
               </p>
             </section>
+            <p class="tutorial-ellipsis is-after" data-tutorial-ellipsis data-tutorial-ellipsis-after ${showTrialOnly ? "" : "hidden"}>……</p>
             <div class="tutorial-return-row">
               <button type="button" data-tutorial-return>返回</button>
             </div>

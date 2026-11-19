@@ -5805,11 +5805,14 @@ export class TrialSession {
         answers,
       );
     }
+    const boss = this.state.boss;
     const allowedLengths = new Set(
       this.activeRule().selection.boss.partLengths,
     );
     const allowsUnexpectedOutlandAnswer =
       this.activeRule().family?.id === "outland";
+    const { remainingAnswerCount, reservedAnswers } =
+      this.bossRemainingExpectation(boss, answers);
     const submissions: TrialBossSubmission[] = [];
     let fallback: TrialBossAssignment | null = null;
     const search = (
@@ -5832,6 +5835,18 @@ export class TrialSession {
         };
         if (
           this.remainingAnswerComponents(cards).length === 0
+        ) {
+          return assignment;
+        }
+        if (
+          remainingAnswerCount > 0 &&
+          this.canCompleteStandardBossCards(
+            cards,
+            remainingAnswerCount,
+            reservedAnswers,
+            allowedLengths,
+            allowsUnexpectedOutlandAnswer,
+          )
         ) {
           return assignment;
         }
@@ -5880,7 +5895,86 @@ export class TrialSession {
       }
       return null;
     };
-    return search(0, this.state.boss.cards) ?? fallback;
+    return search(0, boss.cards) ?? fallback;
+  }
+
+  private bossRemainingExpectation(
+    boss: TrialBossState,
+    answers: readonly string[],
+  ): {
+    remainingAnswerCount: number;
+    reservedAnswers: Set<string>;
+  } {
+    return {
+      remainingAnswerCount:
+        boss.expectedAnswers.length -
+        boss.pendingAnswers.length -
+        answers.length,
+      reservedAnswers: new Set([
+        ...boss.pendingAnswers,
+        ...answers,
+      ]),
+    };
+  }
+
+  private canCompleteStandardBossCards(
+    cards: TrialCard[],
+    answerCount: number,
+    reservedAnswers: Set<string>,
+    allowedLengths: Set<number>,
+    allowsUnexpectedOutlandAnswer: boolean,
+  ): boolean {
+    if (answerCount === 0) {
+      return this.remainingAnswerComponents(cards).length === 0;
+    }
+    const playable = cards.filter((card) => !card.mustIgnore);
+    if (answerCount === 1) {
+      if (
+        !allowsUnexpectedOutlandAnswer &&
+        !allowedLengths.has(playable.length)
+      ) {
+        return false;
+      }
+      for (const candidate of this.acceptedAnswersForCards(playable)) {
+        if (!reservedAnswers.has(candidate)) {
+          return true;
+        }
+      }
+      return false;
+    }
+    const limit = 1 << playable.length;
+    for (let mask = 1; mask < limit; mask += 1) {
+      const selected = cardsForMask(playable, mask);
+      if (
+        !allowsUnexpectedOutlandAnswer &&
+        !allowedLengths.has(selected.length)
+      ) {
+        continue;
+      }
+      const candidates = [
+        ...this.acceptedAnswersForCards(selected),
+      ].filter((candidate) => !reservedAnswers.has(candidate));
+      if (candidates.length === 0) {
+        continue;
+      }
+      const remaining = cards.filter(
+        (card) => !selected.some((used) => used.uid === card.uid),
+      );
+      for (const candidate of candidates) {
+        if (
+          this.canCompleteStandardBossCards(
+            remaining,
+            answerCount - 1,
+            new Set([...reservedAnswers, candidate]),
+            allowedLengths,
+            allowsUnexpectedOutlandAnswer,
+          )
+        ) {
+          return true;
+        }
+      }
+    }
+    return false;
   }
 
   private bossAnswerCandidatesForCards(
@@ -6128,20 +6222,15 @@ export class TrialSession {
         ) {
           return assignment;
         }
-        const remainingAnswerCount =
-          boss.expectedAnswers.length -
-          boss.pendingAnswers.length -
-          answers.length;
+        const { remainingAnswerCount, reservedAnswers } =
+          this.bossRemainingExpectation(boss, answers);
         if (
           remainingAnswerCount > 0 &&
           this.canCompleteHallraumBossCards(
             cards,
             remainingAnswerCount,
             reservedSources,
-            new Set([
-              ...boss.pendingAnswers,
-              ...answers,
-            ]),
+            reservedAnswers,
           )
         ) {
           return assignment;
@@ -6490,21 +6579,42 @@ export class TrialSession {
     ) {
       return null;
     }
-    const groups = this.state.boss.gestaltGroups;
+    const boss = this.state.boss;
+    const groups = boss.gestaltGroups!;
+    const { remainingAnswerCount, reservedAnswers } =
+      this.bossRemainingExpectation(boss, answers);
     const submissions: TrialBossSubmission[] = [];
+    let fallback: TrialBossAssignment | null = null;
     const search = (
       answerIndex: number,
       cards: TrialCard[],
       usedGroups: Set<number>,
     ): TrialBossAssignment | null => {
       if (answerIndex >= answers.length) {
-        return {
+        const assignment = {
           remainingCards: cards,
           submissions: submissions.map(
             (submission) =>
               this.cloneBossSubmission(submission),
           ),
         };
+        if (this.remainingAnswerComponents(cards).length === 0) {
+          return assignment;
+        }
+        if (
+          remainingAnswerCount > 0 &&
+          this.canCompleteGestaltBossGroups(
+            cards,
+            groups,
+            usedGroups,
+            remainingAnswerCount,
+            reservedAnswers,
+          )
+        ) {
+          return assignment;
+        }
+        fallback ??= assignment;
+        return null;
       }
       for (
         let groupIndex = 0;
@@ -6550,11 +6660,69 @@ export class TrialSession {
       }
       return null;
     };
-    return search(
-      0,
-      this.state.boss.cards,
-      new Set(),
+    return (
+      search(0, boss.cards, new Set()) ?? fallback
     );
+  }
+
+  private canCompleteGestaltBossGroups(
+    cards: TrialCard[],
+    groups: ReadonlyArray<{ cardIds: number[] }>,
+    usedGroups: Set<number>,
+    answerCount: number,
+    reservedAnswers: Set<string>,
+  ): boolean {
+    if (answerCount === 0) {
+      return this.remainingAnswerComponents(cards).length === 0;
+    }
+    for (
+      let groupIndex = 0;
+      groupIndex < groups.length;
+      groupIndex += 1
+    ) {
+      if (usedGroups.has(groupIndex)) {
+        continue;
+      }
+      const group = groups[groupIndex];
+      const groupCards = cards.filter((card) =>
+        group.cardIds.includes(card.uid),
+      );
+      if (groupCards.length !== group.cardIds.length) {
+        continue;
+      }
+      const candidates = [
+        ...this.data.acceptedContaining(
+          groupCards.map((card) => card.symbolId),
+        ),
+      ].filter((candidate) => !reservedAnswers.has(candidate));
+      if (candidates.length === 0) {
+        continue;
+      }
+      const remaining = cards.filter(
+        (card) => !group.cardIds.includes(card.uid),
+      );
+      if (answerCount === 1) {
+        if (this.remainingAnswerComponents(remaining).length === 0) {
+          return true;
+        }
+        continue;
+      }
+      const nextUsed = new Set([...usedGroups, groupIndex]);
+      for (const candidate of candidates) {
+        if (
+          this.canCompleteGestaltBossGroups(
+            remaining,
+            groups,
+            nextUsed,
+            answerCount - 1,
+            new Set([...reservedAnswers, candidate]),
+          )
+        ) {
+          return true;
+        }
+      }
+    }
+    return false;
   }
 
   private assignWildcardBossAnswers(
@@ -6586,19 +6754,14 @@ export class TrialSession {
         ) {
           return assignment;
         }
-        const remainingAnswerCount =
-          boss.expectedAnswers.length -
-          boss.pendingAnswers.length -
-          answers.length;
+        const { remainingAnswerCount, reservedAnswers } =
+          this.bossRemainingExpectation(boss, answers);
         if (
           remainingAnswerCount > 0 &&
           this.canCompleteWildcardBossCards(
             cards,
             remainingAnswerCount,
-            new Set([
-              ...boss.pendingAnswers,
-              ...answers,
-            ]),
+            reservedAnswers,
           )
         ) {
           return assignment;
@@ -6762,9 +6925,12 @@ export class TrialSession {
     if (!this.state.boss) {
       return null;
     }
+    const boss = this.state.boss;
     const allowedLengths = new Set(
       this.activeRule().selection.boss.partLengths,
     );
+    const { remainingAnswerCount, reservedAnswers } =
+      this.bossRemainingExpectation(boss, answers);
     const submissions: TrialBossSubmission[] = [];
     let fallback: TrialBossAssignment | null = null;
     const search = (
@@ -6780,6 +6946,17 @@ export class TrialSession {
         };
         if (
           this.remainingAnswerComponents(cards).length === 0
+        ) {
+          return assignment;
+        }
+        if (
+          remainingAnswerCount > 0 &&
+          this.canCompleteRepetendBossCards(
+            cards,
+            remainingAnswerCount,
+            reservedAnswers,
+            allowedLengths,
+          )
         ) {
           return assignment;
         }
@@ -6824,7 +7001,93 @@ export class TrialSession {
       }
       return null;
     };
-    return search(0, this.state.boss.cards) ?? fallback;
+    return search(0, boss.cards) ?? fallback;
+  }
+
+  private canCompleteRepetendBossCards(
+    cards: TrialCard[],
+    answerCount: number,
+    reservedAnswers: Set<string>,
+    allowedLengths: Set<number>,
+  ): boolean {
+    if (answerCount === 0) {
+      return this.remainingAnswerComponents(cards).length === 0;
+    }
+    const remainingComponents =
+      this.remainingAnswerComponents(cards);
+    if (answerCount === 1) {
+      if (!allowedLengths.has(remainingComponents.length)) {
+        return false;
+      }
+      for (const candidate of this.data.accepted(
+        remainingComponents,
+      )) {
+        if (
+          !reservedAnswers.has(candidate) &&
+          this.data
+            .expandedDecompositions(candidate)
+            .some(
+              (way) =>
+                allowedLengths.has(way.length) &&
+                this.componentUsesForBag(cards, way) !== null,
+            )
+        ) {
+          return true;
+        }
+      }
+      return false;
+    }
+    const visitedBags = new Set<string>();
+    const limit = 1 << remainingComponents.length;
+    for (let mask = 1; mask < limit; mask += 1) {
+      const subset: number[] = [];
+      for (
+        let index = 0;
+        index < remainingComponents.length;
+        index += 1
+      ) {
+        if ((mask & (1 << index)) !== 0) {
+          subset.push(remainingComponents[index]);
+        }
+      }
+      if (!allowedLengths.has(subset.length)) {
+        continue;
+      }
+      const bagKey = this.symbolIdBagKey(subset);
+      if (visitedBags.has(bagKey)) {
+        continue;
+      }
+      visitedBags.add(bagKey);
+      for (const candidate of this.data.accepted(subset)) {
+        if (reservedAnswers.has(candidate)) {
+          continue;
+        }
+        const ways = this.data
+          .expandedDecompositions(candidate)
+          .filter((way) => allowedLengths.has(way.length));
+        for (const way of ways) {
+          const uses = this.componentUsesForBag(cards, way);
+          if (!uses) {
+            continue;
+          }
+          const remaining = this.consumeBossComponentUses(
+            cards,
+            uses,
+          );
+          if (
+            this.canCompleteRepetendBossCards(
+              remaining,
+              answerCount - 1,
+              new Set([...reservedAnswers, candidate]),
+              allowedLengths,
+            )
+          ) {
+            return true;
+          }
+        }
+      }
+    }
+    return false;
   }
 
   private componentUsesForBag(
@@ -6877,9 +7140,12 @@ export class TrialSession {
     if (!this.state.boss) {
       return null;
     }
+    const boss = this.state.boss;
     const allowedLengths = new Set(
       this.activeRule().selection.boss.partLengths,
     );
+    const { remainingAnswerCount, reservedAnswers } =
+      this.bossRemainingExpectation(boss, answers);
     const submissions: TrialBossSubmission[] = [];
     let fallback: TrialBossAssignment | null = null;
     const search = (
@@ -6896,6 +7162,17 @@ export class TrialSession {
         };
         if (
           this.remainingAnswerComponents(cards).length === 0
+        ) {
+          return assignment;
+        }
+        if (
+          remainingAnswerCount > 0 &&
+          this.canCompleteTokenBossCards(
+            cards,
+            remainingAnswerCount,
+            reservedAnswers,
+            allowedLengths,
+          )
         ) {
           return assignment;
         }
@@ -6951,7 +7228,73 @@ export class TrialSession {
       }
       return null;
     };
-    return search(0, this.state.boss.cards) ?? fallback;
+    return search(0, boss.cards) ?? fallback;
+  }
+
+  private canCompleteTokenBossCards(
+    cards: TrialCard[],
+    answerCount: number,
+    reservedAnswers: Set<string>,
+    allowedLengths: Set<number>,
+  ): boolean {
+    if (answerCount === 0) {
+      return this.remainingAnswerComponents(cards).length === 0;
+    }
+    const tokens = cards
+      .filter((card) => !card.mustIgnore)
+      .flatMap((card) =>
+        this.cardComponents(card).map((symbolId) => ({
+          cardUid: card.uid,
+          symbolId,
+        })),
+      );
+    if (answerCount === 1) {
+      if (!allowedLengths.has(tokens.length)) {
+        return false;
+      }
+      for (const candidate of this.data.accepted(
+        tokens.map((token) => token.symbolId),
+      )) {
+        if (!reservedAnswers.has(candidate)) {
+          return true;
+        }
+      }
+      return false;
+    }
+    const limit = 1 << tokens.length;
+    for (let mask = 1; mask < limit; mask += 1) {
+      const selectedUses = tokens.filter(
+        (_, index) => (mask & (1 << index)) !== 0,
+      );
+      if (!allowedLengths.has(selectedUses.length)) {
+        continue;
+      }
+      const candidates = [
+        ...this.data.accepted(
+          selectedUses.map((use) => use.symbolId),
+        ),
+      ].filter((candidate) => !reservedAnswers.has(candidate));
+      if (candidates.length === 0) {
+        continue;
+      }
+      const remaining = this.consumeBossComponentUses(
+        cards,
+        selectedUses,
+      );
+      for (const candidate of candidates) {
+        if (
+          this.canCompleteTokenBossCards(
+            remaining,
+            answerCount - 1,
+            new Set([...reservedAnswers, candidate]),
+            allowedLengths,
+          )
+        ) {
+          return true;
+        }
+      }
+    }
+    return false;
   }
 
   private consumeBossComponentUses(

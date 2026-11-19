@@ -245,6 +245,22 @@ try {
   assert.equal(tutorialPartDot.color, "rgb(161, 55, 48)");
   assert.equal(await page.locator(".tutorial-stage-card").count(), 3);
   assert.equal(await page.locator(".tutorial-mode-card").count(), 2);
+  assert.equal(
+    await page.locator("[data-tutorial-trial-title]").innerText(),
+    "试炼模式",
+  );
+  assert.equal(
+    await page.locator("[data-tutorial-trial-locked] .trial-lock-emblem-svg").count(),
+    1,
+  );
+  assert.equal(
+    await page.locator("[data-tutorial-trial-torn]").isHidden(),
+    true,
+  );
+  assert.equal(
+    await page.locator("[data-tutorial-trial-unlocked]").isHidden(),
+    true,
+  );
   const tutorialText = await page.locator("#tutorial-dialog").innerText();
   for (const text of [
     "在倒计时耗尽前，将部件重组成正确的汉字！",
@@ -254,6 +270,7 @@ try {
     "每个阶段共5题，各阶段所取的通规字表区间会逐步后移。",
     "到达字表末端后，将进入阶段EX……会有什么呢？",
     "阶段EX可在设置中关闭",
+    "未开放",
     "练习模式",
     "有更多可调整设置，换题次数不限。",
     "适合对全字表进行练习，尽可能多地答对吧！",
@@ -276,7 +293,7 @@ try {
   assert.equal(
     await page
       .locator(".tutorial-section")
-      .nth(3)
+      .nth(4)
       .locator("p.tutorial-copy")
       .count(),
     3,
@@ -284,7 +301,7 @@ try {
   assert.deepEqual(
     await page
       .locator(".tutorial-section")
-      .nth(3)
+      .nth(4)
       .locator("p.tutorial-copy")
       .evaluateAll((paragraphs) =>
         paragraphs
@@ -1901,7 +1918,59 @@ try {
   });
   await page.reload({ waitUntil: "networkidle" });
   await page.locator(".start-button:not([disabled])").waitFor();
+  await page.getByRole("button", { name: "游玩方法" }).click();
+  await page.locator("#tutorial-dialog[open]").waitFor();
+  assert.equal(
+    await page.locator("[data-tutorial-trial-title]").innerText(),
+    "试炼模式",
+  );
+  assert.equal(
+    await page.locator("[data-tutorial-trial-locked]").isHidden(),
+    true,
+  );
+  assert.equal(
+    await page.locator("[data-tutorial-trial-torn]").isHidden(),
+    false,
+  );
+  assert.match(
+    await page.locator("[data-tutorial-trial-torn]").innerText(),
+    /“这一节被刻意撕下了……”/,
+  );
+  assert.equal(
+    await page.locator("[data-tutorial-trial-unlocked]").isHidden(),
+    true,
+  );
+  await page
+    .locator("#tutorial-dialog")
+    .getByRole("button", { name: "返回", exact: true })
+    .click();
   await page.getByRole("button", { name: "试炼", exact: true }).click();
+  await page.getByRole("button", { name: "游玩方法" }).click();
+  await page.locator("#tutorial-dialog[open]").waitFor();
+  assert.equal(
+    await page.locator("[data-tutorial-ellipsis-before]").isHidden(),
+    false,
+  );
+  assert.equal(
+    await page.locator("[data-tutorial-ellipsis-after]").isHidden(),
+    false,
+  );
+  assert.equal(
+    await page.locator("[data-tutorial-standard-section]:visible").count(),
+    0,
+  );
+  assert.equal(
+    await page.locator("[data-tutorial-trial-unlocked]").isHidden(),
+    false,
+  );
+  assert.match(
+    await page.locator("[data-tutorial-trial-unlocked]").innerText(),
+    /叶繁的旅路，雾沉的线索。[\s\S]*未知的巡礼，迷移的航标。[\s\S]*去证明。/,
+  );
+  await page
+    .locator("#tutorial-dialog")
+    .getByRole("button", { name: "返回", exact: true })
+    .click();
   await page.getByRole("button", { name: "开始", exact: true }).click();
   await page.locator(".trial-intro-surface").waitFor();
   assert.equal(

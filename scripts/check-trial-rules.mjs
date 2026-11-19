@@ -115,12 +115,12 @@ if (
     [1],
     [2],
     [2],
-    [2, 3],
+    [2],
     [3],
   ])
 ) {
   errors.push(
-    "runtime: stageStars must be [0], [1], [1], [2], [2], [2,3], [3]",
+    "runtime: stageStars must be [0], [1], [1], [2], [2], [2], [3]",
   );
 }
 

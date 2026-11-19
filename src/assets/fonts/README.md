@@ -18,7 +18,8 @@ The subset uses the CSS family name “Zigsaw Component Serif”. Font metadata
 is renamed accordingly so the OFL Reserved Font Name is not reused by this
 modified font.
 
-## Trial rule labels
+## Trial English labels
 
-`cormorant-sc-600.woff2` is the Latin subset of Cormorant SC 600 used for
-rule-name small capitals. `cormorant-OFL.txt` contains the upstream license.
+`cinzel-600.woff2` is the Latin subset of Cinzel 600 used for trial rule English
+names, trial settlement titles, and quantity badges. `cinzel-OFL.txt` contains
+the upstream license.

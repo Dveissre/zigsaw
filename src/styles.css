@@ -7,8 +7,8 @@
 }
 
 @font-face {
-  font-family: "Cormorant SC";
-  src: url("./assets/fonts/cormorant-sc-600.woff2") format("woff2");
+  font-family: "Cinzel";
+  src: url("./assets/fonts/cinzel-600.woff2") format("woff2");
   font-style: normal;
   font-weight: 600;
   font-display: swap;
@@ -1043,27 +1043,25 @@ input:focus-visible {
 }
 
 .trial-difficulty-item.is-center {
-  color: var(--ex-purple);
   opacity: 1;
   filter: none;
 }
 
-.trial-difficulty-item:not(.is-locked):not(.is-unavailable) {
+.trial-difficulty-item:where(:not(.is-locked):not(.is-unavailable)) {
   color: var(--ex-purple);
+}
+
+.trial-difficulty-item.is-locked,
+.trial-difficulty-item.is-unavailable {
+  color: var(--muted);
+}
+
+.trial-difficulty-item.is-ticket-only {
+  color: var(--accent);
 }
 
 .trial-difficulty-item.is-perfect {
   color: var(--trial-perfect-gold);
-}
-
-.trial-difficulty-item.is-locked.is-center,
-.trial-difficulty-item.is-unavailable.is-center {
-  color: var(--muted);
-}
-
-.trial-difficulty-item.is-ticket-only,
-.trial-difficulty-item.is-ticket-only.is-center {
-  color: var(--accent);
 }
 
 .trial-difficulty-item.is-locked .trial-difficulty-number,
@@ -2069,8 +2067,8 @@ input:focus-visible {
   bottom: 4px;
   z-index: 3;
   color: inherit;
-  font-family: "Cormorant SC", "Noto Serif SC", serif;
-  font-size: clamp(11px, 1.45vw, 15px);
+  font-family: "Cinzel", "Noto Serif SC", serif;
+  font-size: clamp(10px, 1.35vw, 14px);
   font-weight: 600;
   letter-spacing: 0.02em;
   line-height: 1;
@@ -2078,7 +2076,7 @@ input:focus-visible {
 
 @media (min-width: 641px) {
   .trial-quantity-badge {
-    font-size: clamp(15px, 1.8vw, 19px);
+    font-size: clamp(13px, 1.6vw, 17px);
   }
 }
 
@@ -2934,12 +2932,11 @@ input:focus-visible {
 
 .trial-rule-title > span {
   color: var(--accent);
-  font-family: "Cormorant SC", var(--display-font-family);
-  font-size: 18px;
+  font-family: "Cinzel", var(--display-font-family);
+  font-size: 16px;
   font-style: normal;
   font-weight: 600;
-  font-variant-caps: small-caps;
-  letter-spacing: 0.025em;
+  letter-spacing: 0.06em;
 }
 
 .trial-rule-card p {
@@ -2983,7 +2980,7 @@ input:focus-visible {
 
 .trial-debug-rule-heading span {
   color: var(--accent);
-  font-family: "Cormorant SC", var(--display-font-family);
+  font-family: "Cinzel", var(--display-font-family);
   font-size: 11px;
   letter-spacing: 0.08em;
 }
@@ -3538,6 +3535,69 @@ input:focus-visible {
   color: var(--accent);
 }
 
+.trial-result-title-wrap {
+  position: relative;
+  display: inline-block;
+}
+
+.trial-result-title-wrap h1 {
+  position: relative;
+  z-index: 1;
+  letter-spacing: 0.04em;
+}
+
+.trial-result-slit {
+  position: absolute;
+  left: -5px;
+  right: -5px;
+  top: 55.2%;
+  z-index: 2;
+  display: flex;
+  align-items: center;
+  height: 0.74em;
+  background: var(--paper);
+  color: var(--ink);
+  font-family: "Cinzel", var(--display-font-family);
+  font-size: clamp(10.2px, 1.46vw, 15.5px);
+  font-weight: 600;
+  pointer-events: none;
+  user-select: none;
+}
+
+.trial-result-slit-inner {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+  padding: 0 calc(5px + 0.04em) 0 5px;
+  line-height: 1;
+  text-transform: uppercase;
+  text-box-trim: trim-both;
+  text-box-edge: cap alphabetic;
+}
+
+.trial-result-slit-ch {
+  display: inline-block;
+  line-height: 1;
+  text-box-trim: trim-both;
+  text-box-edge: cap alphabetic;
+}
+
+.trial-result-slit-ch.is-accent {
+  color: var(--accent);
+}
+
+.trial-result-slit-ch.is-sep {
+  color: var(--muted);
+  font-weight: 500;
+}
+
+@supports not (text-box-trim: trim-both) {
+  .trial-result-slit-inner {
+    transform: translateY(0.1em);
+  }
+}
+
 .trial-result-cris {
   display: inline-flex;
   align-items: center;
@@ -3908,7 +3968,7 @@ input:focus-visible {
 }
 
 .trial-review-list .review-part.is-quantity small {
-  font-family: "Cormorant SC", "Noto Serif SC", serif;
+  font-family: "Cinzel", "Noto Serif SC", serif;
   font-size: 0.72em;
   font-weight: 600;
   line-height: 1;
@@ -3918,7 +3978,7 @@ input:focus-visible {
   .trial-review-list
     .review-part.is-quantity
     small {
-    font-size: 1.25em;
+    font-size: 1.1em;
   }
 }
 
@@ -7590,6 +7650,61 @@ input:focus-visible {
   background: var(--line-strong);
 }
 
+.tutorial-trial-locked {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 6px 0 4px;
+  text-align: center;
+}
+
+.tutorial-trial-locked-emblem {
+  display: grid;
+  width: 96px;
+  height: 96px;
+  margin-bottom: 8px;
+  color: color-mix(in srgb, var(--ink) 76%, var(--muted));
+  place-items: center;
+}
+
+.tutorial-trial-locked-status {
+  margin: 0;
+  color: var(--ink);
+  font-size: 16px;
+  font-weight: 600;
+  letter-spacing: 0.18em;
+  text-indent: 0.18em;
+}
+
+.trial-rule-emblem.tutorial-trial-emblem {
+  margin: 4px auto 16px;
+}
+
+.tutorial-trial-torn {
+  color: var(--muted);
+}
+
+.tutorial-trial-torn em {
+  font-style: italic;
+  font-synthesis: style;
+}
+
+.tutorial-ellipsis {
+  margin: 0;
+  padding: 20px 0 18px;
+  color: var(--muted);
+  font-size: 16px;
+  letter-spacing: 0.25em;
+  text-indent: 0.25em;
+  line-height: 1.4;
+  text-align: center;
+}
+
+.tutorial-ellipsis.is-after {
+  border-top: 1px solid var(--line);
+  padding: 22px 0 14px;
+}
+
 .tutorial-mode-pair {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -8616,6 +8731,19 @@ input:focus-visible {
     padding: 0 0 16px;
   }
 
+  .trial-result-title-wrap h1 {
+    letter-spacing: 0.03em;
+  }
+
+  .trial-result-slit {
+    left: -3px;
+    right: -3px;
+  }
+
+  .trial-result-slit-inner {
+    padding: 0 calc(3px + 0.03em) 0 3px;
+  }
+
   .review-list {
     grid-template-columns: repeat(4, minmax(0, 1fr));
     grid-auto-rows: auto;
@@ -9105,6 +9233,11 @@ input:focus-visible {
 
   .tutorial-stage-card span {
     font-size: 13px;
+  }
+
+  .tutorial-trial-locked-emblem {
+    width: 80px;
+    height: 80px;
   }
 
   .tutorial-mode-card {

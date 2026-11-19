@@ -100,6 +100,7 @@ import {
 } from "./ui/parts";
 import {
   createTutorialDialog,
+  syncTutorialTrialSection,
   TUTORIAL_TRIGGER_MARKUP,
 } from "./ui/tutorial";
 
@@ -204,7 +205,7 @@ const cris = new CrisStore();
 const collection = new CollectionStore();
 const trialProgress = new TrialProgressStore();
 const charDetails = new CharDetailStore(appBaseUrl);
-const tutorialDialog = createTutorialDialog();
+const tutorialDialog = createTutorialDialog(appBaseUrl);
 let resumeAfterTutorial = false;
 
 function escapeHtml(value: string): string {
@@ -689,6 +690,7 @@ document.addEventListener("click", (event) => {
     return;
   }
   if (target.closest("[data-tutorial-trigger]")) {
+    syncTutorialTrialSection(tutorialDialog, currentTutorialTrialViewState());
     openInfoDialog(tutorialDialog);
     return;
   }
@@ -1729,6 +1731,20 @@ function challengeBestScores(): TrialChallengeBestScores {
   };
 }
 
+function currentTutorialTrialViewState(): {
+  unlocked: boolean;
+  trialActive: boolean;
+} {
+  const unlocked =
+    trialTestPage && getTrialAdvancementAccess(0).modeEntryUnlocked;
+  const trialActive = trialSession
+    ? true
+    : session
+      ? false
+      : selectedMode() === "trial";
+  return { unlocked, trialActive };
+}
+
 function getTrialAdvancementAccess(
   level: number,
   scores: TrialChallengeBestScores = challengeBestScores(),
@@ -1779,6 +1795,10 @@ function syncTrialAdvancementAccess(): void {
   const scores = challengeBestScores();
   const entryAccess = getTrialAdvancementAccess(0, scores);
   const entryUnlocked = entryAccess.modeEntryUnlocked;
+  syncTutorialTrialSection(tutorialDialog, {
+    unlocked: trialTestPage && entryUnlocked,
+    trialActive: currentTutorialTrialViewState().trialActive,
+  });
   const lockedPanel = document.querySelector<HTMLElement>(
     "[data-trial-entry-locked]",
   );
@@ -2994,6 +3014,58 @@ function trialResultTitleMarkup(
         : escapeHtml(char),
     )
     .join("");
+}
+
+function trialResultEnglishSlitMarkup(
+  title: TrialResultState["title"],
+): string {
+  const segmentsByTitle: Record<
+    TrialResultState["title"],
+    Array<{ text: string; kind: "word" | "accent" | "sep" }>
+  > = {
+    覆鹿遗蕉: [
+      { text: "A", kind: "word" },
+      { text: "/", kind: "sep" },
+      { text: "Hart", kind: "accent" },
+      { text: "/", kind: "sep" },
+      { text: "Leaf-hid", kind: "word" },
+    ],
+    临歧何反: [
+      { text: "A", kind: "word" },
+      { text: "/", kind: "sep" },
+      { text: "Twy-way", kind: "accent" },
+      { text: "/", kind: "sep" },
+      { text: "Forleft", kind: "word" },
+    ],
+    雾径得津: [
+      { text: "A", kind: "word" },
+      { text: "/", kind: "sep" },
+      { text: "Ford", kind: "accent" },
+      { text: "/", kind: "sep" },
+      { text: "Mist-Won", kind: "word" },
+    ],
+    知我梦中: [
+      { text: "A", kind: "word" },
+      { text: "/", kind: "sep" },
+      { text: "Trance", kind: "accent" },
+      { text: "/", kind: "sep" },
+      { text: "Self-wist", kind: "word" },
+    ],
+  };
+  const chars = segmentsByTitle[title]
+    .flatMap((segment) =>
+      [...segment.text].map((char) => {
+        const className =
+          segment.kind === "accent"
+            ? "trial-result-slit-ch is-accent"
+            : segment.kind === "sep"
+              ? "trial-result-slit-ch is-sep"
+              : "trial-result-slit-ch";
+        return `<span class="${className}">${escapeHtml(char)}</span>`;
+      }),
+    )
+    .join("");
+  return `<div class="trial-result-slit" aria-hidden="true"><div class="trial-result-slit-inner">${chars}</div></div>`;
 }
 
 function trialCharacterMeta(char: string): string {
@@ -4540,7 +4612,10 @@ function renderTrialResults(trial: TrialSession): void {
               <svg class="trial-stage-chevron" viewBox="0 0 24 24" aria-hidden="true">
                 <path d="m9 3 9 9-9 9"></path>
               </svg>
-              <h1>${trialResultTitleMarkup(result.title)}</h1>
+              <div class="trial-result-title-wrap">
+                <h1>${trialResultTitleMarkup(result.title)}</h1>
+                ${trialResultEnglishSlitMarkup(result.title)}
+              </div>
               <svg class="trial-stage-chevron" viewBox="0 0 24 24" aria-hidden="true">
                 <path d="m15 3-9 9 9 9"></path>
               </svg>

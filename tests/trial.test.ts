@@ -1112,7 +1112,7 @@ describe("trial session", () => {
       [1],
       [2],
       [2],
-      [2, 3],
+      [2],
       [3],
     ]);
     expect(parsed.rules.tetrarchy.description.public).toContain(
@@ -6123,5 +6123,484 @@ describe("trial session", () => {
     expect(trial.state.revealAnswer).toBe(answer);
     trial.settleAfterMiss();
     expect(trial.state.phase).toBe("results");
+  });
+
+  it("draws a fixed two-star rule for stage 6", () => {
+    for (let seed = 1; seed <= 20; seed += 1) {
+      const trial = new TrialSession(
+        createData(),
+        settings,
+        () => {},
+        seededRandom(seed),
+        false,
+        () => {},
+        null,
+        trialRulesData,
+      );
+      const stageSixRuleId = (
+        trial as unknown as { stageRuleIds: string[] }
+      ).stageRuleIds[5];
+      expect(trialRulesData.rules[stageSixRuleId].stars).toBe(2);
+    }
+  });
+
+  it("uses lookahead on standard two-answer boss when first answer has ambiguous parts", () => {
+    vi.useFakeTimers();
+    const gameData = new GameData(
+      {
+        symbols: {
+          "1": "八",
+          "2": "宀",
+          "3": "口",
+          "4": "山",
+          "5": "尸",
+          "6": "勹",
+          "7": "屮",
+        },
+        chars: {
+          岣: [[6, 3, 4]],
+          窟: [
+            [1, 2, 3, 7, 5],
+            [1, 2, 3, 4, 5],
+          ],
+        },
+      },
+      {
+        levels: {
+          一级: ["窟"],
+          二级: ["岣"],
+          三级: [],
+        },
+      },
+    );
+    const trial = new TrialSession(
+      gameData,
+      settings,
+      () => {},
+      seededRandom(61),
+      false,
+      () => {},
+      null,
+      trialRulesData,
+    );
+    trial.setRuleOverride("unrestricted");
+    trial.state.phase = "boss";
+    trial.state.questionInStage = 8;
+    // Place 山 (uid=3) before 屮 (uid=8) so naive mask iteration hits the dead-end [1,2,3,4,5] first.
+    const cards: TrialCard[] = [
+      { uid: 1, symbolId: 6, source: "answer" },
+      { uid: 2, symbolId: 3, source: "answer" },
+      { uid: 3, symbolId: 4, source: "answer" },
+      { uid: 4, symbolId: 1, source: "answer" },
+      { uid: 5, symbolId: 2, source: "answer" },
+      { uid: 6, symbolId: 3, source: "answer" },
+      { uid: 7, symbolId: 5, source: "answer" },
+      { uid: 8, symbolId: 7, source: "answer" },
+    ];
+    trial.state.boss = {
+      cards: cards.map((card) => ({ ...card })),
+      initialCards: cards.map((card) => ({ ...card })),
+      expectedAnswers: ["岣", "窟"],
+      expectedDisplayChars: ["岣", "窟"],
+      expectedPinyin: ["", ""],
+      expectedWays: [
+        [6, 3, 4],
+        [1, 2, 3, 7, 5],
+      ],
+      displayWays: [
+        [6, 3, 4],
+        [1, 2, 3, 7, 5],
+      ],
+      expandedComponents: [],
+      pendingAnswers: [],
+      pendingSubmissions: [],
+      pendingAnswer: "",
+      pendingCardIds: [],
+      consumedCardIds: [],
+      submissionCount: 0,
+    };
+    trial.state.timeLimit = 90;
+    trial.state.remaining = 90;
+
+    trial.setDraft("窟");
+    trial.submit();
+    expect(trial.state.feedback).toBe("partial");
+    expect(trial.state.boss.cards.map((card) => card.symbolId)).toContain(4);
+    expect(trial.state.boss.cards.map((card) => card.symbolId)).not.toContain(7);
+
+    trial.setDraft("岣");
+    trial.submit();
+    expect(trial.state.feedback).toBe("correct");
+  });
+
+  it("uses lookahead on three-answer minimalism boss", () => {
+    vi.useFakeTimers();
+    const gameData = new GameData(
+      {
+        symbols: {
+          "1": "木",
+          "2": "口",
+          "3": "日",
+          "4": "月",
+          "5": "山",
+          "6": "水",
+        },
+        chars: {
+          甲: [
+            [1, 2],
+            [1, 3],
+          ],
+          乙: [[3, 4]],
+          丙: [[5, 6]],
+        },
+      },
+      {
+        levels: {
+          一级: ["甲", "乙", "丙"],
+          二级: [],
+          三级: [],
+        },
+      },
+    );
+    const trial = new TrialSession(
+      gameData,
+      settings,
+      () => {},
+      seededRandom(62),
+      false,
+      () => {},
+      null,
+      trialRulesData,
+    );
+    trial.setRuleOverride("minimalism");
+    trial.state.phase = "boss";
+    trial.state.questionInStage = 8;
+    // uid 1(木),2(口),3(日)... naive mask picks [木,日] leaving [口,月,山,水] which has no 乙;
+    // lookahead picks [木,口] leaving [日,月] (乙) + [山,水] (丙).
+    const cards: TrialCard[] = [
+      { uid: 1, symbolId: 1, source: "answer" },
+      { uid: 2, symbolId: 3, source: "answer" },
+      { uid: 3, symbolId: 2, source: "answer" },
+      { uid: 4, symbolId: 4, source: "answer" },
+      { uid: 5, symbolId: 5, source: "answer" },
+      { uid: 6, symbolId: 6, source: "answer" },
+    ];
+    trial.state.boss = {
+      cards: cards.map((card) => ({ ...card })),
+      initialCards: cards.map((card) => ({ ...card })),
+      expectedAnswers: ["甲", "乙", "丙"],
+      expectedDisplayChars: ["甲", "乙", "丙"],
+      expectedPinyin: ["", "", ""],
+      expectedWays: [
+        [1, 2],
+        [3, 4],
+        [5, 6],
+      ],
+      displayWays: [
+        [1, 2],
+        [3, 4],
+        [5, 6],
+      ],
+      expandedComponents: [],
+      pendingAnswers: [],
+      pendingSubmissions: [],
+      pendingAnswer: "",
+      pendingCardIds: [],
+      consumedCardIds: [],
+      submissionCount: 0,
+    };
+    trial.state.timeLimit = 45;
+    trial.state.remaining = 45;
+
+    trial.setDraft("甲");
+    trial.submit();
+    expect(trial.state.feedback).toBe("partial");
+    expect(
+      trial.state.boss.pendingSubmissions[0].componentUses.map(
+        (use) => use.symbolId,
+      ),
+    ).toEqual([1, 2]);
+
+    trial.setDraft("乙");
+    trial.submit();
+    expect(trial.state.feedback).toBe("partial");
+    trial.setDraft("丙");
+    trial.submit();
+    expect(trial.state.feedback).toBe("correct");
+  });
+
+  it("uses lookahead on repetend boss when first answer has multiple decompositions", () => {
+    vi.useFakeTimers();
+    const gameData = new GameData(
+      {
+        symbols: {
+          "1": "木",
+          "2": "口",
+          "3": "日",
+          "4": "山",
+        },
+        chars: {
+          甲: [
+            [1, 3],
+            [1, 4],
+          ],
+          乙: [[2, 3]],
+        },
+      },
+      {
+        levels: {
+          一级: ["甲", "乙"],
+          二级: [],
+          三级: [],
+        },
+      },
+    );
+    for (let seed = 1; seed <= 8; seed += 1) {
+      const trial = new TrialSession(
+        gameData,
+        settings,
+        () => {},
+        seededRandom(seed),
+        false,
+        () => {},
+        null,
+        trialRulesData,
+      );
+      trial.setRuleOverride("repetend");
+      trial.state.phase = "boss";
+      trial.state.questionInStage = 8;
+      const cards: TrialCard[] = [
+        { uid: 1, symbolId: 1, source: "answer" },
+        { uid: 2, symbolId: 2, source: "answer" },
+        { uid: 3, symbolId: 3, source: "answer" },
+        { uid: 4, symbolId: 4, source: "answer" },
+      ];
+      trial.state.boss = {
+        cards: cards.map((card) => ({ ...card })),
+        initialCards: cards.map((card) => ({ ...card })),
+        expectedAnswers: ["甲", "乙"],
+        expectedDisplayChars: ["甲", "乙"],
+        expectedPinyin: ["", ""],
+        expectedWays: [
+          [1, 4],
+          [2, 3],
+        ],
+        displayWays: [
+          [1, 4],
+          [2, 3],
+        ],
+        expandedComponents: [],
+        pendingAnswers: [],
+        pendingSubmissions: [],
+        pendingAnswer: "",
+        pendingCardIds: [],
+        consumedCardIds: [],
+        submissionCount: 0,
+      };
+      trial.state.timeLimit = 90;
+      trial.state.remaining = 90;
+
+      trial.setDraft("甲");
+      trial.submit();
+      expect(trial.state.feedback).toBe("partial");
+      expect(
+        trial.state.boss.pendingSubmissions[0].componentUses.map(
+          (use) => use.symbolId,
+        ),
+      ).toEqual([1, 4]);
+
+      trial.setDraft("乙");
+      trial.submit();
+      expect(trial.state.feedback).toBe("correct");
+    }
+  });
+
+  it("uses lookahead on prefabricated token boss", () => {
+    vi.useFakeTimers();
+    const gameData = new GameData(
+      {
+        symbols: {
+          "1": "木",
+          "2": "口",
+          "3": "日",
+          "4": "山",
+        },
+        chars: {
+          甲: [
+            [1, 3],
+            [1, 4],
+          ],
+          乙: [[2, 3]],
+        },
+      },
+      {
+        levels: {
+          一级: ["甲", "乙"],
+          二级: [],
+          三级: [],
+        },
+      },
+    );
+    const trial = new TrialSession(
+      gameData,
+      settings,
+      () => {},
+      seededRandom(63),
+      false,
+      () => {},
+      null,
+      trialRulesData,
+    );
+    trial.setRuleOverride("prefabrication");
+    trial.state.phase = "boss";
+    trial.state.questionInStage = 8;
+    const cards: TrialCard[] = [
+      { uid: 1, symbolId: 1, source: "answer" },
+      {
+        uid: 2,
+        symbolId: 3,
+        source: "answer",
+        components: [3, 2],
+        remainingComponents: [3, 2],
+      },
+      { uid: 3, symbolId: 4, source: "answer" },
+    ];
+    trial.state.boss = {
+      cards: cards.map((card) => ({
+        ...card,
+        ...(card.components
+          ? {
+              components: [...card.components],
+              remainingComponents: [...card.components],
+            }
+          : {}),
+      })),
+      initialCards: cards.map((card) => ({
+        ...card,
+        ...(card.components
+          ? {
+              components: [...card.components],
+              remainingComponents: [...card.components],
+            }
+          : {}),
+      })),
+      expectedAnswers: ["甲", "乙"],
+      expectedDisplayChars: ["甲", "乙"],
+      expectedPinyin: ["", ""],
+      expectedWays: [
+        [1, 4],
+        [2, 3],
+      ],
+      displayWays: [
+        [1, 4],
+        [2, 3],
+      ],
+      expandedComponents: [],
+      pendingAnswers: [],
+      pendingSubmissions: [],
+      pendingAnswer: "",
+      pendingCardIds: [],
+      consumedCardIds: [],
+      submissionCount: 0,
+    };
+    trial.state.timeLimit = 90;
+    trial.state.remaining = 90;
+
+    trial.setDraft("甲");
+    trial.submit();
+    expect(trial.state.feedback).toBe("partial");
+    expect(
+      trial.state.boss.pendingSubmissions[0].componentUses.map(
+        (use) => use.symbolId,
+      ),
+    ).toEqual([1, 4]);
+
+    trial.setDraft("乙");
+    trial.submit();
+    expect(trial.state.feedback).toBe("correct");
+  });
+
+  it("uses lookahead on gestalt boss when two groups can match the first answer", () => {
+    vi.useFakeTimers();
+    const gameData = new GameData(
+      {
+        symbols: {
+          "1": "木",
+          "2": "口",
+          "3": "日",
+          "4": "月",
+        },
+        chars: {
+          甲: [
+            [1, 2, 3],
+            [1, 4, 2],
+          ],
+          乙: [[1, 4, 3]],
+        },
+      },
+      {
+        levels: {
+          一级: ["甲", "乙"],
+          二级: [],
+          三级: [],
+        },
+      },
+    );
+    const trial = new TrialSession(
+      gameData,
+      settings,
+      () => {},
+      seededRandom(64),
+      false,
+      () => {},
+      null,
+      trialRulesData,
+    );
+    trial.setRuleOverride("gestalt");
+    trial.state.phase = "boss";
+    trial.state.questionInStage = 8;
+    const cards: TrialCard[] = [
+      { uid: 1, symbolId: 1, source: "answer" },
+      { uid: 2, symbolId: 4, source: "answer" },
+      { uid: 3, symbolId: 1, source: "answer" },
+      { uid: 4, symbolId: 2, source: "answer" },
+    ];
+    trial.state.boss = {
+      cards: cards.map((card) => ({ ...card })),
+      initialCards: cards.map((card) => ({ ...card })),
+      expectedAnswers: ["甲", "乙"],
+      expectedDisplayChars: ["甲", "乙"],
+      expectedPinyin: ["", ""],
+      expectedWays: [
+        [1, 2],
+        [1, 4],
+      ],
+      displayWays: [
+        [1, 2],
+        [1, 4],
+      ],
+      expandedComponents: [],
+      gestaltGroups: [
+        { cardIds: [1, 2], answers: ["甲", "乙"] },
+        { cardIds: [3, 4], answers: ["甲"] },
+      ],
+      pendingAnswers: [],
+      pendingSubmissions: [],
+      pendingAnswer: "",
+      pendingCardIds: [],
+      consumedCardIds: [],
+      submissionCount: 0,
+    };
+    trial.state.timeLimit = 90;
+    trial.state.remaining = 90;
+
+    trial.setDraft("甲");
+    trial.submit();
+    expect(trial.state.feedback).toBe("partial");
+    expect(trial.state.boss.pendingSubmissions[0].cardIds).toEqual([3, 4]);
+
+    trial.setDraft("乙");
+    trial.submit();
+    expect(trial.state.feedback).toBe("correct");
   });
 });
