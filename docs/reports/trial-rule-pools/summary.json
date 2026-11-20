@@ -15,7 +15,7 @@
     "includeSupplementaryCharacters": true,
     "selectableCharacterRule": "任一拆法包含不可渲染部件时排除整字"
   },
-  "sourceHash": "7912b8238bb8d24a6bcc00d52364488af13a1712184f4baf5bd7c4389b002929",
+  "sourceHash": "f7e098a78a9ea1627b3a81bfff91197ea255fd4d38cb0da0db79970e0de0e50b",
   "answerCompatibilityHash": "85bf1cbeda7a34e427acd3590b5881311b019f455bb13444e53d546ba123f459",
   "eligible": {
     "characters": 6500,
@@ -154,8 +154,8 @@
     ]
   },
   "gestalt": {
-    "directPairSeeds": 5510,
-    "pairPoolsWithAnswers": 5510,
+    "directPairSeeds": 5509,
+    "pairPoolsWithAnswers": 5509,
     "excludedComponents": [
       "一",
       "丨",
@@ -173,12 +173,12 @@
       "冂",
       "口"
     ],
-    "pairsWithAtMostThreeAnswers": 4503,
+    "pairsWithAtMostThreeAnswers": 4502,
     "directlyComposablePairsExcluded": true,
     "byAnswerCount": {
       "1": 3133,
       "2": 907,
-      "3": 463
+      "3": 462
     },
     "example": {
       "components": "⺈ + 忄",
@@ -222,9 +222,9 @@
         "石",
         "山"
       ],
-      "baseComponents": 180,
-      "resultCharacters": 385,
-      "compositionVariants": 390
+      "baseComponents": 181,
+      "resultCharacters": 386,
+      "compositionVariants": 391
     },
     "people": {
       "name": "脱尘网",

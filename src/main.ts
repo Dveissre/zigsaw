@@ -112,7 +112,6 @@ if (!rootElement) {
 
 const root: HTMLDivElement = rootElement;
 const experimentalPlay = root.hasAttribute("data-experimental-play");
-const trialTestPage = root.hasAttribute("data-trial-test");
 const appBaseUrl = root.dataset.appBase
   ? new URL(root.dataset.appBase, document.baseURI).href
   : document.baseURI;
@@ -164,12 +163,8 @@ let startLayoutObserver: ResizeObserver | null = null;
 let pageTransitionActive = false;
 let shareToastTimer: number | null = null;
 
-const MODE_ORDER: Mode[] = trialTestPage
-  ? ["challenge", "trial", "normal"]
-  : ["challenge", "normal"];
-const visibleModeCount = trialTestPage
-  ? MODE_ORDER.length
-  : MODE_ORDER.length + 1;
+const MODE_ORDER: Mode[] = ["challenge", "trial", "normal"];
+const visibleModeCount = MODE_ORDER.length;
 const DIFFICULTY_ORDER: ChallengeDifficulty[] = [
   "beginner",
   "standard",
@@ -1735,8 +1730,7 @@ function currentTutorialTrialViewState(): {
   unlocked: boolean;
   trialActive: boolean;
 } {
-  const unlocked =
-    trialTestPage && getTrialAdvancementAccess(0).modeEntryUnlocked;
+  const unlocked = getTrialAdvancementAccess(0).modeEntryUnlocked;
   const trialActive = trialSession
     ? true
     : session
@@ -1796,7 +1790,7 @@ function syncTrialAdvancementAccess(): void {
   const entryAccess = getTrialAdvancementAccess(0, scores);
   const entryUnlocked = entryAccess.modeEntryUnlocked;
   syncTutorialTrialSection(tutorialDialog, {
-    unlocked: trialTestPage && entryUnlocked,
+    unlocked: entryUnlocked,
     trialActive: currentTutorialTrialViewState().trialActive,
   });
   const lockedPanel = document.querySelector<HTMLElement>(
@@ -1919,6 +1913,7 @@ function updateStartAvailability(): void {
     button.dataset.trialLocked = "false";
     if (ticketButton) {
       ticketButton.hidden = true;
+      ticketButton.disabled = true;
     }
     if (gateHint) {
       gateHint.hidden = true;
@@ -1935,6 +1930,7 @@ function updateStartAvailability(): void {
     button.dataset.trialLocked = "true";
     if (ticketButton) {
       ticketButton.hidden = true;
+      ticketButton.disabled = true;
     }
     if (gateHint) {
       gateHint.hidden = true;
@@ -1972,6 +1968,7 @@ function updateStartAvailability(): void {
 
   if (ticketButton) {
     ticketButton.hidden = true;
+    ticketButton.disabled = true;
   }
   button.hidden = false;
   const locked = access.kind === "locked";
@@ -2207,11 +2204,7 @@ function renderStart(initial: GameSettings = lastSettings): void {
     (clampedEntryProgress / TRIAL_ENTRY_GATE.target) * 100,
   );
   const initialMode: Mode =
-    initial.mode === "endless"
-      ? "normal"
-      : initial.mode === "trial" && !trialTestPage
-        ? "challenge"
-        : initial.mode;
+    initial.mode === "endless" ? "normal" : initial.mode;
   const practiceEndless = initial.mode === "endless";
   const checked = (level: Level) => initial.levels.includes(level) ? "checked" : "";
   const pressed = (mode: Mode) => initialMode === mode ? "true" : "false";
@@ -2232,9 +2225,8 @@ function renderStart(initial: GameSettings = lastSettings): void {
             <div class="segmented mode-switch" role="group" aria-label="模式" data-active-mode="${initialMode}" style="--mode-count:${visibleModeCount};--mode-position:${MODE_ORDER.indexOf(initialMode)}">
               <span class="mode-slider" aria-hidden="true"></span>
               <button type="button" data-mode="challenge" aria-pressed="${pressed("challenge")}">挑战</button>
-              ${trialTestPage ? `<button type="button" data-mode="trial" aria-pressed="${pressed("trial")}">试炼</button>` : ""}
+              <button type="button" data-mode="trial" aria-pressed="${pressed("trial")}">试炼</button>
               <button type="button" data-mode="normal" aria-pressed="${pressed("normal")}">练习</button>
-              ${trialTestPage ? "" : `<button type="button" disabled aria-label="敬请期待，尚未开放">敬请期待</button>`}
             </div>
           </section>
 
@@ -2403,7 +2395,7 @@ function renderStart(initial: GameSettings = lastSettings): void {
 
         <div class="start-row">
           <button class="start-button" type="submit" ${data ? "" : "disabled"}>开始</button>
-          <button class="start-button trial-ticket-button" type="button" data-trial-ticket-start hidden></button>
+          <button class="start-button trial-ticket-button" type="button" data-trial-ticket-start hidden disabled></button>
           <span class="start-record" data-start-record ${initialMode === "challenge" ? "" : "hidden"}>纪录：${challengeRecord}</span>
           <span class="trial-gate-hint" data-trial-gate-hint hidden></span>
           <span class="form-error" data-form-error role="alert">${escapeHtml(startupError)}</span>

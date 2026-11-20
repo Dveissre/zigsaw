@@ -389,14 +389,17 @@ try {
   );
   await page.locator("[data-component-access='all']").click();
   await page.locator(".atlas-component-card").first().waitFor();
-  assert.equal(await page.locator(".atlas-component-card").count(), 363);
+  assert.equal(
+    await page.locator(".atlas-component-card").count(),
+    componentAtlas.componentCount,
+  );
   assert.equal(
     await page.locator("[data-rarity-filter='R']").innerText(),
     "R",
   );
   assert.equal(
     await page.locator(".atlas-component-card.is-locked").count(),
-    363,
+    componentAtlas.componentCount,
   );
   const atlasLayout = page.locator(".atlas-layout");
   assert.equal(
@@ -789,7 +792,7 @@ try {
     await page.locator(".mode-switch").evaluate(
       (element) => getComputedStyle(element).getPropertyValue("--mode-position").trim(),
     ),
-    "1",
+    "2",
   );
   assert.equal(
     await page.locator(".mode-fields").evaluate(
@@ -1892,10 +1895,14 @@ try {
   );
   assert.equal(mobileDetailLayout.pageHeight, mobileDetailLayout.viewportHeight);
   await page.keyboard.press("Escape");
+  await page.evaluate(() =>
+    sessionStorage.removeItem("zigsaw.debug.unlocked"),
+  );
 
   await page.goto(new URL("test/", targetUrl).href, {
     waitUntil: "networkidle",
   });
+  await page.waitForURL(targetUrl);
   await page.locator(".start-button:not([disabled])").waitFor();
   assert.deepEqual(
     await page.locator("[data-mode]").allTextContents(),

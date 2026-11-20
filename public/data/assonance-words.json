@@ -2,7 +2,7 @@
   "format": "zigsaw-assonance-words/1",
   "sourceHash": "038b7a35cb8abcc15b2d5897844404033f567402ee30dcf4bbb19bdd8c141cb6",
   "excludedHash": "62c20d2e8b183d2137a40ecac00f2e3fb247bd9a575b785b4d7333aa5e2d884a",
-  "symbolHash": "7912b8238bb8d24a6bcc00d52364488af13a1712184f4baf5bd7c4389b002929",
+  "symbolHash": "f7e098a78a9ea1627b3a81bfff91197ea255fd4d38cb0da0db79970e0de0e50b",
   "answerCompatibilityHash": "85bf1cbeda7a34e427acd3590b5881311b019f455bb13444e53d546ba123f459",
   "weighting": "per candidate pool: 1 / geometric mean of character occurrences within that generated pool",
   "words": {
@@ -107583,7 +107583,7 @@
           [
             186,
             77,
-            36,
+            49,
             157,
             122
           ]
@@ -107651,7 +107651,7 @@
           [
             186,
             77,
-            36,
+            49,
             157,
             122
           ],
@@ -108285,7 +108285,7 @@
           [
             186,
             77,
-            36,
+            49,
             157,
             122
           ]

@@ -484,7 +484,7 @@ describe("static game data", () => {
       ),
     );
     expect(gestalt.excludedComponents).toContain("𰀁");
-    expect(gestalt.pairs).toHaveLength(4503);
+    expect(gestalt.pairs).toHaveLength(4502);
     expect(
       gestalt.pairs.find(
         (pair) =>

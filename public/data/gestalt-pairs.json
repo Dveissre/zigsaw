@@ -1,6 +1,6 @@
 {
   "format": "zigsaw-gestalt-pairs/1",
-  "sourceHash": "7912b8238bb8d24a6bcc00d52364488af13a1712184f4baf5bd7c4389b002929",
+  "sourceHash": "f7e098a78a9ea1627b3a81bfff91197ea255fd4d38cb0da0db79970e0de0e50b",
   "answerCompatibilityHash": "85bf1cbeda7a34e427acd3590b5881311b019f455bb13444e53d546ba123f459",
   "excludedComponents": [
     "一",
@@ -5075,6 +5075,18 @@
     {
       "components": [
         36,
+        77
+      ],
+      "answers": [
+        {
+          "char": "窦",
+          "level": 2
+        }
+      ]
+    },
+    {
+      "components": [
+        36,
         78
       ],
       "answers": [
@@ -5152,18 +5164,6 @@
       "answers": [
         {
           "char": "嫔",
-          "level": 2
-        }
-      ]
-    },
-    {
-      "components": [
-        36,
-        122
-      ],
-      "answers": [
-        {
-          "char": "燎",
           "level": 2
         }
       ]
@@ -39683,22 +39683,6 @@
     {
       "components": [
         36,
-        77
-      ],
-      "answers": [
-        {
-          "char": "窦",
-          "level": 2
-        },
-        {
-          "char": "燎",
-          "level": 2
-        }
-      ]
-    },
-    {
-      "components": [
-        36,
         88
       ],
       "answers": [
@@ -47708,6 +47692,22 @@
         },
         {
           "char": "箦",
+          "level": 2
+        }
+      ]
+    },
+    {
+      "components": [
+        135,
+        140
+      ],
+      "answers": [
+        {
+          "char": "梆",
+          "level": 1
+        },
+        {
+          "char": "楔",
           "level": 2
         }
       ]
@@ -59325,26 +59325,6 @@
         {
           "char": "慧",
           "level": 1
-        }
-      ]
-    },
-    {
-      "components": [
-        135,
-        140
-      ],
-      "answers": [
-        {
-          "char": "梆",
-          "level": 1
-        },
-        {
-          "char": "锲",
-          "level": 2
-        },
-        {
-          "char": "楔",
-          "level": 2
         }
       ]
     },

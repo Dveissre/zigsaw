@@ -27,8 +27,8 @@
     {
       "symbolId": 140,
       "name": "木",
-      "count": 867,
-      "charCount": 736
+      "count": 866,
+      "charCount": 735
     },
     {
       "symbolId": 157,
@@ -69,8 +69,8 @@
     {
       "symbolId": 49,
       "name": "丷",
-      "count": 496,
-      "charCount": 420
+      "count": 497,
+      "charCount": 421
     },
     {
       "symbolId": 17,
@@ -87,8 +87,8 @@
     {
       "symbolId": 36,
       "name": "八",
-      "count": 453,
-      "charCount": 419
+      "count": 452,
+      "charCount": 418
     },
     {
       "symbolId": 177,
@@ -105,8 +105,8 @@
     {
       "symbolId": 77,
       "name": "大",
-      "count": 409,
-      "charCount": 380
+      "count": 410,
+      "charCount": 381
     },
     {
       "symbolId": 61,
@@ -329,8 +329,8 @@
     {
       "symbolId": 223,
       "name": "石",
-      "count": 157,
-      "charCount": 147
+      "count": 158,
+      "charCount": 148
     },
     {
       "symbolId": 84,
@@ -1436,12 +1436,6 @@
       "asset": "component_svg/405.svg"
     },
     {
-      "symbolId": 206,
-      "name": "尹",
-      "count": 16,
-      "charCount": 16
-    },
-    {
       "symbolId": 219,
       "name": "世",
       "count": 16,
@@ -1483,6 +1477,12 @@
       "count": 15,
       "charCount": 15,
       "asset": "component_svg/161.svg"
+    },
+    {
+      "symbolId": 206,
+      "name": "尹",
+      "count": 15,
+      "charCount": 15
     },
     {
       "symbolId": 239,

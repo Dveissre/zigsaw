@@ -2,7 +2,7 @@
   "format": "zigsaw-composition-words/1",
   "sourceHash": "038b7a35cb8abcc15b2d5897844404033f567402ee30dcf4bbb19bdd8c141cb6",
   "excludedHash": "bd1015336ca25360f5792d88068ffef5b29ed196d6d860f33a7da96ed7a45e1f",
-  "symbolHash": "7912b8238bb8d24a6bcc00d52364488af13a1712184f4baf5bd7c4389b002929",
+  "symbolHash": "f7e098a78a9ea1627b3a81bfff91197ea255fd4d38cb0da0db79970e0de0e50b",
   "answerCompatibilityHash": "85bf1cbeda7a34e427acd3590b5881311b019f455bb13444e53d546ba123f459",
   "weighting": "per candidate pool: 1 / geometric mean of character occurrences within that generated pool",
   "words": {
